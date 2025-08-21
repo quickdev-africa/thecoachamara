@@ -1,13 +1,11 @@
 
 "use client";
 import React, { useState, useEffect } from 'react';
-import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+
 
 import PaystackOrderButton from './PaystackOrderButton';
 
 export default function OrderQuantumMachinePage() {
-  const router = useRouter();
   const [form, setForm] = useState({
     name: '',
     phone: '',
@@ -27,7 +25,6 @@ export default function OrderQuantumMachinePage() {
     pickupLocation: '',
   });
   const [loading, setLoading] = useState(false);
-  const [showPaymentOptionError, setShowPaymentOptionError] = useState(false);
 
 
   // Countdown timer logic
