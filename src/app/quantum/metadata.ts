@@ -1,0 +1,21 @@
+export const metadata = {
+  title: 'Quantum Energy Machine | Revolutionary Non-Invasive Healing Device in Lagos',
+  description: 'Experience revolutionary healing with the Quantum Energy Machine. Non-invasive pain relief, energy restoration & wellness. Trusted worldwide. Book your trial session in Lagos today.',
+  keywords: [
+    'Quantum Energy Machine',
+    'Pain Relief',
+    'Non-Invasive Healing',
+    'Lagos',
+    'Energy Restoration',
+    'Wellness',
+    'Alternative Medicine',
+    'Book Trial',
+    'Health',
+    'Therapy',
+    'Quantum Therapy',
+    'Healing Device',
+    'Nigeria',
+    'Wellbeing',
+    'Holistic Health',
+  ],
+};

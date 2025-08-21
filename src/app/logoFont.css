@@ -1,0 +1,13 @@
+/* Import Great Vibes font for a thin, elegant script logo */
+@import url('https://fonts.googleapis.com/css2?family=Great+Vibes&display=swap');
+
+:root {
+  --font-logo: 'Great Vibes', cursive;
+}
+
+.font-logo {
+  font-family: var(--font-logo), 'Great Vibes', cursive !important;
+  font-weight: 400;
+  font-size: 2.2rem;
+  letter-spacing: 0.04em;
+}
