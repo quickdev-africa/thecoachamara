@@ -15,92 +15,17 @@ type Product = {
 type Category = string;
 
 export default function ProductsPage() {
+
   const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [form, setForm] = useState({ name: "", price: "", category: "", newCategory: "", image: "", description: "" });
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-  const [uploading, setUploading] = useState(false);
-  const [imageUploaded, setImageUploaded] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ name: "", price: "", category: "", image: "", description: "" });
   const [editSubmitting, setEditSubmitting] = useState(false);
-
-  const fetchProducts = async () => {
-    setError("");
-    setSuccess("");
-    const res = await fetch("/api/products");
-    const data = await res.json();
-    setProducts(data);
-    const uniqueCategories = Array.from(new Set(data.map((p: Product) => p.category).filter(Boolean))) as string[];
-    setCategories(uniqueCategories);
-  };
-
-  useEffect(() => {
+  const handleDelete = async (id: string) => {
+    if (!confirm("Delete this product?")) return;
+    await fetch(`/api/products/${id}`, { method: "DELETE" });
     fetchProducts();
-  }, []);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 500 * 1024) {
-      setError("Image must be less than 500KB");
-      return;
-    }
-    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
-    if (!allowedTypes.includes(file.type)) {
-      setError("Image must be JPEG, PNG, or WebP format");
-      return;
-    }
-    setUploading(true);
-    setError("");
-    setImageUploaded(false);
-    try {
-      const url = await uploadProductImage(file);
-      setForm(f => ({ ...f, image: url }));
-      setImageUploaded(true);
-    } catch {
-      setError("Image upload failed");
-    }
-    setUploading(false);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitting(true);
-    setError("");
-    setSuccess("");
-    let category = form.category;
-    if (form.newCategory.trim()) {
-      category = form.newCategory.trim();
-    }
-    const res = await fetch("/api/products", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...form,
-        category,
-        price: parseFloat(form.price),
-      }),
-    });
-    if (!res.ok) {
-      setError("Failed to add product");
-    } else {
-      setForm({ name: "", price: "", category: "", newCategory: "", image: "", description: "" });
-      setSuccess("Product added successfully!");
-      setImageUploaded(false);
-      fetchProducts();
-      setTimeout(() => setSuccess(""), 2000);
-    }
-    setSubmitting(false);
-  };
-
-  // Edit logic
   const startEdit = (product: Product) => {
     setEditingId(product.id);
     setEditForm({
@@ -133,14 +58,92 @@ export default function ProductsPage() {
     fetchProducts();
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Delete this product?")) return;
-    await fetch(`/api/products/${id}`, { method: "DELETE" });
-    fetchProducts();
-  };
-
   const cancelEdit = () => {
     setEditingId(null);
+  };
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [form, setForm] = useState({ name: "", price: "", category: "", newCategory: "", image: "", description: "" });
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [imageUploaded, setImageUploaded] = useState(false);
+
+  const fetchProducts = async () => {
+    setLoading(true);
+    const res = await fetch("/api/products");
+    const data = await res.json();
+    setProducts(data);
+    // Extract unique categories from products
+  const uniqueCategories = Array.from(new Set(data.map((p: Product) => p.category).filter(Boolean))) as string[];
+  setCategories(uniqueCategories);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    // Enforce file size < 500KB
+    if (file.size > 500 * 1024) {
+      setError("Image must be less than 500KB");
+      return;
+    }
+    // Enforce file type
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+    if (!allowedTypes.includes(file.type)) {
+      setError("Image must be JPEG, PNG, or WebP format");
+      return;
+    }
+    setUploading(true);
+    setError("");
+    setImageUploaded(false);
+    try {
+      const url = await uploadProductImage(file);
+      setForm(f => ({ ...f, image: url }));
+      setImageUploaded(true);
+    } catch {
+      setError("Image upload failed");
+    }
+    setUploading(false);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+  setSubmitting(true);
+  setError("");
+  setSuccess("");
+    let category = form.category;
+    if (form.newCategory.trim()) {
+      category = form.newCategory.trim();
+    }
+    const res = await fetch("/api/products", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...form,
+        category,
+        price: parseFloat(form.price),
+      }),
+    });
+    if (!res.ok) {
+      setError("Failed to add product");
+    } else {
+      setForm({ name: "", price: "", category: "", newCategory: "", image: "", description: "" });
+      setSuccess("Product added successfully!");
+      setImageUploaded(false);
+      fetchProducts();
+      setTimeout(() => setSuccess(""), 2000);
+    }
+    setSubmitting(false);
   };
 
   return (
@@ -244,78 +247,122 @@ export default function ProductsPage() {
             disabled={submitting || !form.name || !form.price}
           >
             {submitting ? (
-              <span className="flex items-center gap-2"><svg className="animate-spin h-4 w-4 text-black" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z\"></path></svg>Adding...</span>
+              <span className="flex items-center gap-2"><svg className="animate-spin h-4 w-4 text-black" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path></svg>Adding...</span>
             ) : "Add Product"}
           </button>
         </form>
-        {error && <div className="text-red-500 text-sm mt-2">{error}</div>}
-        {success && <div className="text-green-600 text-sm mt-2">{success}</div>}
+        {error && <div className="text-red-600 mt-2">{error}</div>}
+        {success && <div className="text-green-700 mt-2 font-semibold">{success}</div>}
       </div>
-      <div className="overflow-x-auto">
-        <table className="min-w-full bg-white border border-blue_gray-100 rounded-xl">
-          <thead>
-            <tr className="bg-blue_gray-50 text-blue_gray-400">
-              <th className="py-2 px-4 text-left">Name</th>
-              <th className="py-2 px-4 text-left">Price</th>
-              <th className="py-2 px-4 text-left">Category</th>
-              <th className="py-2 px-4 text-left">Image</th>
-              <th className="py-2 px-4 text-left">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {products.map(product => (
-              editingId === product.id ? (
-                <tr key={product.id} className="bg-yellow-50">
-                  <td className="py-2 px-4">
-                    <input
-                      name="name"
-                      value={editForm.name}
-                      onChange={handleEditChange}
-                      className="border rounded px-2 py-1"
-                    />
-                  </td>
-                  <td className="py-2 px-4">
-                    <input
-                      name="price"
-                      value={editForm.price}
-                      onChange={handleEditChange}
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      className="border rounded px-2 py-1"
-                    />
-                  </td>
-                  <td className="py-2 px-4">
-                    <input
-                      name="category"
-                      value={editForm.category}
-                      onChange={handleEditChange}
-                      className="border rounded px-2 py-1"
-                    />
-                  </td>
-                  <td className="py-2 px-4">
-                    {editForm.image && <Image src={editForm.image} alt="Product" width={40} height={40} className="object-cover rounded border" />}
-                  </td>
-                  <td className="py-2 px-4 flex gap-2">
-                    <button onClick={handleEditSubmit} className="bg-green-500 text-white px-2 py-1 rounded text-xs" disabled={editSubmitting}>Save</button>
-                    <button onClick={cancelEdit} className="bg-gray-300 text-gray-700 px-2 py-1 rounded text-xs">Cancel</button>
-                  </td>
+      <div className="bg-baby_powder-900 rounded-xl shadow p-2 md:p-6 border border-blue_gray-100 overflow-x-auto">
+        {loading ? (
+          <div>Loading products...</div>
+        ) : products.length === 0 ? (
+          <div>No products found.</div>
+        ) : (
+          <table className="min-w-full text-left text-xs md:text-base">
+            <thead>
+              <tr>
+                <th className="py-2">Name</th>
+                <th className="py-2">Price</th>
+                <th className="py-2">Category</th>
+                <th className="py-2">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {products.map(product => (
+                <tr key={product.id} className="border-t">
+                  {editingId === product.id ? (
+                    <>
+                      <td className="py-2" colSpan={4}>
+                        <form onSubmit={handleEditSubmit} className="flex flex-col md:flex-row gap-2 items-center">
+                          <input
+                            name="name"
+                            value={editForm.name}
+                            onChange={handleEditChange}
+                            placeholder="Product Name"
+                            className="border rounded-lg px-2 py-1 text-blue_gray-300 bg-baby_powder-500 placeholder:text-blue_gray-100"
+                            required
+                          />
+                          <input
+                            name="price"
+                            value={editForm.price}
+                            onChange={handleEditChange}
+                            placeholder="Price"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            className="border rounded-lg px-2 py-1 text-blue_gray-300 bg-baby_powder-500 placeholder:text-blue_gray-100"
+                            required
+                          />
+                          <select
+                            name="category"
+                            value={editForm.category}
+                            onChange={handleEditChange}
+                            className="border rounded-lg px-2 py-1 text-blue_gray-300 bg-baby_powder-500"
+                          >
+                            <option value="">Select Category</option>
+                            {categories.map(cat => (
+                              <option key={cat} value={cat}>{cat}</option>
+                            ))}
+                          </select>
+                          <input
+                            name="image"
+                            value={editForm.image}
+                            onChange={handleEditChange}
+                            placeholder="Image URL"
+                            className="border rounded-lg px-2 py-1 text-blue_gray-300 bg-baby_powder-500 placeholder:text-blue_gray-100"
+                          />
+                          <input
+                            name="description"
+                            value={editForm.description}
+                            onChange={handleEditChange}
+                            placeholder="Description"
+                            className="border rounded-lg px-2 py-1 text-blue_gray-300 bg-baby_powder-500 placeholder:text-blue_gray-100"
+                          />
+                          <button
+                            type="submit"
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg px-3 py-1"
+                            disabled={editSubmitting}
+                          >
+                            {editSubmitting ? "Saving..." : "Save"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={cancelEdit}
+                            className="text-gray-500 hover:underline px-2 py-1"
+                          >
+                            Cancel
+                          </button>
+                        </form>
+                      </td>
+                    </>
+                  ) : (
+                    <>
+                      <td className="py-2 font-semibold">{product.name}</td>
+                      <td className="py-2">${product.price}</td>
+                      <td className="py-2">{product.category || "-"}</td>
+                      <td className="py-2 flex gap-2">
+                        <button
+                          onClick={() => startEdit(product)}
+                          className="text-blue_gray-400 hover:text-sunglow-400 hover:underline text-sm"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDelete(product.id)}
+                          className="text-mustard-400 hover:text-red-600 hover:underline text-sm"
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </>
+                  )}
                 </tr>
-              ) : (
-                <tr key={product.id}>
-                  <td className="py-2 px-4">{product.name}</td>
-                  <td className="py-2 px-4">${product.price.toFixed(2)}</td>
-                  <td className="py-2 px-4">{product.category}</td>
-                  <td className="py-2 px-4">{product.image && <Image src={product.image} alt="Product" width={40} height={40} className="object-cover rounded border" />}</td>
-                  <td className="py-2 px-4 flex gap-2">
-                    <button onClick={() => startEdit(product)} className="bg-blue-500 text-white px-2 py-1 rounded text-xs">Edit</button>
-                    <button onClick={() => handleDelete(product.id)} className="bg-red-500 text-white px-2 py-1 rounded text-xs">Delete</button>
-                  </td>
-                </tr>
-              )
-            ))}
-          </tbody>
-        </table>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );

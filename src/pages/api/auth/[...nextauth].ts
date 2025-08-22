@@ -1,3 +1,4 @@
+
 import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
@@ -25,6 +26,7 @@ export default NextAuth({
         password: { label: "Password", type: "password" }
       },
       async authorize(credentials) {
+        // Use Firebase Auth for authentication and check for admin claim
         try {
           const auth = getAuth();
           const userCredential = await signInWithEmailAndPassword(
@@ -34,6 +36,7 @@ export default NextAuth({
           );
           const user = userCredential.user;
           if (user) {
+            // Get ID token result to check for custom claims
             const idTokenResult = await user.getIdTokenResult();
             if (idTokenResult.claims && idTokenResult.claims.admin) {
               return {
@@ -42,11 +45,12 @@ export default NextAuth({
                 email: user.email,
               };
             } else {
+              // Not an admin
               return null;
             }
           }
           return null;
-        } catch {
+        } catch (error) {
           return null;
         }
       }
