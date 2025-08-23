@@ -2,15 +2,7 @@
 import Image from 'next/image';
 import { useEffect, useState } from "react";
 import { uploadProductImage } from "../../../utils/uploadProductImage";
-
-type Product = {
-  id: string;
-  name: string;
-  price: number;
-  category?: string;
-  image?: string;
-  description?: string;
-};
+import { Product } from "@/lib/types";
 
 type Category = string;
 
@@ -31,8 +23,8 @@ export default function ProductsPage() {
     setEditForm({
       name: product.name,
       price: product.price.toString(),
-      category: product.category || "",
-      image: product.image || "",
+      category: product.categoryId || "",
+      image: product.images?.[0] || "",
       description: product.description || "",
     });
   };
@@ -45,14 +37,21 @@ export default function ProductsPage() {
     e.preventDefault();
     if (!editingId) return;
     setEditSubmitting(true);
-    await fetch(`/api/products/${editingId}`, {
+    
+    const updateData = {
+      name: editForm.name,
+      price: parseFloat(editForm.price),
+      categoryId: editForm.category,
+      description: editForm.description,
+      images: editForm.image ? [editForm.image] : []
+    };
+    
+    const res = await fetch(`/api/products/${editingId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...editForm,
-        price: parseFloat(editForm.price),
-      }),
+      body: JSON.stringify(updateData),
     });
+    
     setEditingId(null);
     setEditSubmitting(false);
     fetchProducts();
@@ -72,12 +71,23 @@ export default function ProductsPage() {
 
   const fetchProducts = async () => {
     setLoading(true);
-    const res = await fetch("/api/products");
-    const data = await res.json();
-    setProducts(data);
-    // Extract unique categories from products
-  const uniqueCategories = Array.from(new Set(data.map((p: Product) => p.category).filter(Boolean))) as string[];
-  setCategories(uniqueCategories);
+    try {
+      const res = await fetch("/api/products");
+      const response = await res.json();
+      
+      if (response.success && response.data) {
+        setProducts(response.data);
+        // Extract unique categories from products
+        const uniqueCategories = Array.from(new Set(response.data.map((p: Product) => p.categoryId).filter(Boolean))) as string[];
+        setCategories(uniqueCategories);
+      } else {
+        console.error('Failed to fetch products:', response.error);
+        setProducts([]);
+      }
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      setProducts([]);
+    }
     setLoading(false);
   };
 
@@ -118,24 +128,36 @@ export default function ProductsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-  setSubmitting(true);
-  setError("");
-  setSuccess("");
-    let category = form.category;
+    setSubmitting(true);
+    setError("");
+    setSuccess("");
+    
+    let categoryId = form.category;
     if (form.newCategory.trim()) {
-      category = form.newCategory.trim();
+      categoryId = form.newCategory.trim();
     }
+    
+    const productData = {
+      name: form.name,
+      description: form.description,
+      price: parseFloat(form.price),
+      categoryId,
+      images: form.image ? [form.image] : [],
+      stock: 0, // Default stock
+      featured: false, // Default featured
+      tags: [] // Default tags
+    };
+    
     const res = await fetch("/api/products", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...form,
-        category,
-        price: parseFloat(form.price),
-      }),
+      body: JSON.stringify(productData),
     });
-    if (!res.ok) {
-      setError("Failed to add product");
+    
+    const response = await res.json();
+    
+    if (!res.ok || !response.success) {
+      setError(response.error || "Failed to add product");
     } else {
       setForm({ name: "", price: "", category: "", newCategory: "", image: "", description: "" });
       setSuccess("Product added successfully!");
@@ -341,7 +363,7 @@ export default function ProductsPage() {
                     <>
                       <td className="py-2 font-semibold">{product.name}</td>
                       <td className="py-2">${product.price}</td>
-                      <td className="py-2">{product.category || "-"}</td>
+                      <td className="py-2">{product.categoryId || "-"}</td>
                       <td className="py-2 flex gap-2">
                         <button
                           onClick={() => startEdit(product)}

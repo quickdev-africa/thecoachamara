@@ -3,9 +3,16 @@ import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import useSWR from "swr";
-import { apiRequest } from "@/lib/api";
-// SWR fetcher using centralized API utility
-const fetcher = (endpoint: string) => apiRequest(endpoint);
+import { ApiResponse, Product, Order } from "@/lib/types";
+
+// SWR fetcher for our APIs
+const fetcher = async (url: string): Promise<ApiResponse<any>> => {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error('Failed to fetch');
+  }
+  return response.json();
+};
 
 export default function AdminDashboard() {
   const { data: session, status } = useSession();
@@ -18,10 +25,13 @@ export default function AdminDashboard() {
     }
   }, [status, router]);
 
-  // Fetch orders and products from real backend endpoints
-  // Update these endpoints to match your real backend API routes
-  const { data: orders, error: ordersError, isLoading: ordersLoading } = useSWR("/admin/orders", fetcher);
-  const { data: products, error: productsError, isLoading: productsLoading } = useSWR("/admin/products", fetcher);
+  // Fetch orders and products from our new backend APIs
+  const { data: ordersResponse, error: ordersError, isLoading: ordersLoading } = useSWR<ApiResponse<Order[]>>("/api/orders", fetcher);
+  const { data: productsResponse, error: productsError, isLoading: productsLoading } = useSWR<ApiResponse<Product[]>>("/api/products", fetcher);
+
+  // Extract data from API responses
+  const orders = ordersResponse?.data || [];
+  const products = productsResponse?.data || [];
 
   if (status === "loading") {
     return (
