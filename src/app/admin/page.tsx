@@ -15,15 +15,18 @@ const fetcher = async (url: string): Promise<ApiResponse<any>> => {
 };
 
 export default function AdminDashboard() {
+
   const { data: session, status } = useSession();
   const router = useRouter();
 
-
+  // Debug log for session and status
   useEffect(() => {
+    // eslint-disable-next-line no-console
+    console.log("[AdminDashboard] Session:", session, "Status:", status);
     if (status === "unauthenticated") {
       router.replace("/signin");
     }
-  }, [status, router]);
+  }, [status, router, session]);
 
   // Fetch orders and products from our new backend APIs
   const { data: ordersResponse, error: ordersError, isLoading: ordersLoading } = useSWR<ApiResponse<Order[]>>("/api/orders", fetcher);
@@ -113,20 +116,20 @@ export default function AdminDashboard() {
           ) : (
             <ul className="text-blue_gray-600 text-sm">
               {products && products.length > 0 ? (
-                products.filter((p: unknown) => typeof p === 'object' && p !== null && typeof (p as { stock?: number }).stock === 'number' && (p as { stock: number }).stock <= 5).length > 0 ? (
-                  products.filter((p: unknown) => typeof p === 'object' && p !== null && typeof (p as { stock?: number }).stock === 'number' && (p as { stock: number }).stock <= 5).map((p: unknown) => {
+                products.filter((p: unknown) => typeof p === 'object' && p !== null && typeof (p as { stock?: number }).stock === 'number' && (p as { stock: number }).stock === 0).length > 0 ? (
+                  products.filter((p: unknown) => typeof p === 'object' && p !== null && typeof (p as { stock?: number }).stock === 'number' && (p as { stock: number }).stock === 0).map((p: unknown) => {
                     const prod = p as { id: string; name: string; stock: number };
                     return (
                       <li key={prod.id} className="text-red-600 font-semibold">
-                        {prod.name} — Only {prod.stock} left!
+                        {prod.name} — Only 0 left!
                       </li>
                     );
                   })
                 ) : (
-                  <li>No low stock products 🎉</li>
+                  <li>No out of stock products 🎉</li>
                 )
               ) : (
-                <li>No products found</li>
+                  <li className="text-gray-700">No products found</li>
               )}
             </ul>
           )}
@@ -167,7 +170,7 @@ export default function AdminDashboard() {
                   })
                 ) : (
                   <tr>
-                    <td className="py-2" colSpan={4}>No orders yet</td>
+                    <td className="py-2 text-gray-700" colSpan={4}>No orders yet</td>
                   </tr>
                 )}
               </tbody>
@@ -178,16 +181,9 @@ export default function AdminDashboard() {
         {/* Analytics Widget */}
         <section className="bg-white rounded-lg shadow p-6 flex flex-col">
           <h2 className="text-lg font-normal text-black mb-2">Traffic Analytics</h2>
-          <div className="text-gray-500 text-sm">No data yet</div>
+          <div className="text-gray-700 text-sm">No data yet</div>
         </section>
 
-        {/* Quick Actions Widget */}
-        <section className="bg-white rounded-lg shadow p-6 flex flex-col gap-2">
-          <h2 className="text-lg font-normal text-black mb-2">Quick Actions</h2>
-          <button className="py-2 px-4 bg-gray-900 hover:bg-black text-white rounded transition font-normal">Add Product</button>
-          <button className="py-2 px-4 bg-gray-900 hover:bg-black text-white rounded transition font-normal">Create Discount</button>
-          <button className="py-2 px-4 bg-gray-900 hover:bg-black text-white rounded transition font-normal">View Reports</button>
-        </section>
 
         {/* Notifications Widget */}
         <section className="bg-white rounded-lg shadow p-6 flex flex-col col-span-1 md:col-span-3">

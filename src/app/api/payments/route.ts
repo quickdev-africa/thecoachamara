@@ -1,21 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { initializeApp, getApps } from 'firebase/app';
-import { getFirestore, collection, getDocs, addDoc, query, orderBy, limit, where } from 'firebase/firestore';
+
+
+import { supabase } from '../../../supabaseClient';
 import { ApiResponse } from '@/lib/types';
-
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-};
-
-if (!getApps().length) {
-  initializeApp(firebaseConfig);
-}
-const db = getFirestore();
 
 export interface Payment {
   id: string;
@@ -40,35 +27,30 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Pa
     const status = url.searchParams.get('status');
     const email = url.searchParams.get('email');
 
-    // Simple query to avoid index requirements
-    let paymentsQuery = query(collection(db, 'payments'));
+    // Build Supabase query
+    let queryBuilder = supabase
+      .from('payments')
+  .select('*')
+  .order('created_at', { ascending: false })
+      .limit(pageLimit);
 
-    // Order by creation date (most recent first)
-    paymentsQuery = query(paymentsQuery, orderBy('createdAt', 'desc'));
-
-    // Add pagination
-    paymentsQuery = query(paymentsQuery, limit(pageLimit));
-
-    const snapshot = await getDocs(paymentsQuery);
-    let payments = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    })) as Payment[];
-
-    // Apply filters in memory if provided
     if (status) {
-      payments = payments.filter(payment => payment.status === status);
+      queryBuilder = queryBuilder.eq('status', status);
+    }
+    if (email) {
+      queryBuilder = queryBuilder.ilike('email', `%${email}%`);
     }
 
-    if (email) {
-      payments = payments.filter(payment => payment.email.toLowerCase().includes(email.toLowerCase()));
+    const { data: payments, error } = await queryBuilder;
+    if (error) {
+      throw error;
     }
 
     return NextResponse.json({
       success: true,
-      data: payments,
+      data: payments || [],
       meta: {
-        total: payments.length
+        total: payments ? payments.length : 0
       }
     });
 
@@ -107,15 +89,29 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<{
       productId: paymentData.productId,
       status: paymentData.status,
       metadata: paymentData.metadata || {},
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString()
     };
 
-    const docRef = await addDoc(collection(db, 'payments'), payment);
+    const { data, error } = await supabase
+      .from('payments')
+      .insert([
+        {
+          ...payment,
+          created_at: payment.createdAt,
+          updated_at: payment.updatedAt,
+        }
+      ])
+      .select('id')
+      .single();
+
+    if (error) {
+      throw error;
+    }
 
     return NextResponse.json({
       success: true,
-      data: { id: docRef.id },
+      data: { id: data.id },
       message: 'Payment record created successfully'
     });
 

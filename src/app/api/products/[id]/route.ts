@@ -1,28 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { initializeApp, getApps } from 'firebase/app';
-import { getFirestore, doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { supabase } from '../../../../supabaseClient';
 import { Product, ApiResponse } from '@/lib/types';
-
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-};
-
-if (!getApps().length) {
-  initializeApp(firebaseConfig);
-}
-const db = getFirestore();
 
 interface RouteParams {
   params: { id: string };
 }
 
 // ============================================================================
-// GET SINGLE PRODUCT BY ID
+// GET SINGLE PRODUCT BY ID (Supabase)
 // ============================================================================
 export async function GET(
   req: NextRequest,
@@ -30,34 +15,27 @@ export async function GET(
 ): Promise<NextResponse<ApiResponse<Product>>> {
   try {
     const { id } = params;
-
     if (!id) {
       return NextResponse.json({
         success: false,
         error: 'Product ID is required'
       }, { status: 400 });
     }
-
-    const docRef = doc(db, 'products', id);
-    const docSnap = await getDoc(docRef);
-
-    if (!docSnap.exists()) {
+    const { data: product, error } = await supabase
+      .from('products')
+      .select('*')
+      .eq('id', id)
+      .single();
+    if (error || !product) {
       return NextResponse.json({
         success: false,
         error: 'Product not found'
       }, { status: 404 });
     }
-
-    const product: Product = {
-      id: docSnap.id,
-      ...docSnap.data()
-    } as Product;
-
     return NextResponse.json({
       success: true,
       data: product
     });
-
   } catch (error) {
     console.error('Error fetching product:', error);
     return NextResponse.json({
@@ -68,7 +46,7 @@ export async function GET(
 }
 
 // ============================================================================
-// UPDATE PRODUCT
+// UPDATE PRODUCT (Supabase)
 // ============================================================================
 export async function PUT(
   req: NextRequest,
@@ -77,59 +55,60 @@ export async function PUT(
   try {
     const { id } = params;
     const updateData = await req.json();
-
     if (!id) {
       return NextResponse.json({
         success: false,
         error: 'Product ID is required'
       }, { status: 400 });
     }
-
     // Check if product exists
-    const docRef = doc(db, 'products', id);
-    const docSnap = await getDoc(docRef);
-
-    if (!docSnap.exists()) {
+    const { data: product, error: fetchError } = await supabase
+      .from('products')
+      .select('id, metadata')
+      .eq('id', id)
+      .single();
+    if (fetchError || !product) {
       return NextResponse.json({
         success: false,
         error: 'Product not found'
       }, { status: 404 });
     }
-
-    // Prepare update data with validation
-    const updateFields: Partial<Product> = {
-      updatedAt: new Date().toISOString()
+    // Prepare update fields (snake_case for DB)
+    const updateFields: any = {
+      updated_at: new Date().toISOString()
     };
-
-    // Only update provided fields
     if (updateData.name) updateFields.name = updateData.name;
     if (updateData.description) updateFields.description = updateData.description;
     if (updateData.price !== undefined) updateFields.price = parseFloat(updateData.price);
-    if (updateData.categoryId) updateFields.categoryId = updateData.categoryId;
+    if (updateData.categoryId) updateFields.category_id = updateData.categoryId;
     if (updateData.images) updateFields.images = updateData.images;
     if (updateData.stock !== undefined) updateFields.stock = updateData.stock;
-    if (updateData.isActive !== undefined) updateFields.isActive = updateData.isActive;
+    if (updateData.isActive !== undefined) updateFields.is_active = updateData.isActive;
     if (updateData.featured !== undefined) updateFields.featured = updateData.featured;
-
     // Handle metadata updates
     if (updateData.weight || updateData.dimensions || updateData.tags) {
-      const currentData = docSnap.data();
       updateFields.metadata = {
-        ...currentData.metadata,
+        ...(product.metadata || {}),
         ...(updateData.weight && { weight: updateData.weight }),
         ...(updateData.dimensions && { dimensions: updateData.dimensions }),
         ...(updateData.tags && { tags: updateData.tags })
       };
     }
-
-    await updateDoc(docRef, updateFields);
-
+    const { error } = await supabase
+      .from('products')
+      .update(updateFields)
+      .eq('id', id);
+    if (error) {
+      return NextResponse.json({
+        success: false,
+        error: error.message
+      }, { status: 500 });
+    }
     return NextResponse.json({
       success: true,
       data: { id },
       message: 'Product updated successfully'
     });
-
   } catch (error) {
     console.error('Error updating product:', error);
     return NextResponse.json({
@@ -140,7 +119,7 @@ export async function PUT(
 }
 
 // ============================================================================
-// DELETE PRODUCT (SOFT DELETE)
+// DELETE PRODUCT (SOFT DELETE, Supabase)
 // ============================================================================
 export async function DELETE(
   req: NextRequest,
@@ -148,38 +127,40 @@ export async function DELETE(
 ): Promise<NextResponse<ApiResponse<{ id: string }>>> {
   try {
     const { id } = params;
-
     if (!id) {
       return NextResponse.json({
         success: false,
         error: 'Product ID is required'
       }, { status: 400 });
     }
-
-    // Check if product exists
-    const docRef = doc(db, 'products', id);
-    const docSnap = await getDoc(docRef);
-
-    if (!docSnap.exists()) {
+    // Check if product exists in Supabase
+    const { data: product, error: fetchError } = await supabase
+      .from('products')
+      .select('id')
+      .eq('id', id)
+      .single();
+    if (fetchError || !product) {
       return NextResponse.json({
         success: false,
         error: 'Product not found'
       }, { status: 404 });
     }
-
-    // Soft delete by setting isActive to false
-    await updateDoc(docRef, {
-      isActive: false,
-      updatedAt: new Date().toISOString(),
-      deletedAt: new Date().toISOString()
-    });
-
+    // Hard delete: permanently remove the product
+    const { error } = await supabase
+      .from('products')
+      .delete()
+      .eq('id', id);
+    if (error) {
+      return NextResponse.json({
+        success: false,
+        error: error.message
+      }, { status: 500 });
+    }
     return NextResponse.json({
       success: true,
       data: { id },
-      message: 'Product deleted successfully'
+      message: 'Product permanently deleted'
     });
-
   } catch (error) {
     console.error('Error deleting product:', error);
     return NextResponse.json({

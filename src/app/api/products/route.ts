@@ -1,21 +1,11 @@
+
 import { NextRequest, NextResponse } from 'next/server';
-import { initializeApp, getApps } from 'firebase/app';
-import { getFirestore, collection, getDocs, addDoc, doc, updateDoc, deleteDoc, query, where, orderBy, limit, startAfter } from 'firebase/firestore';
+import { supabase } from '../../../supabaseClient';
 import { Product, ApiResponse, PaginationParams } from '@/lib/types';
 
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-};
 
-if (!getApps().length) {
-  initializeApp(firebaseConfig);
-}
-const db = getFirestore();
+
+
 
 // ============================================================================
 // GET ALL PRODUCTS WITH FILTERING & PAGINATION
@@ -23,47 +13,45 @@ const db = getFirestore();
 export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Product[]>>> {
   try {
     // Extract search params more efficiently  
-    const url = req.nextUrl;
-    const categoryId = url.searchParams.get('categoryId');
-    const search = url.searchParams.get('search');
-    const page = parseInt(url.searchParams.get('page') || '1');
-    const pageLimit = parseInt(url.searchParams.get('limit') || '20');
-    const sortBy = url.searchParams.get('sortBy') || 'createdAt';
-    const sortOrder = url.searchParams.get('sortOrder') as 'asc' | 'desc' || 'desc';
+  const url = req.nextUrl;
+  const categoryId = url.searchParams.get('categoryId');
+  const search = url.searchParams.get('search');
+  const page = parseInt(url.searchParams.get('page') || '1');
+  const pageLimit = parseInt(url.searchParams.get('limit') || '20');
+  // Only allow snake_case fields for sorting
+  const allowedSortFields = ['created_at', 'updated_at', 'price', 'name', 'stock'];
+  let sortBy = url.searchParams.get('sortBy') || 'created_at';
+  if (!allowedSortFields.includes(sortBy)) sortBy = 'created_at';
+  const sortOrder = url.searchParams.get('sortOrder') as 'asc' | 'desc' || 'desc';
 
-    // Simple query to avoid index requirements
-    let productsQuery = query(collection(db, 'products'));
+    // Build Supabase query
+    let queryBuilder = supabase
+      .from('products')
+      .select('*')
+  .order(sortBy, { ascending: sortOrder === 'asc' })
+      .limit(pageLimit);
 
-    // Add sorting only
-    productsQuery = query(productsQuery, orderBy(sortBy, sortOrder));
-
-    // Add pagination
-    productsQuery = query(productsQuery, limit(pageLimit));
-
-    const snapshot = await getDocs(productsQuery);
-    let products = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    })) as Product[];
-
-    // Apply filters in memory to avoid index requirements
-    products = products.filter(product => product.isActive);
-
-    if (categoryId) {
-      products = products.filter(product => product.categoryId === categoryId);
+    let { data: products, error } = await queryBuilder;
+    if (error) {
+      throw error;
     }
 
-    // Apply search filter in memory (for simple text search)
+    // Filter active products (snake_case)
+    products = (products || []).filter(product => product.is_active);
+
+    if (categoryId) {
+      products = products.filter(product => product.category_id === categoryId);
+    }
+
     if (search) {
       const searchLower = search.toLowerCase();
-      products = products.filter(product => 
+      products = products.filter(product =>
         product.name.toLowerCase().includes(searchLower) ||
         product.description.toLowerCase().includes(searchLower) ||
-        product.metadata.tags.some(tag => tag.toLowerCase().includes(searchLower))
+        (product.metadata?.tags || []).some((tag: string) => tag.toLowerCase().includes(searchLower))
       );
     }
 
-    // Calculate pagination metadata
     const total = products.length;
     const hasMore = products.length === pageLimit;
 
@@ -92,12 +80,10 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Pr
 // ============================================================================
 export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<{ id: string }>>> {
   try {
-    const productData = await req.json();
-
-    // Validate required fields
+    const body = await req.json();
     const requiredFields = ['name', 'price', 'categoryId', 'description'];
     for (const field of requiredFields) {
-      if (!productData[field]) {
+      if (!body[field]) {
         return NextResponse.json({
           success: false,
           error: `${field} is required`
@@ -105,33 +91,41 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<{
       }
     }
 
-    // Create product with standardized structure
-    const product: Omit<Product, 'id'> = {
-      name: productData.name,
-      description: productData.description,
-      price: parseFloat(productData.price),
-      categoryId: productData.categoryId,
-      images: productData.images || [],
-      stock: productData.stock || 0,
-      isActive: productData.isActive !== false, // Default to true
-      featured: productData.featured || false,
+    const imageUrls = body.image ? [body.image] : [];
+
+    // Map camelCase to snake_case for DB
+    const now = new Date().toISOString();
+    const dbProduct = {
+      name: body.name,
+      description: body.description,
+      price: parseFloat(body.price),
+      category_id: body.categoryId, // snake_case for DB
+      images: imageUrls,
+      stock: typeof body.stock === 'number' ? body.stock : parseInt(body.stock, 10) || 0,
+      is_active: true,
+      featured: false,
       metadata: {
-        ...(productData.weight && { weight: productData.weight }),
-        ...(productData.dimensions && { dimensions: productData.dimensions }),
-        tags: productData.tags || []
+        tags: body.tags ? (Array.isArray(body.tags) ? body.tags : [body.tags]) : []
       },
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      created_at: now,
+      updated_at: now
     };
 
-    const docRef = await addDoc(collection(db, 'products'), product);
+    const { data, error } = await supabase
+      .from('products')
+      .insert([dbProduct])
+      .select('id')
+      .single();
+
+    if (error) {
+      throw error;
+    }
 
     return NextResponse.json({
       success: true,
-      data: { id: docRef.id },
+      data: { id: data.id },
       message: 'Product created successfully'
     });
-
   } catch (error) {
     console.error('Error creating product:', error);
     return NextResponse.json({

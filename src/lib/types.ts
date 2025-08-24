@@ -10,7 +10,7 @@ export interface Product {
   name: string;
   description: string;
   price: number;
-  categoryId: string;
+  category_id: string;
   images: string[];
   stock: number;
   isActive: boolean;

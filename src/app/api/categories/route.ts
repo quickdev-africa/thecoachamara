@@ -1,21 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { initializeApp, getApps } from 'firebase/app';
-import { getFirestore, collection, getDocs, addDoc, query, where, orderBy } from 'firebase/firestore';
+import { supabase } from '../../../supabaseClient';
 import { Category, ApiResponse } from '@/lib/types';
 
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-};
 
-if (!getApps().length) {
-  initializeApp(firebaseConfig);
-}
-const db = getFirestore();
 
 // ============================================================================
 // GET ALL CATEGORIES
@@ -26,28 +13,27 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Ca
     const url = req.nextUrl;
     const includeInactive = url.searchParams.get('includeInactive') === 'true';
 
-    // Simple query to avoid index requirements
-    let categoriesQuery = query(collection(db, 'categories'));
+    // Build Supabase query
+    let queryBuilder = supabase
+      .from('categories')
+      .select('*')
+      .order('name', { ascending: true });
 
-    // Order by name only
-    categoriesQuery = query(categoriesQuery, orderBy('name', 'asc'));
+    const { data: categories, error } = await queryBuilder;
+    if (error) {
+      throw error;
+    }
 
-    const snapshot = await getDocs(categoriesQuery);
-    let categories = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    })) as Category[];
-
-    // Filter active categories in memory to avoid index requirements
+    let filteredCategories = categories || [];
     if (!includeInactive) {
-      categories = categories.filter(category => category.isActive);
+      filteredCategories = filteredCategories.filter(category => category.isActive);
     }
 
     return NextResponse.json({
       success: true,
-      data: categories,
+      data: filteredCategories,
       meta: {
-        total: categories.length
+        total: filteredCategories.length
       }
     });
 
@@ -86,15 +72,29 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<{
         productCount: 0, // Will be updated when products are added
         tags: categoryData.tags || []
       },
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString()
     };
 
-    const docRef = await addDoc(collection(db, 'categories'), category);
+    const { data, error } = await supabase
+      .from('categories')
+      .insert([
+        {
+          ...category,
+          created_at: category.createdAt,
+          updated_at: category.updatedAt,
+        }
+      ])
+  .select('id')
+      .single();
+
+    if (error) {
+      throw error;
+    }
 
     return NextResponse.json({
       success: true,
-      data: { id: docRef.id },
+      data: { id: data.id },
       message: 'Category created successfully'
     });
 

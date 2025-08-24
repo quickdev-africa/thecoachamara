@@ -1,21 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { initializeApp, getApps } from 'firebase/app';
-import { getFirestore, collection, getDocs, query, orderBy, limit, where } from 'firebase/firestore';
+import { supabase } from '../../../supabaseClient';
 import { Order, ApiResponse } from '@/lib/types';
 
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-};
 
-if (!getApps().length) {
-  initializeApp(firebaseConfig);
-}
-const db = getFirestore();
 
 // ============================================================================
 // GET ALL ORDERS
@@ -25,33 +12,30 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Or
     // Extract search params more efficiently
     const url = req.nextUrl;
     const pageLimit = parseInt(url.searchParams.get('limit') || '50');
+    const offset = parseInt(url.searchParams.get('offset') || '0');
     const status = url.searchParams.get('status');
 
-    // Simple query to avoid index requirements
-    let ordersQuery = query(collection(db, 'orders'));
+    // Build Supabase query
+    let queryBuilder = supabase
+      .from('orders')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .range(offset, offset + pageLimit - 1);
 
-    // Order by creation date (most recent first)
-    ordersQuery = query(ordersQuery, orderBy('createdAt', 'desc'));
-
-    // Add pagination
-    ordersQuery = query(ordersQuery, limit(pageLimit));
-
-    const snapshot = await getDocs(ordersQuery);
-    let orders = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    })) as Order[];
-
-    // Apply status filter in memory if provided
     if (status) {
-      orders = orders.filter(order => order.status === status);
+      queryBuilder = queryBuilder.eq('status', status);
+    }
+
+    const { data: orders, error } = await queryBuilder;
+    if (error) {
+      throw error;
     }
 
     return NextResponse.json({
       success: true,
-      data: orders,
+      data: orders || [],
       meta: {
-        total: orders.length
+        total: orders ? orders.length : 0
       }
     });
 
@@ -61,5 +45,55 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Or
       success: false,
       error: error instanceof Error ? error.message : 'Failed to fetch orders'
     }, { status: 500 });
+  }
+}
+
+// ============================================================================
+// UPDATE ORDER (status, payment, etc.)
+// ============================================================================
+export async function PUT(req: NextRequest): Promise<NextResponse<ApiResponse<{ id?: string, updated?: number }>>> {
+  try {
+    const body = await req.json();
+    const { id, ids, status, paymentStatus, ...rest } = body;
+    // Bulk update
+    if (Array.isArray(ids) && ids.length > 0 && status) {
+      // Fetch current orders
+      const { data: orders, error: fetchError } = await supabase.from('orders').select('id, status').in('id', ids);
+      if (fetchError) return NextResponse.json({ success: false, error: fetchError.message });
+      // Update all
+      const { error: updateError } = await supabase.from('orders').update({ status }).in('id', ids);
+      if (updateError) return NextResponse.json({ success: false, error: updateError.message });
+      // Log status changes
+      const changed = (orders || []).filter((o: any) => o.status !== status);
+      if (changed.length > 0) {
+        await supabase.from('order_status_history').insert(
+          changed.map((o: any) => ({ order_id: o.id, status, changed_by: body.changedBy || null }))
+        );
+      }
+      return NextResponse.json({ success: true, updated: ids.length });
+    }
+    // Single update
+    if (!id) return NextResponse.json({ success: false, error: 'Order ID required' });
+    // Fetch current order
+    const { data: order, error: fetchError } = await supabase.from('orders').select('*').eq('id', id).single();
+    if (fetchError || !order) return NextResponse.json({ success: false, error: 'Order not found' });
+    // Prepare update fields
+    const updateFields: any = { ...rest };
+    if (status) updateFields.status = status;
+    if (paymentStatus) updateFields.payment_status = paymentStatus;
+    // Update order
+    const { error: updateError } = await supabase.from('orders').update(updateFields).eq('id', id);
+    if (updateError) return NextResponse.json({ success: false, error: updateError.message });
+    // Log status change if status changed
+    if (status && status !== order.status) {
+      await supabase.from('order_status_history').insert({
+        order_id: id,
+        status,
+        changed_by: body.changedBy || null,
+      });
+    }
+    return NextResponse.json({ success: true, data: { id } });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
   }
 }
