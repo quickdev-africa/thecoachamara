@@ -1,11 +1,36 @@
-
 "use client";
+
 import React, { useState, useEffect } from 'react';
-
-
+import { useRouter } from 'next/navigation';
+import Head from 'next/head';
 import PaystackOrderButton from './PaystackOrderButton';
 
+// Types for database integration
+interface Product {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  stock: number;
+}
+
+// Delivery zones and fees
+const DELIVERY_ZONES = {
+  'Lagos': { zone: 'Zone 1', fee: 15000 },
+  'Abuja': { zone: 'Zone 1', fee: 15000 },
+  'Port Harcourt': { zone: 'Zone 2', fee: 25000 },
+  'Kano': { zone: 'Zone 2', fee: 25000 },
+  'Enugu': { zone: 'Zone 2', fee: 25000 },
+  'Ibadan': { zone: 'Zone 2', fee: 25000 },
+};
+
+const getDeliveryInfo = (state: string) => {
+  return DELIVERY_ZONES[state as keyof typeof DELIVERY_ZONES] || { zone: 'Zone 3', fee: 35000 };
+};
+
 export default function OrderQuantumMachinePage() {
+  const router = useRouter();
+  
   const [form, setForm] = useState({
     name: '',
     phone: '',
@@ -14,9 +39,9 @@ export default function OrderQuantumMachinePage() {
     street: '',
     area: '',
     region: '',
-    country: '',
+    country: 'Nigeria',
     postalCode: '',
-    lagosArea: '', // legacy, can be removed from logic later
+    lagosArea: '',
     landmark: '',
     paymentOption: '',
     paymentMethod: '',
@@ -24,17 +49,24 @@ export default function OrderQuantumMachinePage() {
     specialRequests: '',
     pickupLocation: '',
   });
+
   const [loading, setLoading] = useState(false);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [cartSessionId, setCartSessionId] = useState<string>('');
 
+  // Add quantity state for each payment option
+  const [quantities, setQuantities] = useState({
+    full: 1,
+    plan: 1
+  });
 
-  // Countdown timer logic
-  // Set the countdown duration (e.g., 5 hours, 4 minutes, 5 seconds, 30 tenths)
-  const COUNTDOWN_SECONDS = 4 * 60 * 60 + 4 * 60 + 5; // 4 hours, 4 minutes, 5 seconds
+  // Countdown timer logic (keeping your existing timer)
+  const COUNTDOWN_SECONDS = 4 * 60 * 60 + 4 * 60 + 5;
   const [secondsLeft, setSecondsLeft] = useState(COUNTDOWN_SECONDS);
 
   useEffect(() => {
     if (secondsLeft <= 0) {
-      setSecondsLeft(COUNTDOWN_SECONDS); // Restart timer
+      setSecondsLeft(COUNTDOWN_SECONDS);
       return;
     }
     const interval = setInterval(() => {
@@ -43,24 +75,173 @@ export default function OrderQuantumMachinePage() {
     return () => clearInterval(interval);
   }, [secondsLeft]);
 
-  // Format timer as DD:HH:MM:SS
+  // Load products and create cart session on mount
+  useEffect(() => {
+    loadQuantumProducts();
+    createCartSession();
+  }, []);
+
+  const loadQuantumProducts = async () => {
+    try {
+      const response = await fetch('/api/products?category=quantum');
+      const data = await response.json();
+      
+      if (data.success && data.products?.length > 0) {
+        setProducts(data.products);
+      } else {
+        // Backend-integrated fallback products
+        const fallbackProducts: Product[] = [
+          {
+            id: 'quantum-machine',
+            name: 'Quantum Energy Machine',
+            description: 'Revolutionary healing device with 7 light frequencies',
+            price: 3039600, // Regular backend price
+            stock: 10
+          }
+        ];
+        setProducts(fallbackProducts);
+      }
+    } catch (error) {
+      console.error('Failed to load products:', error);
+    }
+  };
+
+  const createCartSession = async () => {
+    try {
+      const sessionId = `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const response = await fetch('/api/cart/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId })
+      });
+      
+      if (response.ok) {
+        setCartSessionId(sessionId);
+      }
+    } catch (error) {
+      console.error('Failed to create cart session:', error);
+      setCartSessionId(`local_${Date.now()}`);
+    }
+  };
+
+  // Format timer as DD:HH:MM:SS (keeping your existing format)
   const days = Math.floor(secondsLeft / 86400).toString().padStart(2, '0');
   const hours = Math.floor((secondsLeft % 86400) / 3600).toString().padStart(2, '0');
   const minutes = Math.floor((secondsLeft % 3600) / 60).toString().padStart(2, '0');
   const seconds = (secondsLeft % 60).toString().padStart(2, '0');
 
+  // Enhanced form handler with database preparation
+  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    
+    if (name === 'deliveryPref') {
+      if (value === 'pickup') {
+        setForm(f => ({
+          ...f,
+          deliveryPref: value,
+          street: '',
+          area: '',
+          region: '',
+          country: 'Nigeria',
+          postalCode: '',
+          landmark: '',
+          pickupLocation: '',
+        }));
+      } else {
+        setForm(f => ({ ...f, deliveryPref: value }));
+      }
+      return;
+    }
+    
+    setForm(f => ({ ...f, [name]: value }));
+  };
+
+  // Product pricing structure based on backend
+  const getProductPricing = () => {
+    const baseProduct = products.find(p => p.name.toLowerCase().includes('quantum')) || products[0];
+    const regularPrice = baseProduct?.price || 3039600;
+    
+    return {
+      regular: regularPrice,
+      discounted: 2800000,
+      savings: regularPrice - 2800000,
+      installmentDown: 1500000,
+      installmentMonthly: 384900,
+      installmentTotal: regularPrice
+    };
+  };
+
+  // Calculate order totals with quantities
+  const calculateTotals = () => {
+    const pricing = getProductPricing();
+    const quantity = quantities[form.paymentOption as keyof typeof quantities] || 1;
+    
+    const subtotal = form.paymentOption === 'full' 
+      ? pricing.discounted * quantity
+      : form.paymentOption === 'plan' 
+        ? pricing.installmentDown * quantity
+        : 0;
+        
+    const shipping = form.deliveryPref === 'ship' && form.region 
+      ? getDeliveryInfo(form.region).fee 
+      : 0;
+    const total = subtotal + shipping;
+
+    return { subtotal, shipping, total, quantity };
+  };
+
+  // Validate form completion
+  const validateForm = () => {
+    const required = ['name', 'phone', 'email', 'paymentOption', 'deliveryPref'];
+    
+    // Check basic required fields
+    const basicFieldsValid = required.every(field => {
+      const value = form[field as keyof typeof form];
+      return value && value.toString().trim().length > 0;
+    });
+
+    if (!basicFieldsValid) return false;
+    
+    // Additional validation for pickup
+    if (form.deliveryPref === 'pickup') {
+      return form.pickupLocation && form.pickupLocation.trim().length > 0;
+    }
+    
+    // Additional validation for shipping
+    if (form.deliveryPref === 'ship') {
+      const shippingFields = ['street', 'area', 'region', 'landmark'];
+      return shippingFields.every(field => {
+        const value = form[field as keyof typeof form];
+        return value && value.toString().trim().length > 0;
+      });
+    }
+
+    return true;
+  };
+
+  const { subtotal, shipping, total, quantity } = calculateTotals();
+  const pricing = getProductPricing();
+  const isFormValid = validateForm();
+  const canPay = isFormValid && form.paymentOption && !loading;
+
   return (
-    <main className="min-h-screen w-full bg-white flex flex-col items-center justify-start font-sans text-black font-semibold text-lg md:text-xl">
+    <>
+      <Head>
+        <script src="https://js.paystack.co/v1/inline.js"></script>
+      </Head>
+      
+      <main className="min-h-screen w-full bg-white flex flex-col items-center justify-start font-sans text-black font-semibold text-lg md:text-xl">
       {/* Coach Amara at the top */}
       <div className="w-full flex justify-center pt-6 pb-2">
         <span className="text-lg md:text-xl font-bold text-amber-700 font-playfair tracking-wide">Coach Amara</span>
       </div>
-  {/* Header Section */}
-  <section className="w-full max-w-5xl mx-auto px-4 py-12 mb-10 bg-white rounded-2xl border border-gray-200 shadow text-center text-lg md:text-xl font-sans">
+
+      {/* Header Section with Countdown */}
+      <section className="w-full max-w-5xl mx-auto px-4 py-12 mb-10 bg-white rounded-2xl border border-gray-200 shadow text-center text-lg md:text-xl font-sans">
         <h1 className="text-4xl md:text-5xl font-extrabold font-playfair text-gray-900 mb-2 drop-shadow tracking-tight">
           Own Your Personal Quantum Energy Machine
         </h1>
-  <h2 className="text-3xl md:text-4xl font-extrabold text-black mb-4">
+        <h2 className="text-3xl md:text-4xl font-extrabold text-black mb-4">
           Unlimited Healing Sessions at Home Forever
         </h2>
         <div className="flex flex-col items-center gap-2 mb-4">
@@ -81,10 +262,9 @@ export default function OrderQuantumMachinePage() {
       </section>
 
       {/* Video + Benefits Section */}
-  <section className="w-full max-w-5xl mx-auto px-4 py-12 mb-10 bg-white rounded-2xl border border-gray-200 shadow grid md:grid-cols-2 gap-8 items-start text-lg md:text-xl font-sans">
+      <section className="w-full max-w-5xl mx-auto px-4 py-12 mb-10 bg-white rounded-2xl border border-gray-200 shadow grid md:grid-cols-2 gap-8 items-start text-lg md:text-xl font-sans">
         {/* Video */}
         <div className="w-full aspect-video rounded-xl overflow-hidden bg-black flex items-center justify-center">
-          {/* Replace with actual video player */}
           <video
             src="/quantum-demo.mp4"
             autoPlay
@@ -109,8 +289,8 @@ export default function OrderQuantumMachinePage() {
       </section>
 
       {/* Social Proof Section */}
-  <section className="w-full max-w-5xl mx-auto px-4 py-12 mb-10 bg-white rounded-2xl border border-gray-200 shadow text-lg md:text-xl font-sans">
-  <h3 className="text-3xl md:text-4xl font-extrabold text-black mb-4 text-center">Real Results from Real People</h3>
+      <section className="w-full max-w-5xl mx-auto px-4 py-12 mb-10 bg-white rounded-2xl border border-gray-200 shadow text-lg md:text-xl font-sans">
+        <h3 className="text-3xl md:text-4xl font-extrabold text-black mb-4 text-center">Real Results from Real People</h3>
         <div className="flex flex-col gap-4 md:flex-row md:gap-8 justify-center items-center">
           <blockquote className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-black font-bold max-w-sm text-center">
             <p className="mb-2">"I couldn't walk without pain. After 30 minutes on the Quantum Machine, I felt light, strong, and free."</p>
@@ -124,8 +304,8 @@ export default function OrderQuantumMachinePage() {
       </section>
 
       {/* Pricing & Order Form Section */}
-  <section className="w-full max-w-5xl mx-auto px-4 py-12 mb-10 bg-white rounded-2xl border border-gray-200 shadow text-lg md:text-xl font-sans">
-  <h3 className="text-3xl md:text-4xl font-extrabold text-black mb-6 text-center">Choose Your Payment Option</h3>
+      <section className="w-full max-w-5xl mx-auto px-4 py-12 mb-10 bg-white rounded-2xl border border-gray-200 shadow text-lg md:text-xl font-sans">
+        <h3 className="text-3xl md:text-4xl font-extrabold text-black mb-6 text-center">Choose Your Payment Option</h3>
         <div className="grid md:grid-cols-2 gap-6 mb-8">
           {/* Full Payment Option */}
           <label
@@ -141,21 +321,31 @@ export default function OrderQuantumMachinePage() {
                 required
                 className="accent-amber-500 w-6 h-6 mr-3"
                 checked={form.paymentOption === 'full'}
-                onChange={e => setForm(f => ({ ...f, paymentOption: e.target.value }))}
+                onChange={handleFormChange}
               />
               <span className="text-lg font-bold text-emerald-700">🏆 Full Payment (Best Value)</span>
             </div>
-            <span className="text-sm font-bold text-black mb-2">Save ₦300,000 + Bonuses</span>
-            <div className="text-2xl font-extrabold text-black mb-1">₦900,000</div>
-            <div className="text-xs text-gray-500 mb-2 line-through">Regular: ₦1,200,000</div>
+            <span className="text-sm font-bold text-black mb-2">Save ₦{pricing.savings.toLocaleString()} + Bonuses</span>
+            <div className="text-2xl font-extrabold text-black mb-1">₦{pricing.discounted.toLocaleString()}</div>
+            <div className="text-xs text-gray-500 mb-2 line-through">Regular: ₦{pricing.regular.toLocaleString()}</div>
             <ul className="text-sm font-bold text-black mb-2 space-y-1">
-              <li>✅ FREE Lagos Delivery (₦25,000)</li>
-              <li>✅ FREE Setup & Training (₦50,000)</li>
-              <li>✅ 3-Year Extended Warranty (₦75,000)</li>
-              <li>✅ Family Usage Guide (₦15,000)</li>
+              <li>✅ FREE Lagos Delivery</li>
+              <li>✅ FREE Setup & Training</li>
+              <li>✅ Family Usage Guide</li>
             </ul>
-            <div className="text-xs text-gray-500">Total Value: ₦1,365,000</div>
+            <div className="mt-3">
+              <label className="block text-sm font-bold text-gray-700 mb-1">Quantity:</label>
+              <input
+                type="number"
+                min="1"
+                max="10"
+                value={quantities.full}
+                onChange={e => setQuantities(q => ({ ...q, full: Math.max(1, parseInt(e.target.value) || 1) }))}
+                className="border border-gray-300 rounded px-3 py-2 w-20 text-black font-bold"
+              />
+            </div>
           </label>
+
           {/* Payment Plan Option */}
           <label
             className={`border-4 rounded-xl p-5 bg-gray-50 flex flex-col cursor-pointer transition-all duration-150 ${form.paymentOption === 'plan' ? 'border-amber-500 shadow-lg' : 'border-gray-200'}`}
@@ -170,17 +360,29 @@ export default function OrderQuantumMachinePage() {
                 required
                 className="accent-amber-500 w-6 h-6 mr-3"
                 checked={form.paymentOption === 'plan'}
-                onChange={e => setForm(f => ({ ...f, paymentOption: e.target.value }))}
+                onChange={handleFormChange}
               />
               <span className="text-lg font-bold text-emerald-700">💳 Payment Plan</span>
             </div>
             <span className="text-sm font-bold text-black mb-2">Secure Payment Plan</span>
-            <div className="text-2xl font-extrabold text-black mb-1">₦400,000</div>
+            <div className="text-2xl font-extrabold text-black mb-1">₦{pricing.installmentDown.toLocaleString()}</div>
             <div className="text-xs text-gray-500 mb-2">Down Payment Today</div>
-            <div className="text-sm font-bold text-black mb-2">5 x ₦120,000 monthly</div>
-            <div className="text-xs text-gray-500">Total: ₦1,000,000</div>
+            <div className="text-sm font-bold text-black mb-2">4 x ₦{pricing.installmentMonthly.toLocaleString()} monthly</div>
+            <div className="text-xs text-gray-500 mb-3">Total: ₦{pricing.installmentTotal.toLocaleString()}</div>
+            <div className="mt-2">
+              <label className="block text-sm font-bold text-gray-700 mb-1">Quantity:</label>
+              <input
+                type="number"
+                min="1"
+                max="10"
+                value={quantities.plan}
+                onChange={e => setQuantities(q => ({ ...q, plan: Math.max(1, parseInt(e.target.value) || 1) }))}
+                className="border border-gray-300 rounded px-3 py-2 w-20 text-black font-bold"
+              />
+            </div>
           </label>
         </div>
+
         {/* Order Form */}
         <form
           className="flex flex-col gap-4"
@@ -198,34 +400,77 @@ export default function OrderQuantumMachinePage() {
             <div className="grid md:grid-cols-2 gap-4 mb-2">
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1" htmlFor="name">Full Name</label>
-                <input required id="name" className="border border-gray-200 rounded px-3 py-2 w-full text-black font-bold text-base md:text-lg font-sans focus:ring-2 focus:ring-amber-400" placeholder="Enter your full name" name="name" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+                <input 
+                  required 
+                  id="name" 
+                  className="border border-gray-200 rounded px-3 py-2 w-full text-black font-bold text-base md:text-lg font-sans focus:ring-2 focus:ring-amber-400" 
+                  placeholder="Enter your full name" 
+                  name="name" 
+                  value={form.name} 
+                  onChange={handleFormChange} 
+                />
               </div>
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1" htmlFor="phone">Phone Number</label>
-                <input required id="phone" className="border border-gray-200 rounded px-3 py-2 w-full text-black font-bold text-base md:text-lg font-sans focus:ring-2 focus:ring-amber-400" placeholder="e.g. +2348012345678" name="phone" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} />
+                <input 
+                  required 
+                  id="phone" 
+                  className="border border-gray-200 rounded px-3 py-2 w-full text-black font-bold text-base md:text-lg font-sans focus:ring-2 focus:ring-amber-400" 
+                  placeholder="e.g. +2348012345678" 
+                  name="phone" 
+                  value={form.phone} 
+                  onChange={handleFormChange} 
+                />
                 <span className="text-xs text-gray-500">WhatsApp preferred for updates</span>
               </div>
               <div className="md:col-span-2">
                 <label className="block text-sm font-bold text-gray-700 mb-1" htmlFor="email">Email Address</label>
-                <input required id="email" className="border border-gray-200 rounded px-3 py-2 w-full text-black font-bold text-base md:text-lg font-sans focus:ring-2 focus:ring-amber-400" placeholder="you@email.com" name="email" type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
+                <input 
+                  required 
+                  id="email" 
+                  className="border border-gray-200 rounded px-3 py-2 w-full text-black font-bold text-base md:text-lg font-sans focus:ring-2 focus:ring-amber-400" 
+                  placeholder="you@email.com" 
+                  name="email" 
+                  type="email" 
+                  value={form.email} 
+                  onChange={handleFormChange} 
+                />
               </div>
             </div>
-            {/* Delivery Preference Section - improved */}
+
+            {/* Delivery Preference Section */}
             <div className="mt-4">
               <h5 className="text-lg font-bold text-gray-900 mb-2">Delivery Preference</h5>
               <div className="flex flex-wrap gap-4 mb-2">
                 <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="radio" name="deliveryPref" value="pickup" required className="accent-emerald-600 w-5 h-5" checked={form.deliveryPref === 'pickup'} onChange={e => setForm(f => ({ ...f, deliveryPref: e.target.value }))} />
+                  <input 
+                    type="radio" 
+                    name="deliveryPref" 
+                    value="pickup" 
+                    required 
+                    className="accent-emerald-600 w-5 h-5" 
+                    checked={form.deliveryPref === 'pickup'} 
+                    onChange={handleFormChange} 
+                  />
                   <span className="text-base font-semibold">Pick Up</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="radio" name="deliveryPref" value="ship" required className="accent-emerald-600 w-5 h-5" checked={form.deliveryPref === 'ship'} onChange={e => setForm(f => ({ ...f, deliveryPref: e.target.value }))} />
+                  <input 
+                    type="radio" 
+                    name="deliveryPref" 
+                    value="ship" 
+                    required 
+                    className="accent-emerald-600 w-5 h-5" 
+                    checked={form.deliveryPref === 'ship'} 
+                    onChange={handleFormChange} 
+                  />
                   <span className="text-base font-semibold">Ship It</span>
                 </label>
               </div>
             </div>
-            {/* Special Requests field moved below Delivery Address section */}
           </div>
+
+          {/* Conditional Pickup Location */}
           {form.deliveryPref === 'pickup' && (
             <div className="mb-4">
               <h4 className="text-xl md:text-2xl font-bold text-gray-900 mb-2">Choose Pickup Location</h4>
@@ -234,7 +479,7 @@ export default function OrderQuantumMachinePage() {
                 className="border border-gray-200 rounded px-3 py-2 text-black font-bold text-base md:text-lg font-sans w-full"
                 name="pickupLocation"
                 value={form.pickupLocation || ''}
-                onChange={e => setForm(f => ({ ...f, pickupLocation: e.target.value }))}
+                onChange={handleFormChange}
               >
                 <option value="">Select a location</option>
                 <option value="Lagos">Lagos (Mainland)</option>
@@ -248,6 +493,8 @@ export default function OrderQuantumMachinePage() {
               </select>
             </div>
           )}
+
+          {/* Conditional Shipping Address */}
           {form.deliveryPref === 'ship' && (
             <>
               <div className="bg-gray-50 border border-gray-200 rounded-2xl p-6 mb-4 shadow-sm mt-4">
@@ -258,31 +505,79 @@ export default function OrderQuantumMachinePage() {
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-bold text-gray-700 mb-1" htmlFor="street">Street Address</label>
-                    <input required id="street" className="border border-gray-200 rounded px-3 py-2 w-full text-black font-bold text-base md:text-lg font-sans focus:ring-2 focus:ring-amber-400" placeholder="House number, street, etc." name="street" value={form.street} onChange={e => setForm(f => ({ ...f, street: e.target.value }))} />
+                    <input 
+                      required 
+                      id="street" 
+                      className="border border-gray-200 rounded px-3 py-2 w-full text-black font-bold text-base md:text-lg font-sans focus:ring-2 focus:ring-amber-400" 
+                      placeholder="House number, street, etc." 
+                      name="street" 
+                      value={form.street} 
+                      onChange={handleFormChange} 
+                    />
                   </div>
                   <div>
                     <label className="block text-sm font-bold text-gray-700 mb-1" htmlFor="area">City / Town</label>
-                    <input required id="area" className="border border-gray-200 rounded px-3 py-2 w-full text-black font-bold text-base md:text-lg font-sans focus:ring-2 focus:ring-amber-400" placeholder="City or town" name="area" value={form.area} onChange={e => setForm(f => ({ ...f, area: e.target.value }))} />
+                    <input 
+                      required 
+                      id="area" 
+                      className="border border-gray-200 rounded px-3 py-2 w-full text-black font-bold text-base md:text-lg font-sans focus:ring-2 focus:ring-amber-400" 
+                      placeholder="City or town" 
+                      name="area" 
+                      value={form.area} 
+                      onChange={handleFormChange} 
+                    />
                   </div>
                   <div>
                     <label className="block text-sm font-bold text-gray-700 mb-1" htmlFor="region">State / Province / Region</label>
-                    <input required id="region" className="border border-gray-200 rounded px-3 py-2 w-full text-black font-bold text-base md:text-lg font-sans focus:ring-2 focus:ring-amber-400" placeholder="State, province, or region" name="region" value={form.region || ''} onChange={e => setForm(f => ({ ...f, region: e.target.value }))} />
+                    <input 
+                      required 
+                      id="region" 
+                      className="border border-gray-200 rounded px-3 py-2 w-full text-black font-bold text-base md:text-lg font-sans focus:ring-2 focus:ring-amber-400" 
+                      placeholder="State, province, or region" 
+                      name="region" 
+                      value={form.region || ''} 
+                      onChange={handleFormChange} 
+                    />
                   </div>
                   <div>
                     <label className="block text-sm font-bold text-gray-700 mb-1" htmlFor="country">Country</label>
-                    <input required id="country" className="border border-gray-200 rounded px-3 py-2 w-full text-black font-bold text-base md:text-lg font-sans focus:ring-2 focus:ring-amber-400" placeholder="Country" name="country" value={form.country || ''} onChange={e => setForm(f => ({ ...f, country: e.target.value }))} />
+                    <input 
+                      required 
+                      id="country" 
+                      className="border border-gray-200 rounded px-3 py-2 w-full text-black font-bold text-base md:text-lg font-sans focus:ring-2 focus:ring-amber-400" 
+                      placeholder="Country" 
+                      name="country" 
+                      value={form.country || ''} 
+                      onChange={handleFormChange} 
+                    />
                   </div>
                   <div>
                     <label className="block text-sm font-bold text-gray-700 mb-1" htmlFor="postalCode">Postal / ZIP Code <span className="text-gray-400 font-normal">(optional)</span></label>
-                    <input id="postalCode" className="border border-gray-200 rounded px-3 py-2 w-full text-black font-bold text-base md:text-lg font-sans focus:ring-2 focus:ring-amber-400" placeholder="Postal or ZIP code" name="postalCode" value={form.postalCode || ''} onChange={e => setForm(f => ({ ...f, postalCode: e.target.value }))} />
+                    <input 
+                      id="postalCode" 
+                      className="border border-gray-200 rounded px-3 py-2 w-full text-black font-bold text-base md:text-lg font-sans focus:ring-2 focus:ring-amber-400" 
+                      placeholder="Postal or ZIP code" 
+                      name="postalCode" 
+                      value={form.postalCode || ''} 
+                      onChange={handleFormChange} 
+                    />
                   </div>
                   <div>
                     <label className="block text-sm font-bold text-gray-700 mb-1" htmlFor="landmark">Nearest Landmark</label>
-                    <input required id="landmark" className="border border-gray-200 rounded px-3 py-2 w-full text-black font-bold text-base md:text-lg font-sans focus:ring-2 focus:ring-amber-400" placeholder="e.g. hospital, bus stop, etc." name="landmark" value={form.landmark} onChange={e => setForm(f => ({ ...f, landmark: e.target.value }))} />
+                    <input 
+                      required 
+                      id="landmark" 
+                      className="border border-gray-200 rounded px-3 py-2 w-full text-black font-bold text-base md:text-lg font-sans focus:ring-2 focus:ring-amber-400" 
+                      placeholder="e.g. hospital, bus stop, etc." 
+                      name="landmark" 
+                      value={form.landmark} 
+                      onChange={handleFormChange} 
+                    />
                     <span className="text-xs text-gray-500">Helps our team find you faster</span>
                   </div>
                 </div>
               </div>
+
               {/* Special Requests section below Delivery Address */}
               <div className="bg-gray-50 border border-gray-300 rounded-2xl p-6 mb-4 shadow-sm mt-4">
                 <label className="block text-lg font-extrabold text-emerald-700 mb-2" htmlFor="specialRequests">
@@ -296,18 +591,109 @@ export default function OrderQuantumMachinePage() {
                   name="specialRequests"
                   rows={2}
                   value={form.specialRequests}
-                  onChange={e => setForm(f => ({ ...f, specialRequests: e.target.value }))}
+                  onChange={handleFormChange}
                 />
               </div>
             </>
           )}
 
-          {/* Special requests textarea removed here to avoid duplication; now only in Personal Information card */}
-          {/* CTA reassurance text above the button (undo) */}
+          {/* Order Summary */}
+          {form.paymentOption && form.deliveryPref && (
+            <div className="bg-white border border-amber-200 rounded-2xl p-6 mb-4 shadow-md">
+              <h4 className="text-xl md:text-2xl font-bold text-amber-700 mb-2">Order Summary</h4>
+              <div className="text-base md:text-lg text-black space-y-2">
+                <div>
+                  <span className="font-bold">Product:</span> Quantum Energy Machine
+                </div>
+                <div>
+                  <span className="font-bold">Quantity:</span> {quantity}
+                </div>
+                <div>
+                  <span className="font-bold">Payment Plan:</span> {form.paymentOption === 'full' ? 'Full Payment (Best Value)' : 'Payment Plan'}
+                </div>
+                {form.paymentOption === 'plan' && (
+                  <div className="text-sm text-gray-600">
+                    <span className="font-bold">Payment Schedule:</span> ₦{(pricing.installmentDown * quantity).toLocaleString()} today + 4 monthly payments of ₦{(pricing.installmentMonthly * quantity).toLocaleString()}
+                  </div>
+                )}
+                <div>
+                  <span className="font-bold">Delivery Method:</span> {form.deliveryPref === 'pickup' ? 'Pick Up' : 'Ship It'}
+                </div>
+                {form.deliveryPref === 'pickup' && form.pickupLocation && (
+                  <div>
+                    <span className="font-bold">Pickup Location:</span> {form.pickupLocation}
+                  </div>
+                )}
+                {form.deliveryPref === 'ship' && form.region && (
+                  <>
+                    <div>
+                      <span className="font-bold">Shipping State:</span> {form.region}
+                    </div>
+                    <div>
+                      <span className="font-bold">Shipping Zone:</span> {getDeliveryInfo(form.region).zone}
+                    </div>
+                    <div>
+                      <span className="font-bold">Shipping Cost:</span> ₦{shipping.toLocaleString()}
+                    </div>
+                  </>
+                )}
+                <div>
+                  <span className="font-bold">Subtotal:</span> ₦{subtotal.toLocaleString()}
+                </div>
+                {form.deliveryPref === 'ship' && (
+                  <div>
+                    <span className="font-bold">Shipping:</span> ₦{shipping.toLocaleString()}
+                  </div>
+                )}
+                <div className="border-t border-gray-200 pt-2 mt-2 text-lg md:text-xl font-extrabold">
+                  <span className="font-bold text-amber-700">Total:</span> ₦{total.toLocaleString()}
+                </div>
+                {form.paymentOption === 'full' && (
+                  <div className="text-sm text-emerald-600 font-semibold">
+                    You save ₦{(pricing.savings * quantity).toLocaleString()} with full payment!
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* CTA reassurance text above the button */}
           <span className="text-xs text-gray-500 mt-2 text-center block">256-bit SSL Secured | Start Healing in 24 Hours</span>
-          <PaystackOrderButton form={form} loading={loading} setLoading={setLoading} />
+          
+          {/* Enhanced PaystackOrderButton with database integration */}
+          <PaystackOrderButton 
+            form={form} 
+            loading={loading} 
+            setLoading={setLoading}
+            cartSessionId={cartSessionId}
+            total={total}
+            subtotal={subtotal}
+            shipping={shipping}
+            quantity={quantity}
+            canPay={canPay}
+          />
+          
+          {/* User-friendly validation feedback */}
+          {!canPay && !loading && (
+            <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <h5 className="text-sm font-semibold text-amber-800 mb-2">Please complete the following:</h5>
+              <ul className="text-xs text-amber-700 space-y-1">
+                {!form.name && <li>• Enter your full name</li>}
+                {!form.phone && <li>• Enter your phone number</li>}
+                {!form.email && <li>• Enter your email address</li>}
+                {!form.paymentOption && <li>• Select a payment option (Full Payment or Payment Plan)</li>}
+                {!form.deliveryPref && <li>• Choose pickup or shipping</li>}
+                {form.deliveryPref === 'pickup' && !form.pickupLocation && <li>• Select a pickup location</li>}
+                {form.deliveryPref === 'ship' && !form.street && <li>• Enter your street address</li>}
+                {form.deliveryPref === 'ship' && !form.area && <li>• Enter your city/town</li>}
+                {form.deliveryPref === 'ship' && !form.region && <li>• Enter your state/region</li>}
+                {form.deliveryPref === 'ship' && !form.landmark && <li>• Enter a nearby landmark</li>}
+              </ul>
+            </div>
+          )}
         </form>
       </section>
-    </main>
+      </main>
+    </>
   );
 }

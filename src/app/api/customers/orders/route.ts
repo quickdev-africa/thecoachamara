@@ -5,6 +5,9 @@ import { Order } from '@/lib/types';
 // GET orders for a specific customer
 export async function GET(req: NextRequest) {
   try {
+    // Debug environment variables
+    console.log('Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
+    console.log('Supabase Key exists:', !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
     const url = req.nextUrl;
     const customerId = url.searchParams.get('customerId');
     if (!customerId) {

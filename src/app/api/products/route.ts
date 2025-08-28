@@ -1,136 +1,139 @@
-
+// src/app/api/products/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '../../../supabaseClient';
-import { Product, ApiResponse, PaginationParams } from '@/lib/types';
+import { createClient } from '@supabase/supabase-js';
 
+const supabase = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
-
-
-
-// ============================================================================
-// GET ALL PRODUCTS WITH FILTERING & PAGINATION
-// ============================================================================
-export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Product[]>>> {
+export async function GET(request: NextRequest) {
   try {
-    // Extract search params more efficiently  
-  const url = req.nextUrl;
-  const categoryId = url.searchParams.get('categoryId');
-  const search = url.searchParams.get('search');
-  const page = parseInt(url.searchParams.get('page') || '1');
-  const pageLimit = parseInt(url.searchParams.get('limit') || '20');
-  // Only allow snake_case fields for sorting
-  const allowedSortFields = ['created_at', 'updated_at', 'price', 'name', 'stock'];
-  let sortBy = url.searchParams.get('sortBy') || 'created_at';
-  if (!allowedSortFields.includes(sortBy)) sortBy = 'created_at';
-  const sortOrder = url.searchParams.get('sortOrder') as 'asc' | 'desc' || 'desc';
+    const { searchParams } = new URL(request.url);
+    const category = searchParams.get('category');
 
-    // Build Supabase query
-    let queryBuilder = supabase
+    let query = supabase
       .from('products')
-      .select('*')
-  .order(sortBy, { ascending: sortOrder === 'asc' })
-      .limit(pageLimit);
+      .select(`
+        id,
+        name,
+        description,
+        price,
+        stock,
+        is_active,
+        category_id,
+        categories!inner(name)
+      `)
+      .eq('is_active', true);
 
-    let { data: products, error } = await queryBuilder;
+    if (category) {
+      if (category === 'quantum') {
+        query = query.ilike('name', '%quantum%');
+      } else {
+        query = query.eq('categories.name', category);
+      }
+    }
+
+    const { data: products, error } = await query;
+
     if (error) {
-      throw error;
+      console.error('Products fetch error:', error);
+      return NextResponse.json({
+        success: false,
+        error: 'Failed to fetch products'
+      }, { status: 500 });
     }
 
-    // Filter active products (snake_case)
-    products = (products || []).filter(product => product.is_active);
+    // If no quantum products found, return fallback data
+    if (category === 'quantum' && (!products || products.length === 0)) {
+      const fallbackProducts = [
+        {
+          id: 'quantum-full-payment',
+          name: 'Quantum Machine - Full Payment',
+          description: 'Complete ownership with maximum savings',
+          price: 2800000,
+          stock: 10,
+          is_active: true,
+          category_id: null
+        },
+        {
+          id: 'quantum-installment',
+          name: 'Quantum Machine - Installment Plan',
+          description: 'Easy payment plan - ₦1.5M down payment',
+          price: 1500000,
+          stock: 10,
+          is_active: true,
+          category_id: null
+        }
+      ];
 
-    if (categoryId) {
-      products = products.filter(product => product.category_id === categoryId);
+      return NextResponse.json({
+        success: true,
+        products: fallbackProducts,
+        count: fallbackProducts.length
+      });
     }
-
-    if (search) {
-      const searchLower = search.toLowerCase();
-      products = products.filter(product =>
-        product.name.toLowerCase().includes(searchLower) ||
-        product.description.toLowerCase().includes(searchLower) ||
-        (product.metadata?.tags || []).some((tag: string) => tag.toLowerCase().includes(searchLower))
-      );
-    }
-
-    const total = products.length;
-    const hasMore = products.length === pageLimit;
 
     return NextResponse.json({
       success: true,
-      data: products,
-      meta: {
-        total,
-        page,
-        limit: pageLimit,
-        hasMore
-      }
+      products: products || [],
+      count: products?.length || 0
     });
 
   } catch (error) {
-    console.error('Error fetching products:', error);
+    console.error('Products API error:', error);
     return NextResponse.json({
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to fetch products'
+      error: 'Internal server error'
     }, { status: 500 });
   }
 }
 
-// ============================================================================
-// CREATE NEW PRODUCT
-// ============================================================================
-export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<{ id: string }>>> {
+export async function POST(request: NextRequest) {
   try {
-    const body = await req.json();
-    const requiredFields = ['name', 'price', 'categoryId', 'description'];
-    for (const field of requiredFields) {
-      if (!body[field]) {
-        return NextResponse.json({
-          success: false,
-          error: `${field} is required`
-        }, { status: 400 });
-      }
+    const body = await request.json();
+    const { name, description, price, stock, category_id, images, metadata } = body;
+
+    if (!name || !price) {
+      return NextResponse.json({
+        success: false,
+        error: 'Name and price are required'
+      }, { status: 400 });
     }
 
-    const imageUrls = body.image ? [body.image] : [];
-
-    // Map camelCase to snake_case for DB
-    const now = new Date().toISOString();
-    const dbProduct = {
-      name: body.name,
-      description: body.description,
-      price: parseFloat(body.price),
-      category_id: body.categoryId, // snake_case for DB
-      images: imageUrls,
-      stock: typeof body.stock === 'number' ? body.stock : parseInt(body.stock, 10) || 0,
-      is_active: true,
-      featured: false,
-      metadata: {
-        tags: body.tags ? (Array.isArray(body.tags) ? body.tags : [body.tags]) : []
-      },
-      created_at: now,
-      updated_at: now
-    };
-
-    const { data, error } = await supabase
+    const { data: product, error } = await supabase
       .from('products')
-      .insert([dbProduct])
-      .select('id')
+      .insert({
+        name,
+        description,
+        price: Number(price),
+        stock: Number(stock) || 0,
+        category_id,
+        images: images || [],
+        metadata: metadata || {},
+        is_active: true
+      })
+      .select()
       .single();
 
     if (error) {
-      throw error;
+      console.error('Product creation error:', error);
+      return NextResponse.json({
+        success: false,
+        error: 'Failed to create product'
+      }, { status: 500 });
     }
 
     return NextResponse.json({
       success: true,
-      data: { id: data.id },
-      message: 'Product created successfully'
-    });
+      product
+    }, { status: 201 });
+
   } catch (error) {
-    console.error('Error creating product:', error);
+    console.error('Product creation API error:', error);
     return NextResponse.json({
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to create product'
+      error: 'Internal server error'
     }, { status: 500 });
   }
 }

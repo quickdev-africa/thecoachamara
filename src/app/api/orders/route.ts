@@ -1,99 +1,267 @@
+// src/app/api/orders/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '../../../supabaseClient';
-import { Order, ApiResponse } from '@/lib/types';
+import { createClient } from '@supabase/supabase-js';
 
+const supabase = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
+// Generate unique order number
+function generateOrderNumber(): string {
+  const timestamp = Date.now().toString();
+  const random = Math.random().toString(36).substr(2, 5).toUpperCase();
+  return `QM-${timestamp.slice(-6)}-${random}`;
+}
 
-// ============================================================================
-// GET ALL ORDERS
-// ============================================================================
-export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Order[]>>> {
+export async function POST(request: NextRequest) {
   try {
-    // Extract search params more efficiently
-    const url = req.nextUrl;
-    const pageLimit = parseInt(url.searchParams.get('limit') || '50');
-    const offset = parseInt(url.searchParams.get('offset') || '0');
-    const status = url.searchParams.get('status');
+    const body = await request.json();
+    const {
+      customerName,
+      customerEmail, 
+      customerPhone,
+      items,
+      subtotal,
+      deliveryFee = 0,
+      total,
+      delivery,
+      metadata = {}
+    } = body;
 
-    // Build Supabase query
-    let queryBuilder = supabase
-      .from('orders')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .range(offset, offset + pageLimit - 1);
-
-    if (status) {
-      queryBuilder = queryBuilder.eq('status', status);
+    // Validate required fields
+    if (!customerName || !customerEmail || !customerPhone || !items || !Array.isArray(items) || items.length === 0) {
+      return NextResponse.json({
+        success: false,
+        error: 'Missing required fields: customerName, customerEmail, customerPhone, items'
+      }, { status: 400 });
     }
 
-    const { data: orders, error } = await queryBuilder;
-    if (error) {
-      throw error;
+    const orderNumber = generateOrderNumber();
+
+    // Start transaction
+    const { data: order, error: orderError } = await supabase
+      .from('orders')
+      .insert({
+        order_number: orderNumber,
+        customerName,
+        customerEmail,
+        customerPhone,
+        subtotal: Number(subtotal),
+        deliveryFee: Number(deliveryFee),
+        total: Number(total),
+        status: 'pending',
+        paymentStatus: 'pending',
+        delivery: delivery || {},
+        metadata: {
+          ...metadata,
+          source: 'quantum-funnel',
+          createdAt: new Date().toISOString()
+        },
+        items: items // Store items as JSONB for now
+      })
+      .select()
+      .single();
+
+    if (orderError) {
+      console.error('Order creation error:', orderError);
+      return NextResponse.json({
+        success: false,
+        error: 'Failed to create order',
+        details: orderError.message
+      }, { status: 500 });
+    }
+
+    // Insert order items
+    const orderItems = items.map((item: any) => ({
+      order_id: order.id,
+      product_id: item.productId,
+      product_name: item.productName,
+      product_price: Number(item.unitPrice || item.price),
+      quantity: Number(item.quantity),
+      total_price: Number(item.totalPrice || item.total),
+      product_snapshot: {
+        ...item,
+        capturedAt: new Date().toISOString()
+      }
+    }));
+
+    const { error: itemsError } = await supabase
+      .from('order_items')
+      .insert(orderItems);
+
+    if (itemsError) {
+      console.error('Order items creation error:', itemsError);
+      // Don't fail the order, just log the error
+      console.warn('Order created but items insertion failed:', itemsError.message);
+    }
+
+    // Update inventory (if products exist in database)
+    for (const item of items) {
+      if (item.productId && !item.productId.startsWith('quantum-')) {
+        await supabase.rpc('update_product_stock', {
+          product_id: item.productId,
+          quantity_change: -Number(item.quantity)
+        });
+      }
     }
 
     return NextResponse.json({
       success: true,
-      data: orders || [],
-      meta: {
-        total: orders ? orders.length : 0
+      order: {
+        id: order.id,
+        orderNumber: order.order_number,
+        total: order.total,
+        status: order.status,
+        paymentStatus: order.paymentStatus
       }
-    });
+    }, { status: 201 });
 
   } catch (error) {
-    console.error('Error fetching orders:', error);
+    console.error('Order creation API error:', error);
     return NextResponse.json({
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to fetch orders'
+      error: 'Internal server error',
+      details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 });
   }
 }
 
-// ============================================================================
-// UPDATE ORDER (status, payment, etc.)
-// ============================================================================
-export async function PUT(req: NextRequest): Promise<NextResponse<ApiResponse<{ id?: string, updated?: number }>>> {
+export async function GET(request: NextRequest) {
   try {
-    const body = await req.json();
-    const { id, ids, status, paymentStatus, ...rest } = body;
-    // Bulk update
-    if (Array.isArray(ids) && ids.length > 0 && status) {
-      // Fetch current orders
-      const { data: orders, error: fetchError } = await supabase.from('orders').select('id, status').in('id', ids);
-      if (fetchError) return NextResponse.json({ success: false, error: fetchError.message });
-      // Update all
-      const { error: updateError } = await supabase.from('orders').update({ status }).in('id', ids);
-      if (updateError) return NextResponse.json({ success: false, error: updateError.message });
-      // Log status changes
-      const changed = (orders || []).filter((o: any) => o.status !== status);
-      if (changed.length > 0) {
-        await supabase.from('order_status_history').insert(
-          changed.map((o: any) => ({ order_id: o.id, status, changed_by: body.changedBy || null }))
-        );
+    const { searchParams } = new URL(request.url);
+    const orderId = searchParams.get('id');
+    const customerEmail = searchParams.get('email');
+    const status = searchParams.get('status');
+
+    if (orderId) {
+      // Get specific order
+      const { data: order, error } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          order_items (
+            *,
+            products (name, price, images)
+          ),
+          payments (
+            id,
+            amount,
+            status,
+            payment_method,
+            reference,
+            created_at
+          )
+        `)
+        .eq('id', orderId)
+        .single();
+
+      if (error) {
+        return NextResponse.json({
+          success: false,
+          error: 'Order not found'
+        }, { status: 404 });
       }
-      return NextResponse.json({ success: true, updated: ids.length });
-    }
-    // Single update
-    if (!id) return NextResponse.json({ success: false, error: 'Order ID required' });
-    // Fetch current order
-    const { data: order, error: fetchError } = await supabase.from('orders').select('*').eq('id', id).single();
-    if (fetchError || !order) return NextResponse.json({ success: false, error: 'Order not found' });
-    // Prepare update fields
-    const updateFields: any = { ...rest };
-    if (status) updateFields.status = status;
-    if (paymentStatus) updateFields.payment_status = paymentStatus;
-    // Update order
-    const { error: updateError } = await supabase.from('orders').update(updateFields).eq('id', id);
-    if (updateError) return NextResponse.json({ success: false, error: updateError.message });
-    // Log status change if status changed
-    if (status && status !== order.status) {
-      await supabase.from('order_status_history').insert({
-        order_id: id,
-        status,
-        changed_by: body.changedBy || null,
+
+      return NextResponse.json({
+        success: true,
+        order
       });
     }
-    return NextResponse.json({ success: true, data: { id } });
+
+    // Get orders list with filters
+    let query = supabase
+      .from('orders')
+      .select(`
+        id,
+        order_number,
+        customerName,
+        customerEmail,
+        total,
+        status,
+        paymentStatus,
+        created_at
+      `)
+      .order('created_at', { ascending: false });
+
+    if (customerEmail) {
+      query = query.eq('customerEmail', customerEmail);
+    }
+
+    if (status) {
+      query = query.eq('status', status);
+    }
+
+    const { data: orders, error } = await query.limit(50);
+
+    if (error) {
+      console.error('Orders fetch error:', error);
+      return NextResponse.json({
+        success: false,
+        error: 'Failed to fetch orders'
+      }, { status: 500 });
+    }
+
+    return NextResponse.json({
+      success: true,
+      orders: orders || [],
+      count: orders?.length || 0
+    });
+
   } catch (error) {
-    return NextResponse.json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
+    console.error('Orders fetch API error:', error);
+    return NextResponse.json({
+      success: false,
+      error: 'Internal server error'
+    }, { status: 500 });
+  }
+}
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { orderId, status, paymentStatus, metadata } = body;
+
+    if (!orderId) {
+      return NextResponse.json({
+        success: false,
+        error: 'Order ID is required'
+      }, { status: 400 });
+    }
+
+    const updates: any = {
+      updated_at: new Date().toISOString()
+    };
+
+    if (status) updates.status = status;
+    if (paymentStatus) updates.paymentStatus = paymentStatus;
+    if (metadata) updates.metadata = metadata;
+
+    const { data: order, error } = await supabase
+      .from('orders')
+      .update(updates)
+      .eq('id', orderId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Order update error:', error);
+      return NextResponse.json({
+        success: false,
+        error: 'Failed to update order'
+      }, { status: 500 });
+    }
+
+    return NextResponse.json({
+      success: true,
+      order
+    });
+
+  } catch (error) {
+    console.error('Order update API error:', error);
+    return NextResponse.json({
+      success: false,
+      error: 'Internal server error'
+    }, { status: 500 });
   }
 }

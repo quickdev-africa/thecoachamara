@@ -1,32 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { initializeApp, getApps } from 'firebase/app';
-import { getFirestore, collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
-
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-};
-
-if (!getApps().length) {
-  initializeApp(firebaseConfig);
-}
-const db = getFirestore();
+import { supabase } from '../../../supabaseClient';
 
 export async function GET(req: NextRequest) {
   try {
-    // Get recent signups to verify data collection
-    const signupsRef = collection(db, 'signups');
-    const signupsQuery = query(signupsRef, orderBy('timestamp', 'desc'), limit(10));
-    const snapshot = await getDocs(signupsQuery);
-    
-    const signups = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
+    // Get recent signups to verify data collection from Supabase
+    const { data: signups, error } = await supabase
+      .from('signups')
+      .select('*')
+      .order('timestamp', { ascending: false })
+      .limit(10);
+    if (error) throw new Error(error.message);
     
     // Format the data for easy viewing
     const formattedData = signups.map((signup: any) => ({
@@ -72,7 +55,7 @@ export async function GET(req: NextRequest) {
       message: "Data collection verification",
       totalSignups: signups.length,
       recentSignups: formattedData,
-      dataCollectionWorking: signups.length > 0 && signups[0].memberType !== undefined
+  dataCollectionWorking: signups.length > 0 && signups[0]?.memberType !== undefined
     });
     
   } catch (error) {

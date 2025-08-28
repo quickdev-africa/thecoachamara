@@ -1,20 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { initializeApp, getApps } from 'firebase/app';
-import { getFirestore, collection, getDocs, query, where, orderBy, limit } from 'firebase/firestore';
-
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-};
-
-if (!getApps().length) {
-  initializeApp(firebaseConfig);
-}
-const db = getFirestore();
+import { supabase } from '../../../supabaseClient';
 
 export async function GET(req: NextRequest) {
   try {
@@ -22,35 +7,28 @@ export async function GET(req: NextRequest) {
     const type = searchParams.get('type') || 'overview';
     const limit_param = parseInt(searchParams.get('limit') || '100');
     
-    // Get all signups
-    const signupsRef = collection(db, 'signups');
-    const signupsQuery = query(signupsRef, orderBy('timestamp', 'desc'), limit(limit_param));
-    const snapshot = await getDocs(signupsQuery);
-    
-    const signups = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
+    // Get all signups from Supabase
+    const { data: signups, error } = await supabase
+      .from('signups')
+      .select('*')
+      .order('timestamp', { ascending: false })
+      .limit(limit_param);
+    if (error) throw new Error(error.message);
     
     switch (type) {
       case 'overview':
         return NextResponse.json(generateOverviewAnalytics(signups));
-      
       case 'conversion':
         return NextResponse.json(generateConversionAnalytics(signups));
-      
       case 'geographic':
         return NextResponse.json(generateGeographicAnalytics(signups));
-      
       case 'products':
         return NextResponse.json(generateProductAnalytics(signups));
-      
       case 'recent':
         return NextResponse.json({
           recent_signups: signups.slice(0, 20),
           total_count: signups.length
         });
-      
       default:
         return NextResponse.json({ error: 'Invalid analytics type' }, { status: 400 });
     }
