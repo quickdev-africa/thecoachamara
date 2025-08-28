@@ -10,7 +10,8 @@ const supabase = createClient(
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const category = searchParams.get('category');
+    // Keep the category param but ignore it
+    // const category = searchParams.get('category');
 
     let query = supabase
       .from('products')
@@ -24,15 +25,13 @@ export async function GET(request: NextRequest) {
         category_id,
         categories!inner(name)
       `)
-      .eq('is_active', true);
+      .eq('is_active', true)
+      .select(`id, name, description, price, stock, is_active, category_id, categories!inner(name)`);
 
-    if (category) {
-      if (category === 'quantum') {
-        query = query.ilike('name', '%quantum%');
-      } else {
-        query = query.eq('categories.name', category);
-      }
-    }
+    // Ignore category filter, always return all products
+    // if (category) {
+    //     query = query.eq('categories.name', category);
+    // }
 
     const { data: products, error } = await query;
 
@@ -44,35 +43,7 @@ export async function GET(request: NextRequest) {
       }, { status: 500 });
     }
 
-    // If no quantum products found, return fallback data
-    if (category === 'quantum' && (!products || products.length === 0)) {
-      const fallbackProducts = [
-        {
-          id: 'quantum-full-payment',
-          name: 'Quantum Machine - Full Payment',
-          description: 'Complete ownership with maximum savings',
-          price: 2800000,
-          stock: 10,
-          is_active: true,
-          category_id: null
-        },
-        {
-          id: 'quantum-installment',
-          name: 'Quantum Machine - Installment Plan',
-          description: 'Easy payment plan - ₦1.5M down payment',
-          price: 1500000,
-          stock: 10,
-          is_active: true,
-          category_id: null
-        }
-      ];
-
-      return NextResponse.json({
-        success: true,
-        products: fallbackProducts,
-        count: fallbackProducts.length
-      });
-    }
+  // Fallback logic for 'quantum' category is now removed since category is ignored
 
     return NextResponse.json({
       success: true,
