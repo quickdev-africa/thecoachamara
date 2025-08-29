@@ -149,13 +149,8 @@ export default function ProductsPage() {
 
   useEffect(() => {
     fetchCategories();
+    fetchProducts();
   }, []);
-
-  useEffect(() => {
-    if (categories.length > 0) {
-      fetchProducts();
-    }
-  }, [categories]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -194,7 +189,7 @@ export default function ProductsPage() {
     setSubmitting(true);
     setError("");
     setSuccess("");
-    let categoryId = "";
+    let categoryId: string | null = null;
     let categoryName = form.category;
     if (form.newCategory.trim()) {
       categoryName = form.newCategory.trim();
@@ -230,11 +225,7 @@ export default function ProductsPage() {
       const found = categories.find(cat => cat.name === form.category);
       if (found) categoryId = found.id;
     }
-    if (!categoryId) {
-      setError("Please select a valid category.");
-      setSubmitting(false);
-      return;
-    }
+    // categoryId is now optional; do not error if not present
     // Validate stock
     const stockValue = parseInt(form.stock, 10);
     if (isNaN(stockValue) || stockValue <= 0) {
@@ -247,7 +238,7 @@ export default function ProductsPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         ...form,
-        categoryId,
+        categoryId: categoryId || null,
         price: parseFloat(form.price),
         stock: stockValue,
       }),

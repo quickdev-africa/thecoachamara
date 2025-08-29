@@ -34,7 +34,9 @@ interface PaystackOrderButtonProps {
 declare global {
   interface Window {
     PaystackPop: {
-      setup: (config: any) => void;
+      setup: (config: any) => {        // CORRECT: returns an object
+        openIframe: () => void;        // with openIframe method
+      };
     };
   }
 }

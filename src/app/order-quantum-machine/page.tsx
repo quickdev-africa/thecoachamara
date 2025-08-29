@@ -222,7 +222,7 @@ export default function OrderQuantumMachinePage() {
   const { subtotal, shipping, total, quantity } = calculateTotals();
   const pricing = getProductPricing();
   const isFormValid = validateForm();
-  const canPay = isFormValid && form.paymentOption && !loading;
+  const canPay = isFormValid && !!form.paymentOption && !loading;
 
   return (
     <>

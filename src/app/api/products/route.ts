@@ -23,10 +23,9 @@ export async function GET(request: NextRequest) {
         stock,
         is_active,
         category_id,
-        categories!inner(name)
+        categories(name)
       `)
-      .eq('is_active', true)
-      .select(`id, name, description, price, stock, is_active, category_id, categories!inner(name)`);
+      .eq('is_active', true);
 
     // Ignore category filter, always return all products
     // if (category) {
@@ -47,7 +46,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      products: products || [],
+      data: products || [],
       count: products?.length || 0
     });
 
