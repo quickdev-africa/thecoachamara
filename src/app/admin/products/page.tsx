@@ -1,24 +1,16 @@
 
 "use client";
+
 import Image from 'next/image';
 import { useEffect, useState } from "react";
 import { uploadProductImage } from "../../../utils/uploadProductImage";
+import type { Product } from "../../../lib/types";
 
 
 const pageSize = 10;
 
 
-type Product = {
-  id: string;
-  name: string;
-  price: number;
-  category?: string;
-  image?: string;
-  description?: string;
-  stock?: number;
-  // For UI rendering only:
-  categoryName?: string;
-};
+
 
 
 type Category = {
@@ -40,7 +32,7 @@ export default function ProductsPage() {
 
   const [products, setProducts] = useState<Product[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState({ name: "", price: "", category: "", image: "", description: "", stock: "" });
+  const [editForm, setEditForm] = useState({ title: "", price: "", category: "", image: "", description: "", inventory: "" });
   const [editSubmitting, setEditSubmitting] = useState(false);
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this product?")) return;
@@ -48,15 +40,15 @@ export default function ProductsPage() {
     fetchProducts();
   };
 
-  const startEdit = (product: Product & { stock?: number }) => {
+  const startEdit = (product: Product) => {
     setEditingId(product.id);
     setEditForm({
-      name: product.name,
+      title: product.name,
       price: product.price.toString(),
-      category: product.category || "",
-      image: product.image || "",
+      category: product.category_id || "",
+      image: product.images && product.images.length > 0 ? product.images[0] : "",
       description: product.description || "",
-      stock: product.stock !== undefined ? product.stock.toString() : "",
+      inventory: product.stock !== undefined ? product.stock.toString() : "",
     });
   };
 
@@ -68,10 +60,10 @@ export default function ProductsPage() {
     e.preventDefault();
     if (!editingId) return;
     setEditSubmitting(true);
-    // Validate stock
-    const stockValue = parseInt(editForm.stock, 10);
-    if (isNaN(stockValue) || stockValue <= 0) {
-      setError("Stock must be a positive integer");
+    // Validate inventory
+    const inventoryValue = parseInt(editForm.inventory, 10);
+    if (isNaN(inventoryValue) || inventoryValue <= 0) {
+      setError("Inventory must be a positive integer");
       setEditSubmitting(false);
       return;
     }
@@ -81,7 +73,7 @@ export default function ProductsPage() {
       body: JSON.stringify({
         ...editForm,
         price: parseFloat(editForm.price),
-        stock: stockValue,
+        inventory: inventoryValue,
       }),
     });
     setEditingId(null);
@@ -94,7 +86,7 @@ export default function ProductsPage() {
   };
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState({ name: "", price: "", category: "", newCategory: "", image: "", description: "", stock: "" });
+  const [form, setForm] = useState({ title: "", price: "", category: "", newCategory: "", image: "", description: "", inventory: "" });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -119,13 +111,13 @@ export default function ProductsPage() {
         const cat = categories.find(c => c.id === product.category_id);
         if (cat) categoryName = cat.name;
       }
-      // Stock fallback
-      let stock = typeof product.stock === 'number' ? product.stock : (product.stock ?? 0);
+      // Inventory fallback
+      let inventory = typeof product.inventory === 'number' ? product.inventory : (product.inventory ?? 0);
       // Image fallback (array or string)
       let image = '';
       if (Array.isArray(product.images) && product.images.length > 0) image = product.images[0];
       else if (typeof product.image === 'string') image = product.image;
-      return { ...product, categoryName, stock, image };
+      return { ...product, categoryName, inventory, image };
     });
     setProducts(productsWithCategory);
     setLoading(false);
@@ -153,7 +145,7 @@ export default function ProductsPage() {
   }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+  setForm({ ...form, [e.target.name]: e.target.value });
   }
 
   // Cloudinary direct upload (client-side only)
@@ -227,9 +219,9 @@ export default function ProductsPage() {
     }
     // categoryId is now optional; do not error if not present
     // Validate stock
-    const stockValue = parseInt(form.stock, 10);
-    if (isNaN(stockValue) || stockValue <= 0) {
-      setError("Stock must be a positive integer");
+    const inventoryValue = parseInt(form.inventory, 10);
+    if (isNaN(inventoryValue) || inventoryValue <= 0) {
+      setError("Inventory must be a positive integer");
       setSubmitting(false);
       return;
     }
@@ -240,7 +232,7 @@ export default function ProductsPage() {
         ...form,
         categoryId: categoryId || null,
         price: parseFloat(form.price),
-        stock: stockValue,
+        inventory: inventoryValue,
       }),
     });
     if (!res.ok) {
@@ -251,7 +243,7 @@ export default function ProductsPage() {
       } catch {}
       setError(errorMsg);
     } else {
-      setForm({ name: "", price: "", category: "", newCategory: "", image: "", description: "", stock: "" });
+  setForm({ title: "", price: "", category: "", newCategory: "", image: "", description: "", inventory: "" });
       setSuccess("Product added successfully!");
       setImageUploaded(false);
       setShowForm(false); // Hide the form after successful creation
@@ -281,13 +273,13 @@ export default function ProductsPage() {
           <h2 className="text-lg font-semibold mb-4 text-blue_gray-500 border-b pb-2">Add New Product</h2>
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="flex flex-col gap-1">
-            <label htmlFor="stock" className="text-sm font-medium text-blue_gray-400 mb-1">Stock<span className="text-red-500">*</span></label>
+            <label htmlFor="inventory" className="text-sm font-medium text-blue_gray-400 mb-1">Inventory<span className="text-red-500">*</span></label>
             <input
-              id="stock"
-              name="stock"
-              value={form.stock}
+              id="inventory"
+              name="inventory"
+              value={form.inventory}
               onChange={handleChange}
-              placeholder="Stock Quantity"
+              placeholder="Inventory Quantity"
               type="number"
               min="1"
               step="1"
@@ -296,13 +288,13 @@ export default function ProductsPage() {
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label htmlFor="name" className="text-sm font-medium text-blue_gray-400 mb-1">Product Name<span className="text-red-500">*</span></label>
+            <label htmlFor="title" className="text-sm font-medium text-blue_gray-400 mb-1">Product Title<span className="text-red-500">*</span></label>
             <input
-              id="name"
-              name="name"
-              value={form.name}
+              id="title"
+              name="title"
+              value={form.title}
               onChange={handleChange}
-              placeholder="Product Name"
+              placeholder="Product Title"
               className="border rounded-lg px-3 py-2 text-gray-900 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-sunglow-400"
               required
             />
@@ -386,7 +378,7 @@ export default function ProductsPage() {
           <button
             type="submit"
             className="bg-sunglow-400 hover:bg-mustard-400 text-gray-900 font-bold rounded-lg px-4 py-2 md:col-span-2 shadow mt-2 transition-colors duration-200 disabled:opacity-60 border border-sunglow-400"
-            disabled={submitting || !form.name || !form.price || !form.stock}
+            disabled={submitting || !form.title || !form.price || !form.inventory}
           >
             {submitting ? (
               <span className="flex items-center gap-2"><svg className="animate-spin h-4 w-4 text-gray-900" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path></svg>Adding...</span>
@@ -422,10 +414,10 @@ export default function ProductsPage() {
                     <>
                       <td className="py-2 px-2 align-middle">
                         <input
-                          name="name"
-                          value={editForm.name}
+                          name="title"
+                          value={editForm.title}
                           onChange={handleEditChange}
-                          placeholder="Product Name"
+                          placeholder="Product Title"
                           className="w-full border rounded-lg px-2 py-1 text-blue_gray-300 bg-baby_powder-500 placeholder:text-blue_gray-100"
                           required
                         />
@@ -458,10 +450,10 @@ export default function ProductsPage() {
                       </td>
                       <td className="py-2 px-2 align-middle">
                         <input
-                          name="stock"
-                          value={editForm.stock}
+                          name="inventory"
+                          value={editForm.inventory}
                           onChange={handleEditChange}
-                          placeholder="Stock Quantity"
+                          placeholder="Inventory Quantity"
                           type="number"
                           min="1"
                           step="1"
@@ -517,11 +509,16 @@ export default function ProductsPage() {
                           maximumFractionDigits: 2
                         }).format(product.price)
                       }</td>
-                      <td className="py-2">{product.categoryName || "-"}</td>
+                      <td className="py-2">{
+                        (() => {
+                          const cat = categories.find(c => c.id === product.category_id);
+                          return cat ? cat.name : "-";
+                        })()
+                      }</td>
                       <td className="py-2">{product.stock}</td>
                       <td className="py-2">
-                        {product.image ? (
-                          <Image src={product.image} alt={product.name} width={60} height={60} className="object-cover rounded border bg-gray-100" onError={(e) => { (e.target as HTMLImageElement).src = '/logo.png'; }} />
+                        {product.images && product.images.length > 0 ? (
+                          <Image src={product.images[0]} alt={product.name} width={60} height={60} className="object-cover rounded border bg-gray-100" onError={(e) => { (e.target as HTMLImageElement).src = '/logo.png'; }} />
                         ) : (
                           <Image src="/logo.png" alt="No image" width={60} height={60} className="object-cover rounded border bg-gray-100" />
                         )}

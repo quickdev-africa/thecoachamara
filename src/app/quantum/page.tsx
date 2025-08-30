@@ -328,13 +328,13 @@ export default function QuantumPage() {
             <div className="max-w-2xl w-full px-3 xs:px-4 sm:px-6 md:px-16 text-base xs:text-lg md:text-2xl font-semibold text-black/80 leading-relaxed">
               <p className="mb-8 break-words">
                 For those already managing terminal or lifelong conditions like
-                <span className="text-amber-700 font-extrabold text-lg xs:text-xl md:text-2xl md:text-3xl italic underline underline-offset-4 mx-1 md:mx-2">hypertension</span>,
-                <span className="text-amber-700 font-extrabold text-lg xs:text-xl md:text-2xl md:text-3xl italic underline underline-offset-4 mx-1 md:mx-2">diabetes</span>,
-                <span className="text-amber-700 font-extrabold text-lg xs:text-xl md:text-2xl md:text-3xl italic underline underline-offset-4 mx-1 md:mx-2">arthritis</span>,
+                <span className="text-amber-700 font-extrabold text-lg xs:text-xl md:text-3xl italic underline underline-offset-4 mx-1 md:mx-2">hypertension</span>,
+                <span className="text-amber-700 font-extrabold text-lg xs:text-xl md:text-3xl italic underline underline-offset-4 mx-1 md:mx-2">diabetes</span>,
+                <span className="text-amber-700 font-extrabold text-lg xs:text-xl md:text-3xl italic underline underline-offset-4 mx-1 md:mx-2">arthritis</span>,
                 or other chronic diseases, Quantum Energy becomes a
-                <span className="text-amber-700 font-extrabold text-lg xs:text-xl md:text-2xl md:text-3xl italic underline underline-offset-4 mx-1 md:mx-2">game-changer</span>.
+                <span className="text-amber-700 font-extrabold text-lg xs:text-xl md:text-3xl italic underline underline-offset-4 mx-1 md:mx-2">game-changer</span>.
                 When you use the Quantum Machine, your body responds better to treatments. Many patients see their doctors gradually reduce their dosage of drugs — and some even get to a point where the doctor says,
-                <span className="italic text-amber-700 text-lg xs:text-xl md:text-2xl md:text-3xl font-bold underline underline-offset-4 mx-1 md:mx-2">“You don’t need these drugs anymore.”</span>
+                <span className="italic text-amber-700 text-lg xs:text-xl md:text-3xl font-bold underline underline-offset-4 mx-1 md:mx-2">“You don’t need these drugs anymore.”</span>
               </p>
             </div>
           </div>
