@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '../../../../supabaseClient';
+import { ensurePaymentExists } from '@/lib/paymentUtils';
 
 // Paystack webhook secret (set in your environment variables)
 const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
@@ -27,39 +28,27 @@ export async function POST(req: NextRequest) {
   const data = body.data;
 
   if (event === 'charge.success') {
-    // Update payment record in Supabase
     const { reference, amount, status, customer, metadata } = data;
-    // Find payment by reference
-    const { data: payment, error: fetchError } = await supabase
-      .from('payments')
-      .select('*')
-      .eq('reference', reference)
-      .single();
-    if (fetchError || !payment) {
-      // Optionally create payment if not found
-      await supabase.from('payments').insert({
+    try {
+      const payment = await ensurePaymentExists(supabase, {
         reference,
-        email: customer.email,
-        amount: amount / 100, // Paystack sends kobo
+        amount: amount / 100,
         status: 'success',
-        metadata,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        payment_method: 'paystack',
+        email: customer?.email || null,
+        metadata
       });
-    } else {
-      // Update payment status
-      await supabase.from('payments').update({
-        status: 'success',
-        updated_at: new Date().toISOString(),
-      }).eq('reference', reference);
+      console.log('Webhook ensured payment', reference, payment?.id);
+    } catch (e: any) {
+      console.warn('Webhook ensurePaymentExists failed', e?.message || e);
     }
-    // Optionally update order status if you store order_id in metadata
+
     if (metadata && metadata.order_id) {
-      await supabase.from('orders').update({
-        payment_status: 'completed',
-        status: 'confirmed',
-        updated_at: new Date().toISOString(),
-      }).eq('id', metadata.order_id);
+      try {
+        await supabase.from('orders').update({ payment_status: 'completed', status: 'confirmed', updated_at: new Date().toISOString() }).eq('id', metadata.order_id);
+      } catch (e: any) {
+        console.warn('Webhook failed to update order', e);
+      }
     }
   }
   // Handle other events (e.g., charge.failed, refund, etc.)

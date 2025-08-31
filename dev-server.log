@@ -1,0 +1,26 @@
+
+> thecoachamara@0.1.0 dev
+> next dev
+
+  ▲ Next.js 14.2.32
+  - Local:        http://localhost:3000
+  - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 1757ms
+ ✓ Compiled /api/orders/notify in 430ms (175 modules)
+(node:49476) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ POST /api/orders/notify 200 in 1199ms
+ ✓ Compiled /api/payments in 116ms (175 modules)
+Error creating payment: {
+  code: 'PGRST204',
+  details: null,
+  hint: null,
+  message: "Could not find the 'createdAt' column of 'payments' in the schema cache"
+}
+ POST /api/payments 500 in 784ms
+ ✓ Compiled in 96ms (175 modules)
+ ✓ Compiled in 126ms (175 modules)
+ ✓ Compiled /api/orders/notify in 91ms (175 modules)
+ POST /api/orders/notify 200 in 726ms

@@ -88,20 +88,19 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<{
       amount: parseFloat(paymentData.amount),
       productId: paymentData.productId,
       status: paymentData.status,
-      metadata: paymentData.metadata || {},
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString()
+      metadata: paymentData.metadata || {}
+    };
+
+    const now = new Date().toISOString();
+    const insertPayload = {
+      ...payment,
+      created_at: now,
+      updated_at: now
     };
 
     const { data, error } = await supabase
       .from('payments')
-      .insert([
-        {
-          ...payment,
-          created_at: payment.createdAt,
-          updated_at: payment.updatedAt,
-        }
-      ])
+      .insert([insertPayload as any])
       .select('id')
       .single();
 

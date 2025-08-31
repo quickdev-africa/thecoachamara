@@ -156,15 +156,26 @@ export async function createOrderAndInitPayment({
     const paymentReference = funnelResult.paymentReference;
     // amount returned is expected in NGN (integer). Use it if present, otherwise fall back to client total.
     const payAmountNgn = typeof funnelResult.amount === 'number' ? funnelResult.amount : total;
+    // If server returned a Paystack authorization URL, prefer it (server-initialized reference)
+    const authorizationUrl = funnelResult.paystackAuthorizationUrl || null;
+    const serverPaystackRef = funnelResult.paystackReference || null;
+
+    if (authorizationUrl) {
+      // Redirect user to Paystack-hosted checkout (recommended for server-side initialize)
+      window.location.href = authorizationUrl;
+      return;
+    }
+
     return new Promise<void>(async (resolve) => {
       try {
+        const refToUse = serverPaystackRef || paymentReference;
         // call setup on the PaystackPop object so `this` inside setup is correct
         const handler = paystackPop.setup({
           key: paystackKey,
           email: form.email,
           amount: payAmountNgn * 100,
           currency: 'NGN',
-          ref: paymentReference,
+          ref: refToUse,
           firstname: form.name.split(' ')[0] || form.name,
           lastname: form.name.split(' ').slice(1).join(' ') || '',
           phone: form.phone,

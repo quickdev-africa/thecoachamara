@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { ensurePaymentExists } from '@/lib/paymentUtils';
 
 const supabase = createClient(
   process.env.SUPABASE_URL || '',
@@ -15,6 +16,17 @@ async function verifyWithPaystack(reference: string) {
   });
   if (!res.ok) throw new Error('Paystack verify failed');
   return res.json();
+}
+
+// helper to generate friendly order numbers (QM-YYYYMMDD-XXXX)
+function makeOrderNumber() {
+  const d = new Date();
+  const yyyy = d.getFullYear().toString();
+  const mm = (d.getMonth() + 1).toString().padStart(2, '0');
+  const dd = d.getDate().toString().padStart(2, '0');
+  const datePart = `${yyyy}${mm}${dd}`;
+  const suffix = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+  return `QM-${datePart}-${suffix}`;
 }
 
 async function sendOrderEmails(order: any) {
@@ -90,8 +102,47 @@ export async function POST(request: NextRequest) {
 
     if (fetchErr) console.warn('Failed to fetch payment_attempt', fetchErr);
 
-    // If already marked success, return early (idempotent)
+    // If already marked success, attempt to ensure a payments row exists and order is updated (idempotent)
     if (attempt?.status === 'success') {
+      try {
+        console.log('Handling already-successful payment_attempt', { id: attempt.id, payment_reference: attempt.payment_reference, order_id: attempt.order_id });
+        // Try to determine the paystack reference from stored paystack_data or provided paystackReference
+        const storedRef = attempt?.paystack_data?.reference || attempt?.paystack_reference || null;
+        const refToCheck = paystackReference || storedRef || paymentReference;
+
+        try {
+          await ensurePaymentExists(supabase, {
+            reference: refToCheck,
+            order_id: attempt.order_id,
+            amount: attempt.amount || 0,
+            status: 'completed',
+            payment_method: attempt.payment_provider || 'paystack',
+            email: attempt.email || null,
+            metadata: attempt.paystack_data || null
+          });
+          console.log('Ensured payment exists for already-successful attempt', refToCheck);
+        } catch (e: any) {
+          console.warn('ensurePaymentExists failed for already-successful attempt', e?.message || e);
+        }
+
+        // Ensure order is updated
+        if (attempt.order_id) {
+          try {
+            await supabase.from('orders').update({ paymentStatus: 'paid', status: 'processing', payment_reference: refToCheck, updated_at: new Date().toISOString() }).eq('id', attempt.order_id);
+          } catch (e: any) {
+            console.warn('Failed to update order for already-successful attempt', e);
+          }
+
+          try {
+            await supabase.from('order_status_history').insert({ order_id: attempt.order_id, status: 'paid', changed_at: new Date().toISOString() });
+          } catch (e: any) {
+            // ignore
+          }
+        }
+      } catch (e: any) {
+        console.warn('Error handling already-successful attempt', e);
+      }
+
       return NextResponse.json({ success: true, message: 'Already processed', paymentAttempt: attempt });
     }
 
@@ -130,43 +181,84 @@ export async function POST(request: NextRequest) {
 
     const orderId = attempt?.order_id || verifiedData.metadata?.orderId || null;
 
-    // Ensure payment record exists (idempotent)
-    const { data: existingPayment } = await supabase.from('payments').select('*').eq('reference', refToVerify).maybeSingle();
-    if (!existingPayment) {
+    // If there is no orderId, attempt to auto-create a minimal order from Paystack metadata (idempotent guard)
+    let createdOrderId = orderId;
+    if (!createdOrderId) {
       try {
-        await supabase.from('payments').insert({
-          order_id: orderId,
-          amount: (paidAmount || 0) / 100,
-          status: 'completed',
-          payment_method: 'paystack',
-          reference: refToVerify,
-          raw_response: verifiedData,
-          created_at: new Date().toISOString()
-        });
-      } catch (e: any) {
-        console.warn('Failed to insert payment row', e);
+        const custEmail = verifiedData.customer?.email || verifiedData.customer_email || verifiedData.metadata?.customerEmail || null;
+        const custNameParts = [verifiedData.customer?.first_name, verifiedData.customer?.last_name].filter(Boolean);
+        const custName = custNameParts.length ? custNameParts.join(' ') : (verifiedData.metadata?.customerName || null);
+        const amountDecimal = (paidAmount || 0) / 100;
+
+        const orderPayload: any = {
+          order_number: makeOrderNumber(),
+          customerName: custName,
+          customerEmail: custEmail,
+          customerPhone: verifiedData.customer?.phone || verifiedData.metadata?.customerPhone || null,
+          subtotal: amountDecimal,
+          deliveryFee: 0,
+          total: amountDecimal,
+          status: 'processing',
+          paymentStatus: 'paid',
+          delivery: {},
+          metadata: {
+            source: 'created-from-paystack-verify',
+            paystack_reference: refToVerify,
+            paystack_raw: verifiedData,
+            original_metadata: verifiedData.metadata || {}
+          },
+          items: verifiedData.metadata?.items ? verifiedData.metadata.items : []
+        };
+
+        const insertRes: any = await supabase.from('orders').insert(orderPayload).select().maybeSingle();
+        const newOrder = insertRes?.data ?? insertRes;
+        const newOrderErr = insertRes?.error ?? null;
+        if (!newOrderErr && newOrder) {
+          createdOrderId = newOrder.id;
+        } else {
+          console.warn('Failed to auto-create order from verify:', newOrderErr);
+        }
+      } catch (e) {
+        console.warn('Exception creating order from verify:', e);
       }
     }
 
-    // Update order and history
-    if (orderId) {
+    // Ensure payment record exists (idempotent)
+    try {
+      const payment = await ensurePaymentExists(supabase, {
+        reference: refToVerify,
+        order_id: createdOrderId,
+        amount: (paidAmount || 0) / 100,
+        status: 'completed',
+        payment_method: 'paystack',
+        email: verifiedData.customer?.email || null,
+        metadata: verifiedData
+      });
+      console.log('Ensured payment exists after verify', { reference: refToVerify, paymentId: payment?.id });
+    } catch (e: any) {
+      console.warn('ensurePaymentExists failed after verify', e?.message || e);
+    }
+
+  // Update order and history
+  if (createdOrderId) {
       try {
-        await supabase.from('orders').update({ paymentStatus: 'paid', status: 'processing', payment_reference: refToVerify, updated_at: new Date().toISOString() }).eq('id', orderId);
+    await supabase.from('orders').update({ paymentStatus: 'paid', status: 'processing', payment_reference: refToVerify, updated_at: new Date().toISOString() }).eq('id', createdOrderId);
       } catch (e: any) {
         console.warn('Failed to update order', e);
       }
 
       try {
-        await supabase.from('order_status_history').insert({ order_id: orderId, status: 'paid', changed_at: new Date().toISOString() });
+        // Use the createdOrderId (which may be the existing order or a newly-created one)
+        await supabase.from('order_status_history').insert({ order_id: createdOrderId || orderId, status: 'paid', changed_at: new Date().toISOString() });
       } catch (e: any) {
-        // ignore
+        console.warn('Failed to insert order_status_history', e);
       }
 
       // Notify admin webhook (fire-and-forget)
       (async () => {
         try {
-          const webhook = process.env.ADMIN_PAYMENT_WEBHOOK_URL;
-          if (webhook) await fetch(webhook, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ event: 'payment_success', reference: refToVerify, orderId, verifiedData }) });
+            const webhook = process.env.ADMIN_PAYMENT_WEBHOOK_URL;
+            if (webhook) await fetch(webhook, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ event: 'payment_success', reference: refToVerify, orderId: createdOrderId || orderId, verifiedData }) });
         } catch (e) {
           console.warn('Failed to notify admin webhook', e);
         }
@@ -174,14 +266,14 @@ export async function POST(request: NextRequest) {
 
       // Send emails
       try {
-        const { data: orderData } = await supabase.from('orders').select('*').eq('id', orderId).maybeSingle();
+        const { data: orderData } = await supabase.from('orders').select('*').eq('id', createdOrderId).maybeSingle();
         if (orderData) await sendOrderEmails(orderData);
       } catch (e) {
         console.warn('Failed to fetch order for email', e);
       }
     }
 
-    return NextResponse.json({ success: true, verification: verifiedData, orderId });
+    return NextResponse.json({ success: true, verification: verifiedData, orderId: createdOrderId });
   } catch (e: any) {
     console.error('payments.verify POST error', e);
     return NextResponse.json({ success: false, error: e?.message || 'Internal error' }, { status: 500 });

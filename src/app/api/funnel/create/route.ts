@@ -7,6 +7,17 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+// Helper: QM-YYYYMMDD-XXXX (random 4-digit suffix)
+function makeOrderNumber() {
+  const d = new Date();
+  const yyyy = d.getFullYear().toString();
+  const mm = (d.getMonth() + 1).toString().padStart(2, '0');
+  const dd = d.getDate().toString().padStart(2, '0');
+  const datePart = `${yyyy}${mm}${dd}`;
+  const suffix = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+  return `QM-${datePart}-${suffix}`;
+}
+
 
 export async function POST(request: NextRequest) {
   try {
@@ -28,9 +39,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 });
     }
 
-    // Verify product exists (optional) and prepare order insert
-    const orderPayload: any = {
-      order_number: `QM-${Date.now().toString().slice(-6)}-${Math.random().toString(36).slice(2,7).toUpperCase()}`,
+    // Prepare order payload and generate a friendly, unique order number
+    const orderPayloadBase: any = {
       customerName,
       customerEmail,
       customerPhone,
@@ -48,11 +58,26 @@ export async function POST(request: NextRequest) {
       items // store snapshot
     };
 
-    const { data: order, error: orderError } = await supabase
-      .from('orders')
-      .insert(orderPayload)
-      .select()
-      .single();
+  // Helper defined above
+
+    let order: any = null;
+    let orderError: any = null;
+    const MAX_ORDER_TRIES = 5;
+    for (let attempt = 0; attempt < MAX_ORDER_TRIES; attempt++) {
+      const candidate = { ...orderPayloadBase, order_number: makeOrderNumber() };
+      const res = await supabase.from('orders').insert(candidate).select().maybeSingle();
+      // res may be { data, error } or similar; handle both shapes
+      const data = (res as any).data ?? (res as any)[0];
+      const err = (res as any).error ?? (res as any)[1];
+      if (!err && data) {
+        order = data;
+        orderError = null;
+        break;
+      }
+      orderError = err || orderError;
+      // if duplicate order_number or other transient error, retry
+      console.warn('Order insert attempt failed (will retry):', attempt, orderError);
+    }
 
     if (orderError || !order) {
       console.error('Funnel order creation error:', orderError);
@@ -184,7 +209,57 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Failed to create payment attempt' }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, orderId: order.id, paymentReference, amount: Number(total) }, { status: 201 });
+    // Try to initialize Paystack transaction server-side so Paystack knows the reference
+    let paystackAuthorizationUrl: string | null = null;
+    let paystackReference: string | null = null;
+    try {
+      const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
+      if (PAYSTACK_SECRET) {
+        const initBody = {
+          email: customerEmail,
+          amount: Math.round(Number(total) * 100), // kobo
+          metadata: {
+            paymentReference,
+            orderId: order.id,
+            source: 'quantum-funnel',
+            items: items || []
+          }
+        };
+        const resp = await fetch('https://api.paystack.co/transaction/initialize', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${PAYSTACK_SECRET}`
+          },
+          body: JSON.stringify(initBody)
+        });
+        const json = await resp.json();
+        if (json && json.status === true && json.data) {
+          paystackAuthorizationUrl = json.data.authorization_url || null;
+          paystackReference = json.data.reference || null;
+          // Update payment_attempts with paystack reference if available
+          if (paystackReference) {
+            await supabase.from('payment_attempts').update({ paystack_reference: paystackReference }).eq('payment_reference', paymentReference);
+          }
+        } else {
+          console.warn('Paystack initialize returned non-ok', json);
+        }
+      } else {
+        console.warn('PAYSTACK_SECRET_KEY not configured, skipping server-side initialize');
+      }
+    } catch (e) {
+      console.warn('Failed to initialize Paystack transaction', e);
+    }
+
+    return NextResponse.json({
+      success: true,
+      orderId: order.id,
+      orderNumber: order.order_number,
+      paymentReference,
+      amount: Number(total),
+      paystackAuthorizationUrl,
+      paystackReference
+    }, { status: 201 });
 
   } catch (error) {
     console.error('Funnel create API error:', error);
