@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '../../../../supabaseClient';
+import serverSupabase from '@/lib/serverSupabase';
 import { ensurePaymentExists } from '@/lib/paymentUtils';
 
 // Paystack webhook secret (set in your environment variables)
@@ -8,7 +9,11 @@ const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
 // Helper to verify Paystack signature
 function verifyPaystackSignature(req: NextRequest, rawBody: Buffer): boolean {
   const crypto = require('crypto');
-  const signature = req.headers.get('x-paystack-signature');
+  if (!PAYSTACK_SECRET) {
+    console.warn('PAYSTACK_SECRET_KEY not set; cannot verify webhook signature');
+    return false;
+  }
+  const signature = req.headers.get('x-paystack-signature') || '';
   const hash = crypto.createHmac('sha512', PAYSTACK_SECRET).update(rawBody).digest('hex');
   return signature === hash;
 }
@@ -18,10 +23,12 @@ export async function POST(req: NextRequest) {
   const rawBody = await req.arrayBuffer();
   const body = JSON.parse(Buffer.from(rawBody).toString('utf8'));
 
-  // Optionally verify signature (for production)
-  // if (!verifyPaystackSignature(req, Buffer.from(rawBody))) {
-  //   return NextResponse.json({ success: false, error: 'Invalid signature' }, { status: 401 });
-  // }
+  // Verify signature in production (requires PAYSTACK_SECRET_KEY set)
+  if (process.env.NODE_ENV === 'production') {
+    if (!verifyPaystackSignature(req, Buffer.from(rawBody))) {
+      return NextResponse.json({ success: false, error: 'Invalid signature' }, { status: 401 });
+    }
+  }
 
   // Handle Paystack event
   const event = body.event;
@@ -30,7 +37,7 @@ export async function POST(req: NextRequest) {
   if (event === 'charge.success') {
     const { reference, amount, status, customer, metadata } = data;
     try {
-      const payment = await ensurePaymentExists(supabase, {
+      const payment = await ensurePaymentExists(serverSupabase, {
         reference,
         amount: amount / 100,
         status: 'success',

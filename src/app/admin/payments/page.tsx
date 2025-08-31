@@ -21,7 +21,6 @@ export default function PaymentsPage() {
     queryFn: () => fetchPayments({ ...filter, email: search }),
   });
 
-  // Analytics summary
   const analytics = useMemo(() => {
     let total = 0, byStatus: Record<string, number> = {}, byMethod: Record<string, number> = {}, topCustomers: Record<string, number> = {};
     payments.forEach((p: any) => {
@@ -37,7 +36,6 @@ export default function PaymentsPage() {
   return (
     <div className="px-1 sm:px-2 md:px-4">
       <h1 className="text-2xl font-bold mb-2 text-black">Payment Management</h1>
-      {/* Analytics */}
       <div className="mb-4 grid grid-cols-1 gap-2 sm:gap-4 md:grid-cols-4">
         <div className="bg-white rounded-lg shadow p-3 sm:p-4 border">
           <div className="text-xs text-gray-500">Total Payments</div>
@@ -68,7 +66,6 @@ export default function PaymentsPage() {
           </ul>
         </div>
       </div>
-      {/* Filters/Search */}
       <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:gap-4">
         <input
           type="text"
@@ -88,7 +85,6 @@ export default function PaymentsPage() {
           <option value="failed">Failed</option>
         </select>
       </div>
-      {/* Table */}
       <div className="bg-white rounded-xl shadow p-2 sm:p-4 md:p-6 border border-blue_gray-100 overflow-x-auto">
         {isLoading ? (
           <div className="text-gray-900 text-base">Loading payments...</div>
@@ -139,7 +135,6 @@ export default function PaymentsPage() {
           </div>
         )}
       </div>
-      {/* Payment Details Modal */}
       {selected && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 px-2 sm:px-0">
           <div className="bg-white rounded-xl shadow-lg p-2 sm:p-4 md:p-6 w-full max-w-xl relative">

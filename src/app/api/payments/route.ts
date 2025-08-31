@@ -81,8 +81,9 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<{
       }
     }
 
-    // Create payment with standardized structure
-    const payment: Omit<Payment, 'id'> = {
+  // Create payment with standardized structure
+  // Exclude createdAt/updatedAt from the in-memory payload since we use snake_case timestamps for DB inserts
+  const payment: Omit<Payment, 'id' | 'createdAt' | 'updatedAt'> = {
       reference: paymentData.reference,
       email: paymentData.email,
       amount: parseFloat(paymentData.amount),

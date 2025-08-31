@@ -194,9 +194,10 @@ export async function GET(request: NextRequest) {
         }, { status: 404 });
       }
 
+      // Return single order using unified ApiResponse shape
       return NextResponse.json({
         success: true,
-        order
+        data: order
       });
     }
 
@@ -233,10 +234,25 @@ export async function GET(request: NextRequest) {
       }, { status: 500 });
     }
 
+    // Normalize DB rows (snake_case) to camelCase expected by frontend
+    const normalized = (orders || []).map((r: any) => ({
+      id: r.id,
+      orderNumber: r.order_number || r.orderNumber,
+      customerName: r.customerName || r.customer_name || r.customer_name,
+      customerEmail: r.customerEmail || r.customer_email,
+      total: r.total,
+      status: r.status,
+      paymentStatus: r.paymentStatus || r.payment_status,
+      createdAt: r.created_at || r.createdAt
+    }));
+
+    // Return list using unified ApiResponse shape (data + meta.total)
     return NextResponse.json({
       success: true,
-      orders: orders || [],
-      count: orders?.length || 0
+      data: normalized,
+      meta: {
+        total: normalized.length || 0
+      }
     });
 
   } catch (error) {
