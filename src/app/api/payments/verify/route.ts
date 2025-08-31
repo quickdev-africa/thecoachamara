@@ -9,6 +9,66 @@ const supabase = createClient(
 
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY!;
 
+async function sendOrderEmails(order: any) {
+  const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
+  const SENDER_EMAIL = process.env.SENDER_EMAIL;
+  const OWNER_EMAIL = process.env.OWNER_EMAIL;
+
+  if (!SENDGRID_API_KEY || !SENDER_EMAIL || !OWNER_EMAIL) {
+    console.info('SendGrid not configured; skipping emails and falling back to simulated notify');
+    // Attempt to call internal notify route which currently simulates success
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || ''}/api/orders/notify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: order.id })
+      });
+    } catch (e) {
+      console.warn('Fallback notify failed', e);
+    }
+    return;
+  }
+
+  const send = async (to: string, subject: string, html: string) => {
+    await fetch('https://api.sendgrid.com/v3/mail/send', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${SENDGRID_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        personalizations: [{ to: [{ email: to }] }],
+        from: { email: SENDER_EMAIL },
+        subject,
+        content: [{ type: 'text/html', value: html }]
+      })
+    });
+  };
+
+  try {
+    const customerHtml = `
+      <p>Hi ${order.customerName || 'Customer'},</p>
+      <p>Thank you for your order <strong>${order.order_number}</strong>. We received your payment of ₦${order.total} and are processing your order.</p>
+      <p>We will notify you when your order ships.</p>
+      <p>— Coach Amara</p>
+    `;
+
+    const ownerHtml = `
+      <p>New order received: <strong>${order.order_number}</strong></p>
+      <p>Customer: ${order.customerName} &lt;${order.customerEmail}&gt;</p>
+      <p>Total: ₦${order.total}</p>
+      <p>Order ID: ${order.id}</p>
+    `;
+
+    await Promise.all([
+      send(order.customerEmail, `Order confirmation — ${order.order_number}`, customerHtml),
+      send(OWNER_EMAIL, `New order received — ${order.order_number}`, ownerHtml)
+    ]);
+  } catch (e) {
+    console.error('Failed to send emails via SendGrid', e);
+  }
+}
+
 async function verifyPaystackPayment(reference: string) {
   try {
     const response = await fetch(
@@ -136,6 +196,16 @@ export async function POST(request: NextRequest) {
 
       if (paymentError) {
         console.error('Payment record creation error:', paymentError);
+      }
+
+      // Fetch order for email content and notify
+      try {
+        const { data: orderData } = await supabase.from('orders').select('*').eq('id', paymentAttempt.order_id).single();
+        if (orderData) {
+          await sendOrderEmails(orderData);
+        }
+      } catch (e) {
+        console.warn('Failed to fetch order for email notify', e);
       }
 
       // TODO: Trigger email notifications here

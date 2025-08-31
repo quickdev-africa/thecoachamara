@@ -73,28 +73,59 @@ export async function POST(request: NextRequest) {
     }
 
     // Insert order items
-    const orderItems = items.map((item: any) => ({
-      order_id: order.id,
-      product_id: item.productId,
-      product_name: item.productName,
-      product_price: Number(item.unitPrice || item.price),
-      quantity: Number(item.quantity),
-      total_price: Number(item.totalPrice || item.total),
-      product_snapshot: {
-        ...item,
-        capturedAt: new Date().toISOString()
+      // Lookup which product IDs actually exist to avoid FK constraint failures
+      const productIds = items
+        .map((it: any) => it.productId)
+        .filter(Boolean);
+
+      let existingProductIds = new Set<string>();
+      if (productIds.length > 0) {
+        try {
+          const { data: productsList } = await supabase
+            .from('products')
+            .select('id')
+            .in('id', productIds);
+          if (Array.isArray(productsList)) {
+            existingProductIds = new Set(productsList.map((p: any) => p.id));
+          }
+        } catch (e) {
+          console.warn('Failed to lookup product ids to validate order items', e);
+        }
       }
-    }));
 
-    const { error: itemsError } = await supabase
-      .from('order_items')
-      .insert(orderItems);
+      const orderItems = items.map((item: any) => {
+        const hasProduct = item.productId && existingProductIds.has(item.productId);
+        const row: any = {
+          order_id: order.id,
+          product_name: item.productName,
+          product_price: Number(item.unitPrice || item.price),
+          quantity: Number(item.quantity),
+          total_price: Number(item.totalPrice || item.total),
+          product_snapshot: {
+            ...item,
+            capturedAt: new Date().toISOString()
+          }
+        };
 
-    if (itemsError) {
-      console.error('Order items creation error:', itemsError);
-      // Don't fail the order, just log the error
-      console.warn('Order created but items insertion failed:', itemsError.message);
-    }
+        // Only include product_id if the product exists in products table
+        if (hasProduct) {
+          row.product_id = item.productId;
+        } else {
+          console.info('Product id not found in products table, storing snapshot without FK:', item.productId);
+        }
+
+        return row;
+      });
+
+      const { error: itemsError } = await supabase
+        .from('order_items')
+        .insert(orderItems);
+
+      if (itemsError) {
+        console.error('Order items creation error:', itemsError);
+        // Don't fail the order, just log the error
+        console.warn('Order created but items insertion failed:', itemsError.message);
+      }
 
     // Update inventory (if products exist in database)
     for (const item of items) {

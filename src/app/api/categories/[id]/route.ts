@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '../../../../supabaseClient';
+import { createClient } from '@supabase/supabase-js';
+
+const serverSupabase = createClient(
+  process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+  process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+);
 import { Category, ApiResponse } from '@/lib/types';
 
 interface RouteParams {
@@ -34,7 +40,7 @@ export async function GET(
       }, { status: 404 });
     }
     // Get product count for this category
-    const { count: productCount, error: prodCountError } = await supabase
+  const { count: productCount, error: prodCountError } = await supabase
       .from('products')
       .select('id', { count: 'exact', head: true })
       .eq('category_id', id)
@@ -165,7 +171,7 @@ export async function DELETE(
     }
 
     // Hard delete: permanently remove the category if no products
-    const { error } = await supabase
+    const { error } = await serverSupabase
       .from('categories')
       .delete()
       .eq('id', id);

@@ -31,6 +31,27 @@ export default function RootLayout({
   return (
     <html lang="en">
   <body className="antialiased font-playfair">
+        {/* Paystack inline script loader (async) - only injected in browser */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function(){
+                if (typeof window === 'undefined') return;
+                if (!window.__paystack_loader_added) {
+                  var s = document.createElement('script');
+                  s.src = 'https://js.paystack.co/v1/inline.js';
+                  s.async = true;
+                  document.head.appendChild(s);
+                  window.__paystack_loader_added = true;
+                }
+                // expose base url for server-side notify fallback if NEXT_PUBLIC_BASE_URL is provided
+                window.__NEXT_PUBLIC_BASE_URL = '${process.env.NEXT_PUBLIC_BASE_URL || ''}';
+                // expose Paystack public key at runtime for client code diagnostics/fallback
+                window.__NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY = '${process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || ''}';
+              })();
+            `
+          }}
+        />
         <SessionProvider>
           <ReactQueryProvider>{children}</ReactQueryProvider>
         </SessionProvider>

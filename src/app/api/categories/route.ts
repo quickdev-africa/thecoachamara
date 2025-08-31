@@ -1,5 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '../../../supabaseClient';
+import { createClient } from '@supabase/supabase-js';
+
+// Server-side service role client (used for privileged writes from server routes)
+const serverSupabase = createClient(
+  process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+  process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+);
 import { Category, ApiResponse } from '@/lib/types';
 
 
@@ -26,7 +33,8 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Ca
 
     let filteredCategories = categories || [];
     if (!includeInactive) {
-      filteredCategories = filteredCategories.filter(category => category.isActive);
+      // DB returns snake_case columns; check is_active
+      filteredCategories = filteredCategories.filter(category => category.is_active);
     }
 
     return NextResponse.json({
@@ -62,34 +70,42 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<{
     }
 
     // Create category with standardized structure
-    const category: Omit<Category, 'id'> = {
+    const now = new Date().toISOString();
+
+    // Log incoming category payload for diagnostics
+    // eslint-disable-next-line no-console
+    console.log('[api/categories] create payload:', categoryData);
+
+    const insertRow: any = {
       name: categoryData.name,
       description: categoryData.description || '',
       image: categoryData.image || '',
-      isActive: categoryData.isActive !== false, // Default to true
-      sortOrder: categoryData.sortOrder || 0,
+      is_active: categoryData.isActive !== false,
+      sort_order: categoryData.sortOrder || 0,
       metadata: {
-        productCount: 0, // Will be updated when products are added
+        productCount: 0,
         tags: categoryData.tags || []
       },
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString()
+      created_at: now,
+      updated_at: now
     };
 
-    const { data, error } = await supabase
+  const { data, error } = await serverSupabase
       .from('categories')
-      .insert([
-        {
-          ...category,
-          created_at: category.createdAt,
-          updated_at: category.updatedAt,
-        }
-      ])
-  .select('id')
+      .insert([insertRow])
+      .select('id')
       .single();
 
+    // Log Supabase response for diagnostics
+    // eslint-disable-next-line no-console
+    console.log('[api/categories] supabase insert response:', { data, error: error ? JSON.stringify(error) : null });
+
     if (error) {
-      throw error;
+      return NextResponse.json({
+        success: false,
+        error: error.message || 'Supabase insert failed',
+        supabase: { data, error: error ? JSON.stringify(error) : null }
+      }, { status: 500 });
     }
 
     return NextResponse.json({

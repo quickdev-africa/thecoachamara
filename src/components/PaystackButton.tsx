@@ -6,20 +6,30 @@ interface PaystackButtonProps {
   canPay: boolean;
   paystackReady?: boolean;
   total: number;
-  onClick: () => void;
+  onClick?: () => void;
+  type?: 'button' | 'submit';
 }
 
-export default function PaystackButton({ loading, canPay, paystackReady, total, onClick }: PaystackButtonProps) {
+export default function PaystackButton({ loading, canPay, paystackReady, total, onClick, type = 'button' }: PaystackButtonProps) {
+  const isSubmit = type === 'submit';
+  const enabled = isSubmit ? (!loading && paystackReady) : (canPay && !loading && paystackReady);
+
   return (
     <button
-      type="button"
+      type={type}
       className={`w-full py-4 px-6 rounded-xl text-lg md:text-xl font-bold transition-all duration-200 ${
-        canPay && !loading && paystackReady
+        enabled
           ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-lg hover:shadow-xl transform hover:scale-[1.02]'
           : 'bg-gray-300 text-gray-500 cursor-not-allowed'
       }`}
-      disabled={!canPay || loading || !paystackReady}
-      onClick={onClick}
+      disabled={!enabled}
+      onClick={(e) => {
+        if (!enabled) {
+          e.preventDefault();
+          return;
+        }
+        onClick && onClick();
+      }}
     >
       {loading ? (
         <div className="flex items-center justify-center gap-2">

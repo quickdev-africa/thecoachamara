@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '../../../../supabaseClient';
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 import { Product, ApiResponse } from '@/lib/types';
 
 interface RouteParams {
@@ -77,27 +82,36 @@ export async function PUT(
     const updateFields: any = {
       updated_at: new Date().toISOString()
     };
-    if (updateData.name) updateFields.name = updateData.name;
-    if (updateData.description) updateFields.description = updateData.description;
-    if (updateData.price !== undefined) updateFields.price = parseFloat(updateData.price);
-    if (updateData.categoryId) updateFields.category_id = updateData.categoryId;
-    if (updateData.images) updateFields.images = updateData.images;
-    if (updateData.stock !== undefined) updateFields.stock = updateData.stock;
-    if (updateData.isActive !== undefined) updateFields.is_active = updateData.isActive;
-    if (updateData.featured !== undefined) updateFields.featured = updateData.featured;
-    // Handle metadata updates
-    if (updateData.weight || updateData.dimensions || updateData.tags) {
+
+    // Use explicit presence checks so falsy/empty values (0, empty string, empty array) are handled
+    if (Object.prototype.hasOwnProperty.call(updateData, 'name')) updateFields.name = updateData.name;
+    if (Object.prototype.hasOwnProperty.call(updateData, 'description')) updateFields.description = updateData.description;
+    if (Object.prototype.hasOwnProperty.call(updateData, 'price')) updateFields.price = Number(updateData.price);
+    if (Object.prototype.hasOwnProperty.call(updateData, 'categoryId')) updateFields.category_id = updateData.categoryId || null;
+    if (Object.prototype.hasOwnProperty.call(updateData, 'images')) updateFields.images = updateData.images || [];
+    if (Object.prototype.hasOwnProperty.call(updateData, 'stock')) updateFields.stock = Number(updateData.stock);
+    if (Object.prototype.hasOwnProperty.call(updateData, 'isActive')) updateFields.is_active = !!updateData.isActive;
+    if (Object.prototype.hasOwnProperty.call(updateData, 'featured')) updateFields.featured = !!updateData.featured;
+
+    // Handle metadata updates: merge existing metadata with incoming keys explicitly
+    const incomingMetadata: any = {};
+    if (Object.prototype.hasOwnProperty.call(updateData, 'weight')) incomingMetadata.weight = updateData.weight;
+    if (Object.prototype.hasOwnProperty.call(updateData, 'dimensions')) incomingMetadata.dimensions = updateData.dimensions;
+    if (Object.prototype.hasOwnProperty.call(updateData, 'tags')) incomingMetadata.tags = updateData.tags;
+    if (Object.keys(incomingMetadata).length > 0) {
       updateFields.metadata = {
         ...(product.metadata || {}),
-        ...(updateData.weight && { weight: updateData.weight }),
-        ...(updateData.dimensions && { dimensions: updateData.dimensions }),
-        ...(updateData.tags && { tags: updateData.tags })
+        ...incomingMetadata
       };
     }
-    const { error } = await supabase
+
+    // Perform update and return the updated row so clients can confirm
+    const { data: updated, error } = await supabase
       .from('products')
       .update(updateFields)
-      .eq('id', id);
+      .eq('id', id)
+      .select()
+      .single();
     if (error) {
       return NextResponse.json({
         success: false,
@@ -106,7 +120,7 @@ export async function PUT(
     }
     return NextResponse.json({
       success: true,
-      data: { id },
+      data: updated,
       message: 'Product updated successfully'
     });
   } catch (error) {

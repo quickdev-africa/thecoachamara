@@ -1,0 +1,107 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e1]:
+  - alert [ref=e2]
+  - main [ref=e3]:
+    - generic [ref=e4]:
+      - img "Quantum Healing Machine" [ref=e6]
+      - generic [ref=e9]:
+        - generic [ref=e10]: Hospital in the Home
+        - heading "Quantum Healing Machine" [level=1] [ref=e11]
+        - generic [ref=e12]: Energy | Wellness | Inner Balance
+        - generic [ref=e14]: Discounted offer N2,800,000.00
+        - paragraph [ref=e15]: Step into the future of natural healing. The Quantum Healing Machine helps restore your body’s energy flow, reduce stress, and support deep wellness from within. Designed with advanced frequency technology, it works to harmonize mind, body, and spirit — so you can feel lighter, stronger, and more balanced every day.
+        - button "Order Now — ₦2,800,000" [ref=e17] [cursor=pointer]
+    - generic [ref=e19]:
+      - generic [ref=e20]:
+        - heading "About the Quantum Healing Machine" [level=2] [ref=e21]
+        - paragraph [ref=e22]: A natural, non-invasive wellness device designed to support energy, sleep and recovery. Trusted by hundreds of customers.
+        - list [ref=e23]:
+          - listitem [ref=e24]:
+            - generic [ref=e25]: ➤
+            - generic [ref=e26]: Supports deep relaxation and better sleep
+          - listitem [ref=e27]:
+            - generic [ref=e28]: ➤
+            - generic [ref=e29]: Non-invasive, safe for home use
+          - listitem [ref=e30]:
+            - generic [ref=e31]: ➤
+            - generic [ref=e32]: Clinically-inspired energy balancing
+          - listitem [ref=e33]:
+            - generic [ref=e34]: ➤
+            - generic [ref=e35]: Fast shipping nationwide
+        - generic [ref=e36]:
+          - generic [ref=e37]:
+            - generic [ref=e38]: Instant Discount
+            - generic [ref=e39]:
+              - text: Get the device now for ₦2,800,000
+              - generic [ref=e40]: (was ₦3,039,600)
+          - img [ref=e42]
+      - generic [ref=e45]:
+        - generic [ref=e46]:
+          - generic [ref=e47]:
+            - generic [ref=e48]: "1"
+            - generic [ref=e49]:
+              - generic [ref=e50]: SHIPPING
+              - generic [ref=e51]: Where To Ship
+          - generic [ref=e52]: Step 1 of 2
+        - generic [ref=e54]:
+          - generic [ref=e55]:
+            - generic [ref=e56]:
+              - radio "Ship it" [active] [ref=e57]
+              - text: Ship it
+            - generic [ref=e58]:
+              - radio "Pickup" [ref=e59]
+              - text: Pickup
+          - generic [ref=e60]:
+            - textbox "Full Name" [ref=e62]: Playwright Tester
+            - generic [ref=e63]:
+              - textbox "Phone" [ref=e65]: "08012345678"
+              - textbox "Email" [ref=e67]: pw@test.example
+            - textbox "Address" [ref=e69]: 1 Test St
+            - textbox "Landmark (e.g. near Unity Church)" [ref=e71]: Near Park
+            - textbox "State" [ref=e73]: Lagos
+          - 'button "Go To Step #2" [ref=e75] [cursor=pointer]'
+    - generic [ref=e77]:
+      - generic [ref=e78]:
+        - generic [ref=e79]: REAL HEALING SOLUTIONS
+        - generic [ref=e80]: powered by…
+        - generic [ref=e81]: QUANTUM ENERGY TECHNOLOGY
+      - generic [ref=e82]:
+        - img "Quantum machine" [ref=e85]
+        - generic [ref=e89]:
+          - generic [ref=e91]:
+            - generic [ref=e92]: “
+            - generic [ref=e93]:
+              - generic [ref=e94]: After three weeks I slept better and woke with more energy. Sessions are gentle and noticeably calming.
+              - generic [ref=e95]: — Janet Okoye — Lagos
+          - generic [ref=e97]:
+            - generic [ref=e98]: “
+            - generic [ref=e99]:
+              - generic [ref=e100]: Tension and headaches eased within days. Easy to use and great support from the team.
+              - generic [ref=e101]: — Chinedu A. — Abuja
+          - generic [ref=e103]:
+            - generic [ref=e104]: “
+            - generic [ref=e105]:
+              - generic [ref=e106]: Now part of our routine — calmer evenings and more focus during the day. Delivery was smooth.
+              - generic [ref=e107]: — Blessing K. — Port Harcourt
+    - generic [ref=e110]:
+      - generic [ref=e111]: ⚡
+      - generic [ref=e112]:
+        - generic [ref=e113]: Ready to transform your wellness?
+        - generic [ref=e114]: Secure yours today at the discounted price — limited availability.
+      - button "Order Now — ₦2,800,000" [ref=e116] [cursor=pointer]
+    - generic [ref=e119]:
+      - generic [ref=e120]:
+        - generic [ref=e121]: Coach Amara
+        - generic [ref=e122]: 123 Wellness Avenue, Victoria Island, Lagos
+        - generic [ref=e123]: NIGERIA
+      - generic [ref=e124]:
+        - generic [ref=e125]: Contact
+        - generic [ref=e126]: "Phone: +234 800 000 0000"
+        - generic [ref=e127]: "Email: info@coachamara.com"
+      - generic [ref=e128]:
+        - generic [ref=e129]: Hours & Legal
+        - generic [ref=e130]: "Mon – Fri: 9:00 AM – 6:00 PM"
+        - generic [ref=e131]: © 2025 Coach Amara. All rights reserved.
+```

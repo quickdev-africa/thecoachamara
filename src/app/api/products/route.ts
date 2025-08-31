@@ -23,6 +23,8 @@ export async function GET(request: NextRequest) {
         stock,
         is_active,
         category_id,
+        images,
+        metadata,
         categories(name)
       `)
       .eq('is_active', true);
@@ -46,6 +48,8 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      // Keep `data` for existing callers but also expose `products` to match frontend expectations
+      products: products || [],
       data: products || [],
       count: products?.length || 0
     });

@@ -2,6 +2,7 @@
 "use client";
 
 import Image from 'next/image';
+import ImageWithFallback from '@/components/ImageWithFallback';
 import { useEffect, useState } from "react";
 import { uploadProductImage } from "../../../utils/uploadProductImage";
 import type { Product } from "../../../lib/types";
@@ -36,8 +37,18 @@ export default function ProductsPage() {
   const [editSubmitting, setEditSubmitting] = useState(false);
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this product?")) return;
-    await fetch(`/api/products/${id}`, { method: "DELETE" });
-    fetchProducts();
+    try {
+      // optimistic update
+      setProducts(prev => prev.filter(p => p.id !== id));
+      const res = await fetch(`/api/products/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error('Delete failed');
+      addToast('Product deleted', 'success');
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('Delete failed', err);
+      addToast('Failed to delete product', 'error');
+    }
+    await fetchProducts();
   };
 
   const startEdit = (product: Product) => {
@@ -50,6 +61,9 @@ export default function ProductsPage() {
       description: product.description || "",
       inventory: product.stock !== undefined ? product.stock.toString() : "",
     });
+  const meta: any = (product as any).metadata || {};
+  setTags(Array.isArray(meta.tags) ? meta.tags.join(',') : (meta.tags || '').toString());
+  setWeight(meta.weight !== undefined && meta.weight !== null ? String(meta.weight) : '');
   };
 
   const handleEditChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -67,18 +81,112 @@ export default function ProductsPage() {
       setEditSubmitting(false);
       return;
     }
-    await fetch(`/api/products/${editingId}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...editForm,
-        price: parseFloat(editForm.price),
-        inventory: inventoryValue,
-      }),
-    });
+    const payload: any = {
+      name: editForm.title,
+      price: parseFloat(editForm.price),
+      stock: inventoryValue,
+      description: editForm.description,
+      images: editForm.image ? [editForm.image] : [],
+      categoryId: editForm.category || null,
+    };
+    if (tags) payload.tags = tags.split(',').map(t => t.trim()).filter(Boolean);
+    if (weight) payload.weight = Number(weight);
+    // Helper: transform server product into local table shape
+    const transformServerProduct = (product: any) => {
+      let image = '';
+      if (Array.isArray(product.images) && product.images.length > 0) image = product.images[0];
+      else if (typeof product.image === 'string') image = product.image;
+      let inventory = typeof product.stock === 'number' ? product.stock : (product.inventory ?? 0);
+      let categoryName = "-";
+      if (product.category_id && categories.length > 0) {
+        const cat = categories.find((c) => c.id === product.category_id);
+        if (cat) categoryName = cat.name;
+      }
+      return { ...product, categoryName, inventory, image };
+    };
+
+    // Poll the GET endpoint until the server reflects the expected payload or timeout
+    const confirmUpdate = async (id: string, expected: any) => {
+      const maxAttempts = 6;
+      let attempt = 0;
+      let delay = 500; // ms
+      const almostEqual = (a: any, b: any) => {
+        if (typeof a === 'number' && typeof b === 'number') return Math.abs(a - b) < 0.0001;
+        return a === b;
+      };
+      while (attempt < maxAttempts) {
+        try {
+          const res = await fetch(`/api/products/${id}?_ts=${Date.now()}`);
+          if (res.ok) {
+            const serverProduct = await res.json();
+            // serverProduct may be wrapped in { data: ... } or direct
+            const prod = serverProduct && serverProduct.data ? serverProduct.data : serverProduct;
+            if (prod && prod.id) {
+              const serverTags = (prod.metadata && prod.metadata.tags) || [];
+              const serverWeight = prod.metadata && prod.metadata.weight;
+              const expectedTags = expected.tags || [];
+              const expectedWeight = expected.weight;
+              const nameOk = prod.name === expected.name;
+              const priceOk = almostEqual(Number(prod.price), Number(expected.price));
+              const stockOk = Number(prod.stock) === Number(expected.stock);
+              const descOk = (prod.description || '') === (expected.description || '');
+              const tagsOk = JSON.stringify(serverTags || []) === JSON.stringify(expectedTags || []);
+              const weightOk = (serverWeight === undefined && expectedWeight === undefined) || almostEqual(Number(serverWeight || 0), Number(expectedWeight || 0));
+              if (nameOk && priceOk && stockOk && descOk && tagsOk && weightOk) {
+                // update local products list with server product
+                setProducts(prev => prev.map(p => p.id === id ? transformServerProduct(prod) : p));
+                return true;
+              }
+            }
+          }
+        } catch (err) {
+          // ignore network hiccups and retry
+        }
+        // wait then retry
+        // eslint-disable-next-line no-await-in-loop
+        await new Promise(r => setTimeout(r, delay));
+        attempt += 1;
+        delay *= 2;
+      }
+      return false;
+    };
+
+    try {
+      const res = await fetch(`/api/products/${editingId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error('Update failed');
+
+      // Build expected shape for confirmation
+      const expected: any = {
+        id: editingId,
+        name: payload.name,
+        price: payload.price,
+        stock: payload.stock,
+        description: payload.description,
+        tags: payload.tags || [],
+        weight: payload.weight,
+      };
+
+      const confirmed = await confirmUpdate(editingId, expected);
+      if (confirmed) {
+        addToast('Product updated (confirmed)', 'success');
+      } else {
+        addToast('Product update sent — server taking longer to reflect changes, refreshing list', 'info');
+        // final reconciliation
+        await fetchProducts();
+      }
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('Update failed', err);
+      addToast('Failed to update product', 'error');
+    }
     setEditingId(null);
     setEditSubmitting(false);
-    fetchProducts();
+    setTags('');
+    setWeight('');
   };
 
   const cancelEdit = () => {
@@ -88,6 +196,15 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({ title: "", price: "", category: "", newCategory: "", image: "", description: "", inventory: "" });
   const [submitting, setSubmitting] = useState(false);
+  const [tags, setTags] = useState("");
+  const [weight, setWeight] = useState("");
+  // toasts
+  const [toasts, setToasts] = useState<Array<{ id: string; message: string; type?: 'info'|'success'|'error' }>>([]);
+  const addToast = (message: string, type: 'info'|'success'|'error' = 'info') => {
+    const id = String(Date.now()) + Math.random().toString(36).slice(2,8);
+    setToasts(t => [...t, { id, message, type }]);
+    setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 4000);
+  };
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -225,31 +342,41 @@ export default function ProductsPage() {
       setSubmitting(false);
       return;
     }
-    const res = await fetch("/api/products", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...form,
-        categoryId: categoryId || null,
-        price: parseFloat(form.price),
-        inventory: inventoryValue,
-      }),
-    });
-    if (!res.ok) {
-      let errorMsg = "Failed to add product";
-      try {
-        const errorData = await res.json();
-        if (errorData && errorData.error) errorMsg = errorData.error;
-      } catch {}
-      setError(errorMsg);
-    } else {
-  setForm({ title: "", price: "", category: "", newCategory: "", image: "", description: "", inventory: "" });
+    try {
+      const res = await fetch("/api/products", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: form.title,
+          price: parseFloat(form.price),
+          stock: inventoryValue,
+          description: form.description,
+          images: form.image ? [form.image] : [],
+          category_id: categoryId || null,
+          metadata: { tags: tags ? tags.split(',').map(t => t.trim()).filter(Boolean) : [], weight: weight ? Number(weight) : undefined }
+        }),
+      });
+      if (!res.ok) {
+        let errorMsg = "Failed to add product";
+        try {
+          const errorData = await res.json();
+          if (errorData && errorData.error) errorMsg = errorData.error;
+        } catch {}
+        throw new Error(errorMsg);
+      }
+      addToast('Product created', 'success');
+      setForm({ title: "", price: "", category: "", newCategory: "", image: "", description: "", inventory: "" });
+      setTags('');
+      setWeight('');
       setSuccess("Product added successfully!");
       setImageUploaded(false);
       setShowForm(false); // Hide the form after successful creation
       await fetchCategories();
       await fetchProducts();
       setTimeout(() => setSuccess(""), 2000);
+    } catch (err:any) {
+      setError(err?.message || 'Failed to add product');
+      addToast('Failed to create product', 'error');
     }
     setSubmitting(false);
   };
@@ -375,6 +502,14 @@ export default function ProductsPage() {
               className="border rounded-lg px-3 py-2 text-gray-900 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-sunglow-400"
             />
           </div>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="tags" className="text-sm font-medium text-blue_gray-400 mb-1">Tags (comma separated)</label>
+            <input id="tags" name="tags" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="e.g. popular,new" className="border rounded-lg px-3 py-2 text-gray-900 bg-white placeholder:text-gray-400" />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="weight" className="text-sm font-medium text-blue_gray-400 mb-1">Weight (kg)</label>
+            <input id="weight" name="weight" value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="0.5" className="border rounded-lg px-3 py-2 text-gray-900 bg-white placeholder:text-gray-400" />
+          </div>
           <button
             type="submit"
             className="bg-sunglow-400 hover:bg-mustard-400 text-gray-900 font-bold rounded-lg px-4 py-2 md:col-span-2 shadow mt-2 transition-colors duration-200 disabled:opacity-60 border border-sunglow-400"
@@ -403,6 +538,9 @@ export default function ProductsPage() {
                   <th className="py-2 text-gray-900 font-bold">Price</th>
                   <th className="py-2 text-gray-900 font-bold">Category</th>
                   <th className="py-2 text-gray-900 font-bold">Stock</th>
+                  <th className="py-2 text-gray-900 font-bold">Description</th>
+                  <th className="py-2 text-gray-900 font-bold">Tags</th>
+                  <th className="py-2 text-gray-900 font-bold">Weight</th>
                   <th className="py-2 text-gray-900 font-bold">Image</th>
                   <th className="py-2 text-gray-900 font-bold">Actions</th>
                 </tr>
@@ -412,16 +550,19 @@ export default function ProductsPage() {
                 <tr key={product.id} className="border-t text-gray-900 font-semibold align-top">
                   {editingId === product.id ? (
                     <>
+                      {/* Name */}
                       <td className="py-2 px-2 align-middle">
                         <input
                           name="title"
                           value={editForm.title}
                           onChange={handleEditChange}
                           placeholder="Product Title"
-                          className="w-full border rounded-lg px-2 py-1 text-blue_gray-300 bg-baby_powder-500 placeholder:text-blue_gray-100"
+                          className="w-full border rounded-lg px-2 py-1 text-gray-900 bg-white placeholder:text-gray-400"
                           required
                         />
                       </td>
+
+                      {/* Price */}
                       <td className="py-2 px-2 align-middle">
                         <input
                           name="price"
@@ -431,16 +572,18 @@ export default function ProductsPage() {
                           type="number"
                           min="0"
                           step="0.01"
-                          className="w-full border rounded-lg px-2 py-1 text-blue_gray-300 bg-baby_powder-500 placeholder:text-blue_gray-100"
+                          className="w-full border rounded-lg px-2 py-1 text-gray-900 bg-white placeholder:text-gray-400"
                           required
                         />
                       </td>
+
+                      {/* Category */}
                       <td className="py-2 px-2 align-middle">
                         <select
                           name="category"
                           value={editForm.category}
                           onChange={handleEditChange}
-                          className="w-full border rounded-lg px-2 py-1 text-blue_gray-300 bg-baby_powder-500"
+                          className="w-full border rounded-lg px-2 py-1 text-gray-900 bg-white"
                         >
                           <option value="">Select Category</option>
                           {categories.filter(cat => cat.isActive !== false).map(cat => (
@@ -448,6 +591,8 @@ export default function ProductsPage() {
                           ))}
                         </select>
                       </td>
+
+                      {/* Stock / Inventory */}
                       <td className="py-2 px-2 align-middle">
                         <input
                           name="inventory"
@@ -455,31 +600,47 @@ export default function ProductsPage() {
                           onChange={handleEditChange}
                           placeholder="Inventory Quantity"
                           type="number"
-                          min="1"
+                          min="0"
                           step="1"
-                          className="w-full border rounded-lg px-2 py-1 text-blue_gray-300 bg-baby_powder-500 placeholder:text-blue_gray-100"
+                          className="w-full border rounded-lg px-2 py-1 text-gray-900 bg-white placeholder:text-gray-400"
                           required
                         />
                       </td>
-                      <td className="py-2 px-2 align-middle">
-                        <input
-                          name="image"
-                          value={editForm.image}
-                          onChange={handleEditChange}
-                          placeholder="Image URL"
-                          className="w-full border rounded-lg px-2 py-1 text-blue_gray-300 bg-baby_powder-500 placeholder:text-blue_gray-100"
-                        />
-                      </td>
+
+                      {/* Description (make roomy) */}
                       <td className="py-2 px-2 align-middle">
                         <textarea
                           name="description"
                           value={editForm.description}
                           onChange={handleEditChange}
                           placeholder="Description"
-                          className="w-full border rounded-lg px-2 py-1 text-blue_gray-300 bg-baby_powder-500 placeholder:text-blue_gray-100 resize-none"
-                          rows={1}
+                          className="w-full border rounded-lg px-2 py-1 text-gray-900 bg-white placeholder:text-gray-400 resize-none"
+                          rows={3}
                         />
                       </td>
+
+                      {/* Tags */}
+                      <td className="py-2 px-2 align-middle">
+                        <input name="tags" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="Tags (comma separated)" className="w-full border rounded-lg px-2 py-1 text-gray-900 bg-white placeholder:text-gray-400" />
+                      </td>
+
+                      {/* Weight */}
+                      <td className="py-2 px-2 align-middle">
+                        <input name="weight" value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="Weight (kg)" className="w-full border rounded-lg px-2 py-1 text-gray-900 bg-white placeholder:text-gray-400" />
+                      </td>
+
+                      {/* Image URL */}
+                      <td className="py-2 px-2 align-middle">
+                        <input
+                          name="image"
+                          value={editForm.image}
+                          onChange={handleEditChange}
+                          placeholder="Image URL"
+                          className="w-full border rounded-lg px-2 py-1 text-gray-900 bg-white placeholder:text-gray-400"
+                        />
+                      </td>
+
+                      {/* Actions */}
                       <td className="py-2 px-2 align-middle flex flex-col gap-2 md:flex-row md:gap-2">
                         <button
                           type="button"
@@ -516,12 +677,11 @@ export default function ProductsPage() {
                         })()
                       }</td>
                       <td className="py-2">{product.stock}</td>
+                      <td className="py-2">{product.description || '-'}</td>
+                      <td className="py-2">{(product as any).metadata && (product as any).metadata.tags ? ((product as any).metadata.tags || []).join(',') : '-'}</td>
+                      <td className="py-2">{(product as any).metadata && (product as any).metadata.weight ? String((product as any).metadata.weight) : '-'}</td>
                       <td className="py-2">
-                        {product.images && product.images.length > 0 ? (
-                          <Image src={product.images[0]} alt={product.name} width={60} height={60} className="object-cover rounded border bg-gray-100" onError={(e) => { (e.target as HTMLImageElement).src = '/logo.png'; }} />
-                        ) : (
-                          <Image src="/logo.png" alt="No image" width={60} height={60} className="object-cover rounded border bg-gray-100" />
-                        )}
+                        <ImageWithFallback src={product.images && product.images.length > 0 ? product.images[0] : '/logo.png'} alt={product.name} width={60} height={60} />
                       </td>
                       <td className="py-2 flex gap-2">
                         <button
@@ -566,6 +726,16 @@ export default function ProductsPage() {
           </div>
         )}
       </div>
+        {/* Toast container */}
+        <div className="fixed bottom-4 right-4 flex flex-col gap-2 z-50">
+          {toasts.map(t => (
+            <div key={t.id} className={`px-4 py-2 rounded shadow-md text-sm ${t.type === 'success' ? 'bg-green-600 text-white' : t.type === 'error' ? 'bg-red-600 text-white' : 'bg-gray-800 text-white'}`}>
+              {t.message}
+            </div>
+          ))}
+        </div>
     </div>
   );
 }
+
+// Using shared ImageWithFallback component from src/components

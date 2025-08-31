@@ -26,10 +26,10 @@ export function usePaystack({
   products: Product[];
 }) {
   const router = useRouter();
-  const handlePayment = useCallback(() => {
+  const handlePayment = useCallback((overrideForm?: any) => {
     setLoading(true);
-    createOrderAndInitPayment({
-      form,
+    return createOrderAndInitPayment({
+      form: overrideForm || form,
       cartSessionId,
       total,
       subtotal,

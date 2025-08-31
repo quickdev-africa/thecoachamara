@@ -35,25 +35,39 @@ export async function createOrderAndInitPayment({
   }
 
   try {
-    // Defensive: check PaystackPop.setup
-    let paystack = null;
-    let attempts = 0;
-    while (attempts < 30) {
-      if (
-        typeof window.PaystackPop === 'object' &&
-        typeof window.PaystackPop.setup === 'function'
-      ) {
-        paystack = window.PaystackPop.setup;
-        break;
+    // Ensure Paystack inline script is loaded and available as window.PaystackPop.setup
+    const ensurePaystackLoaded = async () => {
+      // Return the PaystackPop object (not just the setup function), so calls keep the
+      // correct `this` context. Extracting the setup function and calling it loses `this`
+      // and causes errors like "this.initialize is not a function".
+      if (typeof (window as any).PaystackPop === 'object' && typeof (window as any).PaystackPop.setup === 'function') return (window as any).PaystackPop;
+      // try to load script if not present
+      if (!document.querySelector('script[src="https://js.paystack.co/v1/inline.js"]')) {
+        const s = document.createElement('script');
+        s.src = 'https://js.paystack.co/v1/inline.js';
+        s.async = true;
+        document.head.appendChild(s);
       }
-      await new Promise(resolve => setTimeout(resolve, 100));
-      attempts++;
-    }
-    if (!paystack) {
+      let attempts = 0;
+      while (attempts < 50) {
+        if (typeof (window as any).PaystackPop === 'object' && typeof (window as any).PaystackPop.setup === 'function') {
+          return (window as any).PaystackPop;
+        }
+        await new Promise(resolve => setTimeout(resolve, 150));
+        attempts++;
+      }
+      return null;
+    };
+    const paystackPop = await ensurePaystackLoaded();
+    if (!paystackPop) {
+      console.error('Paystack inline script not available on window after loading attempts.');
       throw new Error('Payment system not available. Please refresh the page and try again.');
     }
-    const paystackKey = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || process.env.NEXT_PUBLIC_PAYSTACK_KEY;
+  // Use the public key exposed to the client. Keep this singular to avoid confusion.
+  // Prefer environment-injected public key, fallback to window-exposed value from layout
+  const paystackKey = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || (window as any).__NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY;
     if (!paystackKey) {
+      console.error('Paystack public key missing. Check NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY env and layout exposure.');
       throw new Error('Paystack public key not configured. Please contact support.');
     }
   // Use selectedProductId from form if present, otherwise fallback to first product
@@ -72,7 +86,8 @@ export async function createOrderAndInitPayment({
     return;
   }
   const productId = product.id;
-    const orderData = {
+  const orderData = {
+  productId,
       customerName: form.name,
       customerEmail: form.email,
       customerPhone: form.phone,
@@ -122,79 +137,86 @@ export async function createOrderAndInitPayment({
         }
       }
     };
-    const orderResponse = await fetch('/api/orders', {
+    // Create the order + payment attempt on the server atomically via funnel endpoint.
+    const funnelResp = await fetch('/api/funnel/create', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(orderData)
     });
-    const contentType = orderResponse.headers.get('content-type');
-    if (!contentType || !contentType.includes('application/json')) {
-      const textResponse = await orderResponse.text();
-      throw new Error(`API returned HTML instead of JSON. Check if the API route exists and is working. Response: ${textResponse.substring(0, 200)}...`);
+    const funnelContentType = funnelResp.headers.get('content-type') || '';
+    if (!funnelContentType.includes('application/json')) {
+      const text = await funnelResp.text();
+      throw new Error(`Funnel API returned unexpected response. Response: ${text.substring(0, 200)}...`);
     }
-    const orderResult = await orderResponse.json();
-    if (!orderResult.success || !orderResult.order?.id) {
-      throw new Error(orderResult.error || 'Failed to create order');
+    const funnelResult = await funnelResp.json();
+    if (!funnelResult.success || !funnelResult.orderId || !funnelResult.paymentReference) {
+      throw new Error(funnelResult.error || 'Failed to initialize payment on server');
     }
-    const orderId = orderResult.order.id;
-    const paymentReference = `QEM_${orderId}_${Date.now()}`;
-    try {
-      await fetch('/api/payments/attempt', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          orderId,
-          paymentReference,
-          amount: total,
+    const orderId = funnelResult.orderId;
+    const paymentReference = funnelResult.paymentReference;
+    // amount returned is expected in NGN (integer). Use it if present, otherwise fall back to client total.
+    const payAmountNgn = typeof funnelResult.amount === 'number' ? funnelResult.amount : total;
+    return new Promise<void>(async (resolve) => {
+      try {
+        // call setup on the PaystackPop object so `this` inside setup is correct
+        const handler = paystackPop.setup({
+          key: paystackKey,
+          email: form.email,
+          amount: payAmountNgn * 100,
           currency: 'NGN',
-          paymentProvider: 'paystack'
-        })
-      });
-    } catch {}
-    paystack({
-      key: paystackKey,
-      email: form.email,
-      amount: total * 100,
-      currency: 'NGN',
-      ref: paymentReference,
-      firstname: form.name.split(' ')[0] || form.name,
-      lastname: form.name.split(' ').slice(1).join(' ') || '',
-      phone: form.phone,
-      metadata: {
-        orderId,
-        source: 'quantum-funnel',
-        cartSessionId,
-        paymentOption: form.paymentOption,
-        custom_fields: [
-          {
-            display_name: 'Delivery Method',
-            variable_name: 'delivery_method',
-            value: form.deliveryPref === 'pickup' ? `Pickup: ${form.pickupLocation}` : 'Shipping'
+          ref: paymentReference,
+          firstname: form.name.split(' ')[0] || form.name,
+          lastname: form.name.split(' ').slice(1).join(' ') || '',
+          phone: form.phone,
+          metadata: {
+            orderId,
+            source: 'quantum-funnel',
+            cartSessionId,
+            paymentOption: form.paymentOption,
+            custom_fields: [
+              {
+                display_name: 'Delivery Method',
+                variable_name: 'delivery_method',
+                value: form.deliveryPref === 'pickup' ? `Pickup: ${form.pickupLocation}` : 'Shipping'
+              }
+            ]
+          },
+          callback: function(response: any) {
+            (async () => {
+              setLoading(false);
+              try {
+                await fetch('/api/payments/verify', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    paymentReference: response.reference,
+                    paystackReference: response.reference,
+                    status: 'success'
+                  })
+                });
+                router.push(`/thank-you-premium?order=${orderId}&ref=${response.reference}&amount=${total}`);
+              } catch {
+                router.push(`/thank-you-premium?order=${orderId}&ref=${response.reference}&amount=${total}`);
+              }
+              resolve();
+            })();
+          },
+          onClose: function() {
+            setLoading(false);
+            alert('Payment was cancelled. Your order has been saved and you can complete it later.');
+            resolve();
           }
-        ]
-      },
-      callback: function(response: any) {
-        (async () => {
-          setLoading(false);
-          try {
-            await fetch('/api/payments/verify', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                paymentReference: response.reference,
-                paystackReference: response.reference,
-                status: 'success'
-              })
-            });
-            router.push(`/thank-you-premium?order=${orderId}&ref=${response.reference}&amount=${total}`);
-          } catch {
-            router.push(`/thank-you-premium?order=${orderId}&ref=${response.reference}&amount=${total}`);
-          }
-        })();
-      },
-      onClose: function() {
+        });
+
+        // Some Paystack builds return a handler that requires openIframe() to be called.
+        if (handler && typeof handler.openIframe === 'function') {
+          try { handler.openIframe(); } catch (e) { /* ignore */ }
+        }
+      } catch (e) {
+        console.error('Error initializing Paystack:', e);
         setLoading(false);
-        alert('Payment was cancelled. Your order has been saved and you can complete it later.');
+        alert('Payment initialization failed. Please try again later.');
+        resolve();
       }
     });
   } catch (error) {

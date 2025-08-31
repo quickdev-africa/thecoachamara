@@ -203,8 +203,13 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
       try {
         const res = await productService.getAll();
         if (!ignore && res.data && Array.isArray(res.data)) {
-          setRelated(res.data.filter((p: Product) => p.id !== product.id).slice(0, 8));
-        }
+            const currentId = product?.id;
+            if (currentId) {
+              setRelated(res.data.filter((p: Product) => p.id !== currentId).slice(0, 8));
+            } else {
+              setRelated(res.data.slice(0, 8));
+            }
+          }
       } catch {}
     }
     if (product) fetchRelated();

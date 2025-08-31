@@ -36,6 +36,9 @@ export default function AdminDashboard() {
   const orders = ordersResponse?.data || [];
   const products = productsResponse?.data || [];
 
+  // Product management has been moved to the full product manager page.
+  // Use the dedicated product manager at /admin/products
+
   if (status === "loading") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
@@ -135,6 +138,17 @@ export default function AdminDashboard() {
           )}
         </section>
 
+        {/* Product Management moved to the full manager */}
+        <section className="col-span-1 md:col-span-3 bg-white rounded-lg shadow p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-normal text-black">Product Management</h2>
+            <div className="flex gap-2">
+              <button className="py-1 px-3 bg-gray-100 rounded" onClick={() => router.push('/admin/products')}>Open Full Product Manager</button>
+            </div>
+          </div>
+          <p className="text-sm text-gray-600">The full product management surface is available at <span className="font-semibold">/admin/products</span>. Click the button to manage products, upload images, and edit metadata.</p>
+        </section>
+
         {/* Recent Orders Widget */}
         <section className="col-span-1 md:col-span-2 bg-white rounded-lg shadow p-6 mt-0 md:mt-6">
           <h2 className="text-lg font-normal text-black mb-2">Recent Orders</h2>
@@ -193,6 +207,7 @@ export default function AdminDashboard() {
           </ul>
         </section>
       </main>
+  {/* Toasts are handled in the full product manager when needed */}
     </div>
   );
 }
