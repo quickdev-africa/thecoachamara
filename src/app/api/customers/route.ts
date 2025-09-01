@@ -17,35 +17,31 @@ export async function GET(req: NextRequest) {
       users = null;
     }
 
-    // Fetch order counts and last order date for each user/email
-    // Some deployments use camelCase column names on orders (customerName/customerEmail),
-    // so we request the camelCase columns. We'll normalize below to support both.
+    // Fetch order counts and last order date for each user/email. Select all columns
+    // to be resilient to snake_case vs camelCase column naming in different deployments.
     const { data: orders, error: orderError } = await serverSupabase
       .from('orders')
-      .select('customerName, customerEmail, customerPhone, created_at');
+      .select('*');
     if (orderError) {
       console.error('Orders query failed in customers API:', orderError);
       throw orderError;
     }
 
     type User = { id: string; name: string; email: string; phone?: string; joined_at?: string; is_active?: boolean };
+    type Order = { user_id: string; created_at: string };
 
-    // Map orders by customer email (lowercased) -> array of created_at
+    // Map orders to user
     const orderMap = new Map<string, string[]>();
-    (orders as any[] || []).forEach((order: any) => {
-      const email = (order.customerEmail || order.customer_email || '').toString();
-      const created = order.created_at || order.createdAt || null;
-      const emailKey = email.toLowerCase();
-      if (!orderMap.has(emailKey)) orderMap.set(emailKey, []);
-      orderMap.get(emailKey)!.push(created);
+    (orders as Order[] || []).forEach(order => {
+      if (!orderMap.has(order.user_id)) orderMap.set(order.user_id, []);
+      orderMap.get(order.user_id)!.push(order.created_at);
     });
 
     let customers: any[] = [];
 
     if (users && users.length > 0) {
       customers = (users as User[]).map(user => {
-        const key = (user.email || '').toLowerCase();
-        const userOrders = orderMap.get(key) || [];
+        const userOrders = orderMap.get(user.id) || [];
         return {
           ...user,
           orders_count: userOrders.length,

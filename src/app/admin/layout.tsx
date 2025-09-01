@@ -10,6 +10,8 @@ const navItems = [
   { name: "Customers", href: "/admin/customers" },
   { name: "Orders", href: "/admin/orders" },
   { name: "Payments", href: "/admin/payments" },
+  { name: "Payment Events", href: "/admin/payment-events" },
+  { name: "Email Queue", href: "/admin/email-queue" }
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

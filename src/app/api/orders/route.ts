@@ -40,6 +40,13 @@ export async function POST(request: NextRequest) {
     const orderNumber = generateOrderNumber();
 
     // Start transaction
+    // Normalize delivery fields for DB
+    const deliveryMethod = delivery?.method || null;
+    const shippingAddress = delivery?.shippingAddress || null;
+    const pickupLocation = delivery?.pickupLocation || null;
+    const shippingState = shippingAddress?.state || delivery?.state || null;
+    const customerState = body.customerState || null;
+
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .insert({
@@ -52,6 +59,11 @@ export async function POST(request: NextRequest) {
         total: Number(total),
         status: 'pending',
         paymentStatus: 'pending',
+  delivery_method: deliveryMethod,
+        shipping_address: shippingAddress,
+        pickup_location: pickupLocation,
+        shipping_state: shippingState,
+        customer_state: customerState,
         delivery: delivery || {},
         metadata: {
           ...metadata,
@@ -164,6 +176,8 @@ export async function GET(request: NextRequest) {
     const orderId = searchParams.get('id');
     const customerEmail = searchParams.get('email');
     const status = searchParams.get('status');
+  const limit = parseInt(searchParams.get('limit') || '20', 10);
+  const offset = parseInt(searchParams.get('offset') || '0', 10);
 
     if (orderId) {
       // Get specific order
@@ -201,20 +215,28 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Get orders list with filters
-    let query = supabase
-      .from('orders')
-      .select(`
-        id,
-        order_number,
-        customerName,
-        customerEmail,
-        total,
-        status,
-        paymentStatus,
-        created_at
-      `)
-      .order('created_at', { ascending: false });
+    // Get orders list with filters and pagination
+    // include order_items(product_name) so the admin list can show purchased product names
+    let base = supabase.from('orders');
+
+    const selectCols = `
+      id,
+      order_number,
+      customerName,
+      customerEmail,
+      total,
+      status,
+      paymentStatus,
+      created_at,
+      shipping_address,
+      shipping_state,
+      pickup_location,
+      delivery_method,
+      delivery,
+      order_items ( product_name )
+    `;
+
+    let query = base.select(selectCols, { count: 'exact' }).order('created_at', { ascending: false }).range(offset, Math.max(0, offset + limit - 1));
 
     if (customerEmail) {
       query = query.eq('customerEmail', customerEmail);
@@ -224,14 +246,11 @@ export async function GET(request: NextRequest) {
       query = query.eq('status', status);
     }
 
-    const { data: orders, error } = await query.limit(50);
+    const { data: orders, error, count } = await query;
 
     if (error) {
       console.error('Orders fetch error:', error);
-      return NextResponse.json({
-        success: false,
-        error: 'Failed to fetch orders'
-      }, { status: 500 });
+      return NextResponse.json({ success: false, error: 'Failed to fetch orders' }, { status: 500 });
     }
 
     // Normalize DB rows (snake_case) to camelCase expected by frontend
@@ -243,7 +262,16 @@ export async function GET(request: NextRequest) {
       total: r.total,
       status: r.status,
       paymentStatus: r.paymentStatus || r.payment_status,
-      createdAt: r.created_at || r.createdAt
+      createdAt: r.created_at || r.createdAt,
+      // delivery fields
+      shippingAddress: r.shipping_address || r.shippingAddress || null,
+      shippingState: r.shipping_state || r.shippingState || null,
+      pickupLocation: r.pickup_location || r.pickupLocation || null,
+      deliveryMethod: r.delivery_method || r.deliveryMethod || null,
+      // product names aggregated from order_items or items JSON
+      productNames: Array.isArray(r.order_items) && r.order_items.length > 0
+        ? r.order_items.map((i: any) => i.product_name).filter(Boolean).join(', ')
+        : (Array.isArray(r.items) ? r.items.map((it: any) => it.productName || it.product_name).filter(Boolean).join(', ') : null)
     }));
 
     // Return list using unified ApiResponse shape (data + meta.total)
@@ -251,7 +279,7 @@ export async function GET(request: NextRequest) {
       success: true,
       data: normalized,
       meta: {
-        total: normalized.length || 0
+        total: typeof count === 'number' ? count : (normalized.length || 0)
       }
     });
 
@@ -310,5 +338,89 @@ export async function PATCH(request: NextRequest) {
       success: false,
       error: 'Internal server error'
     }, { status: 500 });
+  }
+}
+
+// Support PUT from admin UI for compatibility (bulk updates or single id)
+export async function PUT(request: NextRequest) {
+  try {
+    const body = await request.json();
+    // bulk update: ids + status
+    if (Array.isArray(body.ids) && body.ids.length > 0 && body.status) {
+  const { data, error } = await supabase.from('orders').update({ status: body.status, updated_at: new Date().toISOString() }).in('id', body.ids);
+  if (error) throw error;
+  const arr = data as any[] | null;
+  return NextResponse.json({ success: true, updated: arr?.length || 0 });
+    }
+
+    // single update: id + status/paymentStatus
+    const { id, status, paymentStatus } = body;
+    if (!id) return NextResponse.json({ success: false, error: 'id required' }, { status: 400 });
+    const updates: any = { updated_at: new Date().toISOString() };
+    if (status) updates.status = status;
+    if (paymentStatus) updates.paymentStatus = paymentStatus;
+    const { data, error } = await supabase.from('orders').update(updates).eq('id', id).select().single();
+    if (error) throw error;
+    return NextResponse.json({ success: true, order: data });
+  } catch (error: any) {
+    console.error('Order PUT error', error);
+    return NextResponse.json({ success: false, error: error?.message || 'Failed to update orders' }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    // support multiple ids via comma-separated list
+    const idsParam = searchParams.get('ids');
+    if (!id && !idsParam) {
+      return NextResponse.json({ success: false, error: 'id or ids required' }, { status: 400 });
+    }
+
+    if (idsParam) {
+      const ids = idsParam.split(',').map(s => s.trim()).filter(Boolean);
+      // Prefer using a DB-side transactional RPC if available
+      try {
+        const { error: rpcErr } = await supabase.rpc('delete_orders', { ids });
+        if (!rpcErr) return NextResponse.json({ success: true, deleted: ids.length });
+        console.warn('delete_orders rpc returned error, falling back to manual delete', rpcErr);
+      } catch (e) {
+        console.warn('RPC delete_orders not available, falling back to manual delete', e);
+      }
+
+      // fallback: delete dependent rows first
+      const { error: itemsErr } = await supabase.from('order_items').delete().in('order_id', ids);
+      if (itemsErr) console.warn('Failed to delete order_items for orders', itemsErr);
+      const { error: paymentsErr } = await supabase.from('payments').delete().in('order_id', ids);
+      const { error: attemptsErr } = await supabase.from('payment_attempts').delete().in('order_id', ids);
+      if (paymentsErr) console.warn('Failed to delete payments for orders', paymentsErr);
+      if (attemptsErr) console.warn('Failed to delete payment_attempts for orders', attemptsErr);
+      const { error } = await supabase.from('orders').delete().in('id', ids);
+      if (error) throw error;
+      return NextResponse.json({ success: true, deleted: ids.length });
+    }
+
+    // single id: try RPC first then fallback to manual deletion
+    try {
+      const { error: rpcErr } = await supabase.rpc('delete_orders', { ids: [id] });
+      if (!rpcErr) return NextResponse.json({ success: true, deleted: 1 });
+      console.warn('delete_orders rpc returned error for single id, falling back', rpcErr);
+    } catch (e) {
+      console.warn('RPC delete_orders not available for single id, falling back', e);
+    }
+
+    const { error: itemsErr } = await supabase.from('order_items').delete().eq('order_id', id);
+    if (itemsErr) console.warn('Failed to delete order_items for order', itemsErr);
+    const { error: paymentsErr } = await supabase.from('payments').delete().eq('order_id', id);
+    if (paymentsErr) console.warn('Failed to delete payments for order', paymentsErr);
+    const { error: attemptsErr } = await supabase.from('payment_attempts').delete().eq('order_id', id);
+    if (attemptsErr) console.warn('Failed to delete payment_attempts for order', attemptsErr);
+    const { error } = await supabase.from('orders').delete().eq('id', id);
+    if (error) throw error;
+    return NextResponse.json({ success: true, deleted: 1 });
+  } catch (error: any) {
+    console.error('Order delete error', error);
+    return NextResponse.json({ success: false, error: error?.message || 'Failed to delete orders' }, { status: 500 });
   }
 }

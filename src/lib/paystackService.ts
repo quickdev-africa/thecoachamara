@@ -205,9 +205,49 @@ export async function createOrderAndInitPayment({
                     status: 'success'
                   })
                 });
-                router.push(`/thank-you-premium?order=${orderId}&ref=${response.reference}&amount=${total}`);
+                const targetUrl = `/thank-you-premium?order=${orderId}&ref=${response.reference}&amount=${total}`;
+                // Robust navigation helper: try Next router, then fall back to window navigation
+                const navigateToThankYou = (url: string) => {
+                  if (router && typeof router.push === 'function') {
+                    try {
+                      router.push(url);
+                    } catch (err) {
+                      // ignore and fallback to window assign below
+                    }
+                  }
+                  // Give router a short moment, then ensure navigation happened. Use assign to preserve history.
+                  setTimeout(() => {
+                    try {
+                      if (typeof window !== 'undefined' && window.location.pathname.indexOf('/thank-you-premium') !== 0) {
+                        window.location.assign(url);
+                      }
+                    } catch (e) {
+                      // ignore
+                    }
+                  }, 300);
+                };
+
+                navigateToThankYou(targetUrl);
               } catch {
-                router.push(`/thank-you-premium?order=${orderId}&ref=${response.reference}&amount=${total}`);
+                const targetUrl = `/thank-you-premium?order=${orderId}&ref=${response.reference}&amount=${total}`;
+                // ensure navigation even on verify failure
+                try {
+                  const navigateToThankYou = (url: string) => {
+                    if (router && typeof router.push === 'function') {
+                      try { router.push(url); } catch (err) {}
+                    }
+                    setTimeout(() => {
+                      try {
+                        if (typeof window !== 'undefined' && window.location.pathname.indexOf('/thank-you-premium') !== 0) {
+                          window.location.assign(url);
+                        }
+                      } catch (e) {}
+                    }, 300);
+                  };
+                  navigateToThankYou(targetUrl);
+                } catch (e) {
+                  if (typeof window !== 'undefined') window.location.assign(targetUrl);
+                }
               }
               resolve();
             })();

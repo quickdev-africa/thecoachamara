@@ -49,6 +49,8 @@ export interface Order {
   subtotal: number;
   deliveryFee: number;
   total: number;
+  // Aggregated product names for list views (optional)
+  productNames?: string;
   status: OrderStatus;
   paymentStatus: PaymentStatus;
   paymentReference?: string;

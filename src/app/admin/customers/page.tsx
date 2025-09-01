@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { supabase } from '../../../supabaseClient';
 
 export default function CustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -18,7 +19,18 @@ export default function CustomersPage() {
       let arr: Customer[] = [];
       if (Array.isArray(data)) arr = data;
       else if (Array.isArray(data?.data)) arr = data.data;
-      setCustomers(arr);
+      // normalize fields
+      const normalized = arr.map((c: any) => ({
+        id: c.id,
+        name: c.name || c.full_name || c.customer_name,
+        email: c.email,
+        phone: c.phone || c.phone_number || c.mobile,
+        joined_at: c.joined_at || c.joinedAt || c.created_at || null,
+        orders_count: c.orders_count ?? c.ordersCount ?? 0,
+        last_order_at: c.last_order_at || c.lastOrderAt || null,
+        is_active: c.is_active !== false
+      }));
+      setCustomers(normalized as Customer[]);
     } catch (err) {
       setError("Failed to fetch customers");
     }
@@ -27,6 +39,20 @@ export default function CustomersPage() {
 
   useEffect(() => {
     fetchCustomers();
+  }, []);
+
+  // Realtime: refresh the customers list when updates occur
+  useEffect(() => {
+    let mounted = true;
+    const channel = supabase.channel('public:customers')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'customers' }, (payload: any) => {
+        if (mounted) fetchCustomers();
+      })
+      .subscribe();
+    return () => {
+      mounted = false;
+      try { supabase.removeChannel(channel); } catch (e) {}
+    };
   }, []);
 
 // Define the Customer type

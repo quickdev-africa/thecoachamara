@@ -1,6 +1,23 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { supabase } from '../../../supabaseClient';
+
+function normalizePayment(p: any) {
+  if (!p) return p;
+  return {
+    reference: p.reference || p.ref || p.payment_reference || null,
+    order_id: p.order_id || p.orderId || p.order_id || null,
+    email: p.email || p.customer_email || p.customerEmail || null,
+    amount: p.amount ?? p.total ?? p.value ?? 0,
+    method: p.method || p.payment_method || p.gateway || null,
+    status: p.status || p.state || null,
+    created_at: p.created_at || p.createdAt || p.created || null,
+    metadata: p.metadata || p.paystack_data || p.meta || null,
+    // keep original for debugging
+    __raw: p
+  };
+}
 
 const fetchPayments = async (params: Record<string, string>) => {
   const url = new URL("/api/payments", window.location.origin);
@@ -21,9 +38,39 @@ export default function PaymentsPage() {
     queryFn: () => fetchPayments({ ...filter, email: search }),
   });
 
-  const analytics = useMemo(() => {
+  // normalize fetched payments when the query updates
+  useEffect(() => {
+    if (Array.isArray(payments) && payments.length > 0) {
+      try {
+        // mutate in place for local consumption: map to normalized shape
+      } catch (e) {}
+    }
+  }, [payments]);
+
+  // Realtime subscription: update payments list when backend writes occur
+  useEffect(() => {
+    let mounted = true;
+    const channel = supabase.channel('public:payments')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'payments' }, payload => {
+        try {
+          // simple strategy: refetch list on any change
+          if (mounted) refetch();
+        } catch (e) {
+          // ignore
+        }
+      })
+      .subscribe();
+
+    return () => {
+      mounted = false;
+      try { supabase.removeChannel(channel); } catch (e) {}
+    };
+  }, [refetch]);
+
+    const analytics = useMemo(() => {
     let total = 0, byStatus: Record<string, number> = {}, byMethod: Record<string, number> = {}, topCustomers: Record<string, number> = {};
-    payments.forEach((p: any) => {
+    payments.forEach((raw: any) => {
+      const p = normalizePayment(raw);
       total += Number(p.amount) || 0;
       byStatus[p.status] = (byStatus[p.status] || 0) + 1;
       byMethod[p.method || "other"] = (byMethod[p.method || "other"] || 0) + 1;
@@ -108,7 +155,9 @@ export default function PaymentsPage() {
                 </tr>
               </thead>
               <tbody>
-                {payments.map((pay: any) => (
+                {payments.map((rawPay: any) => {
+                  const pay = normalizePayment(rawPay);
+                  return (
                   <tr key={pay.reference} className="border-t">
                     <td className="py-2">{pay.reference}</td>
                     <td className="py-2">
@@ -129,7 +178,7 @@ export default function PaymentsPage() {
                       <button className="underline text-blue-700 hover:text-blue-900" onClick={() => setSelected(pay)}>View</button>
                     </td>
                   </tr>
-                ))}
+                )})}
               </tbody>
             </table>
           </div>

@@ -1,11 +1,8 @@
 // src/app/api/funnel/create/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import serverSupabase from '@/lib/serverSupabase';
 
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+const supabase = serverSupabase;
 
 // Helper: QM-YYYYMMDD-XXXX (random 4-digit suffix)
 function makeOrderNumber() {
@@ -35,12 +32,23 @@ export async function POST(request: NextRequest) {
       metadata = {}
     } = body;
 
-    if (!productId || !customerName || !customerEmail || !customerPhone || !items || !Array.isArray(items) || items.length === 0) {
+    // Accept delivery fields either nested under `delivery` or at top-level (many clients use both shapes)
+    const incomingDelivery = delivery || {};
+    const shippingAddress = incomingDelivery?.shippingAddress || body.shippingAddress || body.shipping_address || null;
+    const pickupLocation = incomingDelivery?.pickupLocation || body.pickupLocation || body.pickup_location || null;
+    const deliveryMethod = incomingDelivery?.method || body.deliveryMethod || body.delivery_method || null; // 'pickup' | 'shipping'
+    const shippingState = (shippingAddress && (shippingAddress.state || shippingAddress.shipping_state)) || incomingDelivery?.state || body.shippingState || body.shipping_state || null;
+    const customerState = body.customerState || null;
+
+    // productId as a top-level field is legacy; require customer info and items instead
+    if (!customerName || !customerEmail || !customerPhone || !items || !Array.isArray(items) || items.length === 0) {
       return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 });
     }
 
-    // Prepare order payload and generate a friendly, unique order number
+    // Normalize delivery info and prepare order payload
     const orderPayloadBase: any = {
+  // attach user_id when available (created below)
+  user_id: null,
       customerName,
       customerEmail,
       customerPhone,
@@ -49,14 +57,80 @@ export async function POST(request: NextRequest) {
       total: Number(total),
       status: 'pending',
       paymentStatus: 'pending',
-      delivery: delivery || {},
+      delivery_method: deliveryMethod,
+      shipping_address: shippingAddress ? shippingAddress : null,
+      pickup_location: pickupLocation ? pickupLocation : null,
+      shipping_state: shippingState,
+      customer_state: customerState,
+      // persist a normalized delivery JSON for compatibility and future-proofing
+      delivery: {
+        ...(incomingDelivery || {}),
+        method: deliveryMethod,
+        shippingAddress: shippingAddress || null,
+        pickupLocation: pickupLocation || null,
+        state: shippingState || (incomingDelivery && (incomingDelivery.state || incomingDelivery.shipping_state)) || null
+      },
       metadata: {
         ...metadata,
         source: 'quantum-funnel',
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        customerState: customerState,
       },
       items // store snapshot
     };
+
+    // Attempt to auto-create a user account/profile so checkout continues smoothly.
+    // This is best-effort and will not block payment if it fails.
+    let createdUserId: string | null = null;
+    try {
+      if (customerEmail) {
+        // check existing profile
+        const { data: existing } = await supabase.from('user_profiles').select('id').eq('email', customerEmail).maybeSingle();
+        if (existing && existing.id) {
+          createdUserId = existing.id;
+        } else {
+          // try to create an auth user via service-role admin API (best-effort)
+          try {
+            // @ts-ignore - admin API may not be typed here
+            if (typeof (supabase.auth as any)?.admin?.createUser === 'function') {
+              const tempPassword = Math.random().toString(36).slice(-10) + 'A1!';
+              try {
+                // create auth user
+                // @ts-ignore
+                const createResp: any = await (supabase.auth as any).admin.createUser({
+                  email: customerEmail,
+                  password: tempPassword,
+                  email_confirm: true,
+                  user_metadata: { name: customerName }
+                });
+                createdUserId = createResp?.user?.id || null;
+                // store a hint in metadata so notify can mention account created (do NOT send raw password by default)
+                if (createdUserId) orderPayloadBase.metadata = { ...(orderPayloadBase.metadata || {}), accountCreated: true };
+              } catch (e) {
+                // ignore auth create failure, fall back to profile insert
+                createdUserId = null;
+              }
+            }
+          } catch (e) {
+            // ignore
+          }
+
+          // If auth user wasn't created, create a user_profiles row so we have a customer record
+          if (!createdUserId) {
+            try {
+              const { data: up } = await supabase.from('user_profiles').insert({ name: customerName, email: customerEmail, phone: customerPhone, joined_at: new Date().toISOString(), is_active: true }).select('id').maybeSingle();
+              if (up && up.id) createdUserId = up.id;
+            } catch (e) {
+              // ignore
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Auto-create user/profile failed', e);
+    }
+
+    if (createdUserId) orderPayloadBase.user_id = createdUserId;
 
   // Helper defined above
 
@@ -84,6 +158,47 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Failed to create order' }, { status: 500 });
     }
 
+    // Ensure top-level delivery columns are set (some clients store delivery at top-level)
+    try {
+      const { data: updatedOrder, error: updateErr } = await supabase.from('orders').update({
+        delivery_method: deliveryMethod || null,
+        shipping_address: shippingAddress || null,
+        pickup_location: pickupLocation || null,
+        shipping_state: shippingState || null
+      }).eq('id', order.id).select().maybeSingle();
+      if (updateErr) {
+        console.warn('Failed to persist top-level delivery columns on order', updateErr);
+      } else {
+        console.info('Persisted top-level delivery columns on order', updatedOrder?.id || order.id);
+        // update local order reference so downstream logic sees persisted values
+        order = { ...order, ...updatedOrder };
+      }
+    } catch (e) {
+      console.warn('Failed to persist top-level delivery columns on order', e);
+    }
+
+    // Ensure top-level delivery columns are persisted (some clients store delivery at top-level)
+    try {
+      const updatePayload: any = {};
+      if (deliveryMethod !== null) updatePayload.delivery_method = deliveryMethod;
+      if (shippingAddress !== null) updatePayload.shipping_address = shippingAddress;
+      if (pickupLocation !== null) updatePayload.pickup_location = pickupLocation;
+      if (shippingState !== null) updatePayload.shipping_state = shippingState;
+      // also ensure the normalized delivery JSON is stored
+      updatePayload.delivery = {
+        ...(incomingDelivery || {}),
+        method: deliveryMethod,
+        shippingAddress: shippingAddress || null,
+        pickupLocation: pickupLocation || null,
+        state: shippingState || null
+      };
+      if (Object.keys(updatePayload).length > 0) {
+        await supabase.from('orders').update(updatePayload).eq('id', order.id);
+      }
+    } catch (e) {
+      console.warn('Failed to persist top-level delivery columns on order:', e);
+    }
+
     // Insert order_items; only attach product_id if the product exists
     const productIds = items.map((it: any) => it.productId).filter(Boolean);
     let existingProductIds = new Set<string>();
@@ -102,19 +217,30 @@ export async function POST(request: NextRequest) {
     // If some productIds were provided but not found, create placeholder products so
     // order_items can satisfy NOT NULL + FK constraints in the DB.
     const missingProductIds = productIds.filter((pid: string) => !existingProductIds.has(pid));
+    // Map from incoming productId (may be external non-UUID) -> actual product UUID created
+    const externalToCreatedId: Record<string, string> = {};
     if (missingProductIds.length > 0) {
       try {
-        // Build a minimal product record for each missing id using the first matching item
+        // Helper to test valid uuid (simple regex)
+        const isUuid = (v: string) => /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/.test(v);
+
         const productsToCreate: any[] = missingProductIds.map((mid) => {
           const sourceItem = items.find((it: any) => it.productId === mid) || {};
+          // If incoming id is not a UUID, generate a new UUID for the placeholder product
+          const assignedId = isUuid(mid) ? mid : (typeof crypto !== 'undefined' && (crypto as any).randomUUID ? (crypto as any).randomUUID() : null);
+          if (!assignedId) {
+            // fallback to creating without explicit id (DB will generate one if default exists)
+          }
+          // remember mapping from external mid -> assignedId (or null)
+          externalToCreatedId[mid] = assignedId || '';
           return {
-            id: mid,
+            ...(assignedId ? { id: assignedId } : {}),
             name: sourceItem.productName || 'Unknown Product',
             description: sourceItem.productDescription || null,
             price: Number(sourceItem.unitPrice || sourceItem.price || 0),
             stock: 0,
             images: sourceItem.images || [],
-            metadata: { _note: 'auto-created placeholder for funnel order', sourceItem: { ...sourceItem } },
+            metadata: { _note: 'auto-created placeholder for funnel order', externalProductId: mid, sourceItem: { ...sourceItem } },
             is_active: false
           };
         });
@@ -125,13 +251,16 @@ export async function POST(request: NextRequest) {
           .select('id');
 
         if (!createErr && Array.isArray(createdProducts)) {
-          createdProducts.forEach((p: any) => existingProductIds.add(p.id));
+          // Add created ids to existingProductIds and fix mapping where DB generated id differs
+          createdProducts.forEach((p: any, idx: number) => {
+            existingProductIds.add(p.id);
+            const incoming = missingProductIds[idx];
+            if (incoming && p.id) externalToCreatedId[incoming] = p.id;
+          });
           console.info('Created placeholder products for missing productIds during funnel create:', missingProductIds);
-          // Notify admin/webhook about placeholders if configured
           try {
             const webhook = process.env.ADMIN_PLACEHOLDER_WEBHOOK_URL;
             if (webhook) {
-              // fire-and-forget; include order id and created product ids for triage
               await fetch(webhook, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -139,6 +268,7 @@ export async function POST(request: NextRequest) {
                   event: 'placeholder_products_created',
                   orderId: order.id,
                   createdProductIds: createdProducts.map((p: any) => p.id),
+                  externalIds: missingProductIds,
                   customerEmail: customerEmail || null,
                   timestamp: new Date().toISOString()
                 })
@@ -164,15 +294,18 @@ export async function POST(request: NextRequest) {
         total_price: Number(item.totalPrice || item.total),
         product_snapshot: { ...item, capturedAt: new Date().toISOString() }
       };
-        const hasProduct = item.productId && existingProductIds.has(item.productId);
-        // Only include product_id if product exists to avoid FK constraint failures
-        if (hasProduct) {
-          row.product_id = item.productId;
-        } else if (item.productId) {
-          // annotate snapshot when a productId was provided but not found in products table
-          row.product_snapshot._note = "productId provided but not found in products table";
-          console.info('Product id not found in products table for funnel create, storing snapshot without FK:', item.productId);
-        }
+      const providedId = item.productId;
+      // Prefer existing product id
+      if (providedId && existingProductIds.has(providedId)) {
+        row.product_id = providedId;
+      } else if (providedId && externalToCreatedId[providedId]) {
+        // Use placeholder product id created above (may be DB-generated or assigned UUID)
+        row.product_id = externalToCreatedId[providedId];
+      } else if (providedId) {
+        // No product id available - annotate snapshot but leave product_id absent
+        row.product_snapshot._note = 'productId provided but not found in products table';
+        console.info('Product id not found in products table for funnel create, storing snapshot without FK:', providedId);
+      }
       return row;
     });
 
@@ -193,11 +326,26 @@ export async function POST(request: NextRequest) {
       .from('payment_attempts')
       .insert({
         order_id: order.id,
+        email: customerEmail,
+        phone: customerPhone,
         payment_reference: paymentReference,
         amount: Number(total),
         currency: 'NGN',
         status: 'pending',
         payment_provider: 'paystack',
+        metadata: {
+          customerEmail,
+          customerPhone,
+          delivery: {
+            delivery_method: deliveryMethod,
+            shipping_address: shippingAddress,
+            pickup_location: pickupLocation,
+            shipping_state: shippingState,
+          },
+          orderSnapshot: order,
+          items
+        },
+        initiated_at: new Date().toISOString(),
         created_at: new Date().toISOString()
       });
 
@@ -222,7 +370,15 @@ export async function POST(request: NextRequest) {
             paymentReference,
             orderId: order.id,
             source: 'quantum-funnel',
-            items: items || []
+            items: items || [],
+            delivery: {
+              delivery_method: deliveryMethod,
+              shipping_address: shippingAddress,
+              pickup_location: pickupLocation,
+              shipping_state: shippingState,
+              customer_state: customerState
+            },
+            customerPhone: customerPhone
           }
         };
         const resp = await fetch('https://api.paystack.co/transaction/initialize', {

@@ -150,7 +150,30 @@ export async function POST(request: NextRequest) {
     const refToVerify = paystackReference || paymentReference;
     let verification: any = null;
     try {
-      verification = await verifyWithPaystack(refToVerify);
+      // Development-only simulation: allow skipping Paystack call when testing locally.
+      const requestBody = body as any;
+      if (process.env.NODE_ENV === 'development' && requestBody?.simulate === true) {
+        console.log('Simulating Paystack verification (development mode)');
+        verification = {
+          status: true,
+          data: {
+            domain: 'test.paystack.co',
+            amount: (attempt?.amount || 1000) * 100,
+            currency: 'NGN',
+            status: 'success',
+            reference: refToVerify,
+            customer: {
+              email: attempt?.email || requestBody?.customerEmail || 'test@example.com',
+              first_name: (requestBody?.customerName || 'Test').split(' ')[0],
+              last_name: ((requestBody?.customerName || 'Test User').split(' ').slice(1).join(' ')) || '' ,
+              phone: attempt?.phone || requestBody?.customerPhone || null
+            },
+            metadata: requestBody?.metadata || { source: 'simulated' }
+          }
+        } as any;
+      } else {
+        verification = await verifyWithPaystack(refToVerify);
+      }
     } catch (e) {
       console.warn('Paystack verify error', e);
       // If verification fails, mark attempt failed and return
@@ -190,6 +213,9 @@ export async function POST(request: NextRequest) {
         const custName = custNameParts.length ? custNameParts.join(' ') : (verifiedData.metadata?.customerName || null);
         const amountDecimal = (paidAmount || 0) / 100;
 
+        // Pull delivery info from Paystack metadata if provided
+        const verifiedDelivery = verifiedData.metadata?.delivery || {};
+
         const orderPayload: any = {
           order_number: makeOrderNumber(),
           customerName: custName,
@@ -200,7 +226,12 @@ export async function POST(request: NextRequest) {
           total: amountDecimal,
           status: 'processing',
           paymentStatus: 'paid',
-          delivery: {},
+          // Map delivery fields from Paystack metadata to DB columns as available
+          delivery: verifiedDelivery || {},
+          delivery_method: verifiedDelivery?.delivery_method || null,
+          shipping_address: verifiedDelivery?.shipping_address || null,
+          pickup_location: verifiedDelivery?.pickup_location || null,
+          shipping_state: verifiedDelivery?.shipping_state || null,
           metadata: {
             source: 'created-from-paystack-verify',
             paystack_reference: refToVerify,
@@ -235,6 +266,17 @@ export async function POST(request: NextRequest) {
         metadata: verifiedData
       });
       console.log('Ensured payment exists after verify', { reference: refToVerify, paymentId: payment?.id });
+      // Log event for observability (best-effort)
+      try {
+        await supabase.from('payment_events').insert({
+          reference: refToVerify,
+          event_type: 'verify_success',
+          payload: verifiedData,
+          created_at: new Date().toISOString()
+        });
+      } catch (e) {
+        // ignore if table doesn't exist or insert fails
+      }
     } catch (e: any) {
       console.warn('ensurePaymentExists failed after verify', e?.message || e);
     }

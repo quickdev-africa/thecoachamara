@@ -46,16 +46,31 @@ export async function POST(req: NextRequest) {
         metadata
       });
       console.log('Webhook ensured payment', reference, payment?.id);
+      // Log event
+      try {
+        await serverSupabase.from('payment_events').insert({ reference, event_type: 'webhook_charge_success', payload: data, created_at: new Date().toISOString() });
+      } catch (e) {}
     } catch (e: any) {
       console.warn('Webhook ensurePaymentExists failed', e?.message || e);
     }
 
     if (metadata && metadata.order_id) {
       try {
-        await supabase.from('orders').update({ payment_status: 'completed', status: 'confirmed', updated_at: new Date().toISOString() }).eq('id', metadata.order_id);
+        await serverSupabase.from('orders').update({ paymentStatus: 'paid', status: 'processing', payment_reference: reference, updated_at: new Date().toISOString() }).eq('id', metadata.order_id);
       } catch (e: any) {
         console.warn('Webhook failed to update order', e);
       }
+      // Fire admin webhook and trigger notification endpoint for emails (best-effort)
+      (async () => {
+        try {
+          const adminWebhook = process.env.ADMIN_PAYMENT_WEBHOOK_URL;
+          if (adminWebhook) await fetch(adminWebhook, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ event: 'payment_success', reference, orderId: metadata.order_id, data }) });
+        } catch (e) {}
+        try {
+          const notifyUrl = `${process.env.NEXT_PUBLIC_BASE_URL || ''}/api/orders/notify`;
+          await fetch(notifyUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ orderId: metadata.order_id }) });
+        } catch (e) {}
+      })();
     }
   }
   // Handle other events (e.g., charge.failed, refund, etc.)

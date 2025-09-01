@@ -1,6 +1,111 @@
 "use client";
 import { useEffect, useState, useMemo } from "react";
+import { supabase } from '../../../supabaseClient';
 import { Order, OrderStatus, PaymentStatus } from "@/lib/types";
+
+// Helper to normalize snake_case DB rows to camelCase expected by the UI
+function normalizeDelivery(del: any) {
+  if (!del) return null;
+  const shipping = del.shipping_address || del.shippingAddress || null;
+  const pickup = del.pickup_location || del.pickupLocation || null;
+  // shipping may be an object or a simple string captured from a payment form
+  const normalizedShipping = shipping
+    ? (typeof shipping === 'string'
+        ? { street: shipping }
+        : {
+            street: shipping.street || shipping.street_address || shipping.street_address_line || shipping.address || null,
+            city: shipping.city || shipping.town || null,
+            state: shipping.state || shipping.region || null,
+            country: shipping.country || null,
+            postalCode: shipping.postal_code || shipping.postalCode || null,
+            landmark: shipping.landmark || null,
+          })
+    : null;
+  return {
+    method: del.delivery_method || del.method || del.deliveryMethod || null,
+    pickupLocation: pickup || del.pickupLocation || null,
+    shippingAddress: normalizedShipping,
+    ...del,
+  };
+}
+
+function normalizeOrder(o: any): any {
+  if (!o) return o;
+  // prefer nested delivery JSON but fall back to top-level delivery columns
+  const topLevelDelivery = {
+    method: o.deliveryMethod || o.delivery_method || null,
+    shippingAddress: o.shippingAddress || o.shipping_address || null,
+    pickupLocation: o.pickupLocation || o.pickup_location || null,
+    state: o.shippingState || o.shipping_state || null,
+  };
+  return {
+    ...o,
+    id: o.id || o.order_id || o.orderId,
+    order_number: o.order_number || o.orderNumber || o.orderNumber,
+    customerName: o.customer_name || o.customerName || o.customer || null,
+    customerEmail: o.customer_email || o.customerEmail || o.customer_email_address || null,
+    customerPhone: o.customer_phone || o.customerPhone || o.phone || null,
+    createdAt: o.created_at || o.createdAt || o.created || null,
+    updatedAt: o.updated_at || o.updatedAt || o.updated || null,
+    deliveryFee: o.delivery_fee ?? o.deliveryFee ?? 0,
+    delivery: normalizeDelivery(o.delivery || o.delivery_info || topLevelDelivery || {}),
+    // Normalize items coming either from client payload (items) or DB (order_items)
+    items: (function() {
+      const orderItems = o.order_items;
+      const clientItems = o.items;
+      if (Array.isArray(orderItems) && orderItems.length > 0) {
+        return orderItems.map((it: any) => ({
+          id: it.id || it.order_item_id || null,
+          productId: it.product_id || it.productId || (it.products && it.products.id) || null,
+          productName: it.product_name || it.productName || it.products?.name || (it.product_snapshot?.productName) || null,
+          quantity: it.quantity ?? it.qty ?? (it.product_snapshot?.quantity) ?? 1,
+          price: it.product_price ?? it.productPrice ?? it.unitPrice ?? it.products?.price ?? null,
+          total: it.total_price ?? it.totalPrice ?? it.total ?? (it.product_snapshot?.totalPrice) ?? null,
+          productSnapshot: it.product_snapshot || it.productSnapshot || null,
+        }));
+      }
+      if (Array.isArray(clientItems) && clientItems.length > 0) {
+        return clientItems.map((it: any) => ({
+          id: it.id || it.productId || null,
+          productId: it.productId || it.product_id || null,
+          productName: it.productName || it.product_name || it.name || null,
+          quantity: it.quantity ?? it.qty ?? 1,
+          price: it.unitPrice ?? it.price ?? it.product_price ?? null,
+          total: it.totalPrice ?? it.total ?? ( (it.unitPrice ?? it.price) * (it.quantity ?? 1) ),
+          productSnapshot: it.productSnapshot || it.product_snapshot || null,
+        }));
+      }
+      return [];
+    })(),
+    metadata: o.metadata || o.meta || o.metadata || null,
+  };
+}
+
+// Build a concise delivery summary for table rows and small UI
+function formatDeliverySummary(o: any) {
+  if (!o) return '-';
+  const so: any = o;
+  // prefer explicit nested delivery object, otherwise check for top-level delivery fields on the order
+  const d = so.delivery || so.delivery_info || so || {};
+  const method = (d.method || so.deliveryMethod || so.delivery_method || d.delivery_method || '').toString().toLowerCase();
+  if (!method) return '-';
+  if (method === 'pickup' || method.includes('pick')) {
+    const loc = d.pickupLocation || so.pickupLocation || so.pickup_location || d.pickup_location || d.location || '-';
+    return (<span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs font-bold">Pickup — {loc || '-'}</span>);
+  }
+  if (method === 'shipping' || method === 'ship' || method.includes('ship') || method.includes('deliver')) {
+    const addr = d.shippingAddress || so.shippingAddress || so.shipping_address || d.shipping_address || {};
+    if (typeof addr === 'string') {
+      return (<span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-bold">Shipping — {addr}</span>);
+    }
+    const street = addr.street || addr.street_address || addr.address || addr.line1 || '';
+    const city = addr.city || addr.town || '';
+    const state = addr.state || addr.region || addr.shipping_state || '';
+    const parts = [street, city, state].filter(Boolean);
+    return (<span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-bold">Shipping — {parts.join(', ') || '-'}</span>);
+  }
+  return String(method);
+}
 
 export default function OrdersAdminPage() {
   // Bulk status update handler
@@ -105,23 +210,25 @@ export default function OrdersAdminPage() {
     setLoading(true);
     setError("");
     try {
-      let url = `/api/orders?limit=${pageSize}&offset=${(page - 1) * pageSize}`;
+  let url = `/api/orders?limit=${pageSize}&offset=${(page - 1) * pageSize}`;
       const params = [];
       if (filter.status) params.push(`status=${filter.status}`);
       if (params.length) url += `&${params.join("&")}`;
       const res = await fetch(url);
       const data = await res.json();
-      let arr: Order[] = [];
-      if (Array.isArray(data)) arr = data;
-      else if (Array.isArray(data?.data)) arr = data.data;
-      setOrders(arr);
-      setTotalOrders(data?.meta?.total || arr.length);
+  let arr: any[] = [];
+  if (Array.isArray(data)) arr = data;
+  else if (Array.isArray(data?.data)) arr = data.data;
+  // normalize snake_case -> camelCase for UI
+  const normalized = arr.map(normalizeOrder);
+  setOrders(normalized);
+  setTotalOrders(data?.meta?.total || arr.length);
       // Client-side filter by customer
       if (filter.customer) {
-        const filtered = arr.filter(o =>
-          o.customerName?.toLowerCase().includes(filter.customer.toLowerCase()) ||
-          o.customerEmail?.toLowerCase().includes(filter.customer.toLowerCase()) ||
-          o.customerPhone?.includes(filter.customer)
+        const filtered = normalized.filter(o =>
+          (o.customerName || o.customerEmail || '').toString().toLowerCase().includes(filter.customer.toLowerCase()) ||
+          (o.customerEmail || '').toString().toLowerCase().includes(filter.customer.toLowerCase()) ||
+          (o.customerPhone || '').toString().includes(filter.customer)
         );
         setOrders(filtered);
       }
@@ -135,6 +242,39 @@ export default function OrdersAdminPage() {
     fetchOrders();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter, page]);
+
+  // Bulk delete handler
+  const handleBulkDelete = async () => {
+    if (selectedOrderIds.length === 0) return;
+    if (!confirm(`Delete ${selectedOrderIds.length} selected order(s)? This cannot be undone.`)) return;
+    try {
+      const ids = selectedOrderIds.join(',');
+      const res = await fetch(`/api/orders?ids=${encodeURIComponent(ids)}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data?.success) {
+        setSelectedOrderIds([]);
+        fetchOrders();
+      } else {
+        alert(data?.error || 'Failed to delete orders');
+      }
+    } catch (e) {
+      alert('Failed to delete orders');
+    }
+  };
+
+  // Realtime subscription to refresh orders when changes occur
+  useEffect(() => {
+    let mounted = true;
+    const channel = supabase.channel('public:orders')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload: any) => {
+        if (mounted) fetchOrders();
+      })
+      .subscribe();
+    return () => {
+      mounted = false;
+      try { supabase.removeChannel(channel); } catch (e) {}
+    };
+  }, []);
 
   // Fetch order status history when modal opens
   useEffect(() => {
@@ -244,6 +384,14 @@ export default function OrdersAdminPage() {
               >
                 {bulkLoading ? "Updating..." : "Apply"}
               </button>
+              <button
+                type="button"
+                className="px-2 py-1 rounded bg-red-500 text-white text-xs font-bold hover:bg-red-600 disabled:opacity-50"
+                onClick={handleBulkDelete}
+                disabled={selectedOrderIds.length === 0}
+              >
+                Delete
+              </button>
               {bulkMsg && <span className="ml-2 text-xs text-green-700">{bulkMsg}</span>}
             </div>
             <div className="w-full overflow-x-auto">
@@ -257,6 +405,7 @@ export default function OrdersAdminPage() {
                   <th className="py-2 font-bold">Phone</th>
                   <th className="py-2 font-bold">Total</th>
                   <th className="py-2 font-bold">Delivery</th>
+                  <th className="py-2 font-bold">Products</th>
                   <th className="py-2 font-bold">Status</th>
                   <th className="py-2 font-bold">Payment</th>
                   <th className="py-2 font-bold">Actions</th>
@@ -291,15 +440,8 @@ export default function OrdersAdminPage() {
                     </td>
                     <td className="py-2">{order.customerPhone}</td>
                     <td className="py-2">₦{order.total?.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                    <td className="py-2">
-                      {order.delivery?.method === 'pickup' ? (
-                        <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs font-bold">Pickup</span>
-                      ) : order.delivery?.method === 'shipping' ? (
-                        <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-bold">Shipping</span>
-                      ) : (
-                        '-'
-                      )}
-                    </td>
+                    <td className="py-2">{formatDeliverySummary(order)}</td>
+                    <td className="py-2 text-sm text-gray-700">{(order as any).productNames || (order.items?.map((i:any)=>i.productName).join(', ') || '-')}</td>
                     <td className="py-2">
                       <select
                         className="px-2 py-1 rounded text-xs font-bold border"
@@ -401,7 +543,29 @@ export default function OrdersAdminPage() {
               <strong>Status:</strong> {selectedOrder.status}<br />
               <strong>Payment:</strong> {selectedOrder.paymentStatus}<br />
               <strong>Total:</strong> ₦{selectedOrder.total?.toLocaleString(undefined, { minimumFractionDigits: 2 })}<br />
-              <strong>Delivery:</strong> {selectedOrder.delivery?.method === 'pickup' ? `Pickup (${selectedOrder.delivery?.pickupLocation || '-'})` : selectedOrder.delivery?.method === 'shipping' ? `Shipping (${selectedOrder.delivery?.shippingAddress?.street || ''} ${selectedOrder.delivery?.shippingAddress?.city || ''} ${selectedOrder.delivery?.shippingAddress?.state || ''})` : '-'}<br />
+              <strong>Delivery:</strong> {(() => {
+                const so: any = selectedOrder as any;
+                const d = (so.delivery || so.delivery_info || so || {}) as any;
+                const method = d.method || so.deliveryMethod || so.delivery_method || d.delivery_method || null;
+                if (!method) return '-';
+                const m = method.toString().toLowerCase();
+                if (m === 'pickup') {
+                  const loc = d.pickupLocation || so.pickupLocation || so.pickup_location || d.pickup_location || d.location || '-';
+                  return `Pickup — ${loc || '-'}`;
+                }
+                if (m === 'shipping' || m === 'ship' || m === 'delivery') {
+                  const addr = d.shippingAddress || so.shippingAddress || so.shipping_address || d.shipping_address || {};
+                  if (typeof addr === 'string') return `Shipping — ${addr}`;
+                  const street = addr.street || addr.street_address || addr.address || addr.line1 || '';
+                  const city = addr.city || addr.town || '';
+                  const state = addr.state || addr.region || addr.shipping_state || '';
+                  const postal = addr.postalCode || addr.postal_code || '';
+                  const parts = [street, city, state, postal].filter(Boolean);
+                  return `Shipping — ${parts.join(', ') || '-'}`;
+                }
+                // fallback: show raw method
+                return String(method);
+              })()}<br />
               <strong>Delivery Fee:</strong> ₦{selectedOrder.deliveryFee?.toLocaleString()}<br />
               <strong>Notes:</strong> {selectedOrder.metadata?.notes || '-'}
             </div>
