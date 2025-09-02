@@ -154,6 +154,7 @@ export default function OrdersAdminPage() {
     try {
       const res = await fetch("/api/orders", {
         method: "PUT",
+        credentials: 'same-origin',
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ids: selectedOrderIds, status: bulkStatus }),
       });
@@ -213,6 +214,7 @@ export default function OrdersAdminPage() {
     try {
       const res = await fetch(`/api/orders`, {
         method: "PUT",
+        credentials: 'same-origin',
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: orderId, status }),
       });
@@ -232,6 +234,7 @@ export default function OrdersAdminPage() {
     try {
       const res = await fetch(`/api/orders`, {
         method: "PUT",
+        credentials: 'same-origin',
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: orderId, paymentStatus }),
       });
@@ -248,19 +251,19 @@ export default function OrdersAdminPage() {
     setLoading(true);
     setError("");
     try {
-  let url = `/api/orders?limit=${pageSize}&offset=${(page - 1) * pageSize}`;
+      let url = `/api/orders?limit=${pageSize}&offset=${(page - 1) * pageSize}`;
       const params = [];
       if (filter.status) params.push(`status=${filter.status}`);
       if (params.length) url += `&${params.join("&")}`;
-      const res = await fetch(url);
+      const res = await fetch(url, { credentials: 'same-origin' });
       const data = await res.json();
-  let arr: any[] = [];
-  if (Array.isArray(data)) arr = data;
-  else if (Array.isArray(data?.data)) arr = data.data;
-  // normalize snake_case -> camelCase for UI
-  const normalized = arr.map(normalizeOrder);
-  setOrders(normalized);
-  setTotalOrders(data?.meta?.total || arr.length);
+      let arr: any[] = [];
+      if (Array.isArray(data)) arr = data;
+      else if (Array.isArray(data?.data)) arr = data.data;
+      // normalize snake_case -> camelCase for UI
+      const normalized = arr.map(normalizeOrder);
+      setOrders(normalized);
+      setTotalOrders(data?.meta?.total || arr.length);
       // Client-side filter by customer
       if (filter.customer) {
         const filtered = normalized.filter(o =>
@@ -291,7 +294,7 @@ export default function OrdersAdminPage() {
     if (!confirm(`Delete ${selectedOrderIds.length} selected order(s)? This cannot be undone.`)) return;
     try {
       const ids = selectedOrderIds.join(',');
-      const res = await fetch(`/api/orders?ids=${encodeURIComponent(ids)}`, { method: 'DELETE' });
+      const res = await fetch(`/api/orders?ids=${encodeURIComponent(ids)}`, { method: 'DELETE', credentials: 'same-origin' });
       const data = await res.json();
       if (data?.success) {
         setSelectedOrderIds([]);
@@ -331,7 +334,7 @@ export default function OrdersAdminPage() {
     }
     (async () => {
       try {
-        const res = await fetch(`/api/orders?id=eq.${encodeURIComponent(openId)}`);
+        const res = await fetch(`/api/orders?id=eq.${encodeURIComponent(openId)}`, { credentials: 'same-origin' });
         const data = await res.json();
         const arr = Array.isArray(data) ? data : (Array.isArray(data?.data) ? data.data : []);
         if (arr.length) {
@@ -348,7 +351,7 @@ export default function OrdersAdminPage() {
   useEffect(() => {
     const fetchHistory = async () => {
       if (!selectedOrder) return setOrderHistory([]);
-      const res = await fetch(`/api/orders/history?orderId=${selectedOrder.id}`);
+      const res = await fetch(`/api/orders/history?orderId=${selectedOrder.id}`, { credentials: 'same-origin' });
       const data = await res.json();
       setOrderHistory(Array.isArray(data?.data) ? data.data : []);
     };
@@ -598,6 +601,7 @@ export default function OrdersAdminPage() {
                   setNotifyMsg("");
                   const res = await fetch("/api/orders/notify", {
                     method: "POST",
+                    credentials: 'same-origin',
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ orderId: selectedOrder.id })
                   });

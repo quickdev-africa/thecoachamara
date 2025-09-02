@@ -14,7 +14,7 @@ export default function CustomersPage() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/customers");
+      const res = await fetch("/api/customers", { credentials: 'same-origin' });
       const data = await res.json();
       let arr: Customer[] = [];
       if (Array.isArray(data)) arr = data;

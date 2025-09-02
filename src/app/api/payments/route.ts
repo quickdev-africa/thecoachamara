@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAdminApi } from '@/lib/requireAdmin';
 
 
 import serverSupabase from '@/lib/serverSupabase';
@@ -20,6 +21,8 @@ export interface Payment {
 // GET ALL PAYMENTS
 // ============================================================================
 export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Payment[]>>> {
+  const auth = await requireAdminApi(req);
+  if (auth) return auth;
   try {
     // Extract search params more efficiently
     const url = req.nextUrl;
@@ -127,6 +130,8 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Pa
 // CREATE NEW PAYMENT RECORD
 // ============================================================================
 export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<{ id: string }>>> {
+  const auth = await requireAdminApi(req);
+  if (auth) return auth;
   try {
     const paymentData = await req.json();
 

@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '../../../../supabaseClient';
 import serverSupabase from '@/lib/serverSupabase';
+import { requireAdminApi } from '@/lib/requireAdmin';
 
 // POST /api/orders/notify
 export async function POST(req: NextRequest): Promise<NextResponse> {
+  const auth = await requireAdminApi(req);
+  if (auth) return auth;
   try {
     const { orderId } = await req.json();
     if (!orderId) return NextResponse.json({ success: false, error: 'Order ID required' });

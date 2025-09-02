@@ -22,7 +22,7 @@ function normalizePayment(p: any) {
 const fetchPayments = async (params: Record<string, string>) => {
   const url = new URL("/api/payments", window.location.origin);
   Object.entries(params).forEach(([k, v]) => v && url.searchParams.set(k, v));
-  const response = await fetch(url.toString());
+  const response = await fetch(url.toString(), { credentials: 'same-origin' });
   if (!response.ok) throw new Error("Failed to fetch payments");
   const data = await response.json();
   return Array.isArray(data.data) ? data.data : data;

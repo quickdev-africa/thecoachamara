@@ -1,14 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import serverSupabase from '@/lib/serverSupabase';
+import { requireAdminApi } from '@/lib/requireAdmin';
 
 // Simple worker endpoint to process pending email_queue items
 // POST /api/tasks/process-email-queue
 // Processes up to `limit` items (default 10)
 export async function POST(req: NextRequest) {
-  // simple protection: require ADMIN_API_KEY header
+  // Accept either the ADMIN_API_KEY header (worker) or a logged-in admin session
   const adminKey = req.headers.get('x-admin-key') || '';
-  if (!process.env.ADMIN_API_KEY || adminKey !== process.env.ADMIN_API_KEY) {
-    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  if (process.env.ADMIN_API_KEY && adminKey === process.env.ADMIN_API_KEY) {
+    // allowed
+  } else {
+    const auth = await requireAdminApi(req);
+    if (auth) return auth;
   }
   try {
     const body = await req.json().catch(() => ({}));

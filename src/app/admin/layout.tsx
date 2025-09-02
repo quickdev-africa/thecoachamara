@@ -1,4 +1,6 @@
 "use client";
+// Ensure admin pages send credentials on same-origin fetches
+import './_fetch';
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";

@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '../../../../supabaseClient';
+import { requireAdminApi } from '@/lib/requireAdmin';
 
 // GET /api/orders/history?orderId=...
 export async function GET(req: NextRequest): Promise<NextResponse> {
+  const auth = await requireAdminApi(req);
+  if (auth) return auth;
   const orderId = req.nextUrl.searchParams.get('orderId');
   if (!orderId) return NextResponse.json({ success: false, error: 'Order ID required' });
   const { data, error } = await supabase

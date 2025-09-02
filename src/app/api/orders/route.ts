@@ -1,5 +1,6 @@
 // src/app/api/orders/route.ts
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAdminApi } from '@/lib/requireAdmin';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
@@ -15,6 +16,8 @@ function generateOrderNumber(): string {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await requireAdminApi(request);
+  if (auth) return auth;
   try {
     const body = await request.json();
     const {
@@ -171,6 +174,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  const auth = await requireAdminApi(request);
+  if (auth) return auth;
   try {
     const { searchParams } = new URL(request.url);
     const orderId = searchParams.get('id');
@@ -329,6 +334,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
+  const auth = await requireAdminApi(request);
+  if (auth) return auth;
   try {
     const body = await request.json();
     const { orderId, status, paymentStatus, metadata } = body;
@@ -379,6 +386,8 @@ export async function PATCH(request: NextRequest) {
 
 // Support PUT from admin UI for compatibility (bulk updates or single id)
 export async function PUT(request: NextRequest) {
+  const auth = await requireAdminApi(request);
+  if (auth) return auth;
   try {
     const body = await request.json();
     // bulk update: ids + status
@@ -405,6 +414,8 @@ export async function PUT(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const auth = await requireAdminApi(request);
+  if (auth) return auth;
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');

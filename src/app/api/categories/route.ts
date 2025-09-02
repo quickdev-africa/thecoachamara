@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '../../../supabaseClient';
+import { requireAdminApi } from '@/lib/requireAdmin';
 import { createClient } from '@supabase/supabase-js';
 
 // Server-side service role client (used for privileged writes from server routes)
@@ -58,6 +59,8 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Ca
 // CREATE NEW CATEGORY
 // ============================================================================
 export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<{ id: string }>>> {
+  const auth = await requireAdminApi(req);
+  if (auth) return auth;
   try {
     const categoryData = await req.json();
 

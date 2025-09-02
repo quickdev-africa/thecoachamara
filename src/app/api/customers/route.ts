@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import serverSupabase from '@/lib/serverSupabase';
+import { requireAdminApi } from '@/lib/requireAdmin';
 
 // GET all customers (members and buyers)
 export async function GET(req: NextRequest) {
+  const auth = await requireAdminApi(req);
+  if (auth) return auth;
   try {
     // Try to fetch user profiles using server role client (RLS-safe)
     let users: any[] | null = null;

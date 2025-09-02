@@ -11,7 +11,10 @@
     "lint": "next lint",
     "test:playwright": "npx playwright test --project=chromium --reporter=list",
     "test:playwright:headed": "npx playwright test --project=chromium --headed",
-    "test:smoke": "node tests/smoke-orders.test.js"
+    "check:env": "node ./scripts/check-no-dev-bypass.js",
+    "mark-user-admin": "node ./scripts/mark-user-admin.js",
+    "test:smoke": "node tests/smoke-orders.test.js",
+    "get-cookie-node": "node ./scripts/get-admin-cookie.js"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -29,6 +32,7 @@
     "next": "^14.2.32",
     "next-auth": "^4.24.11",
     "next-cloudinary": "^6.16.0",
+    "punycode": "^2.1.1",
     "react": "^18",
     "react-dom": "^18",
     "react-hook-form": "^7.62.0",
@@ -37,7 +41,8 @@
     "react-paystack": "^6.0.0",
     "react-toastify": "^11.0.5",
     "react-youtube": "^10.1.0",
-    "swr": "^2.3.6"
+    "swr": "^2.3.6",
+    "undici": "^7.15.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.40.0",

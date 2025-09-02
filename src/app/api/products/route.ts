@@ -1,6 +1,7 @@
 // src/app/api/products/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { requireAdminApi } from '@/lib/requireAdmin';
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -64,6 +65,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await requireAdminApi(request);
+  if (auth) return auth;
   try {
     const body = await request.json();
     const { name, description, price, stock, category_id, images, metadata } = body;

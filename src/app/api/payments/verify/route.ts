@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { ensurePaymentExists } from '@/lib/paymentUtils';
+import { requireAdminApi } from '@/lib/requireAdmin';
 
 const supabase = createClient(
   process.env.SUPABASE_URL || '',
@@ -85,6 +86,8 @@ async function sendOrderEmails(order: any) {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await requireAdminApi(request);
+  if (auth) return auth;
   try {
     const body = await request.json();
     const { paymentReference, paystackReference, status } = body || {};
@@ -323,6 +326,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  const auth = await requireAdminApi(request);
+  if (auth) return auth;
   try {
     const { searchParams } = new URL(request.url);
     const reference = searchParams.get('reference');
