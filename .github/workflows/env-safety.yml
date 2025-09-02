@@ -1,0 +1,29 @@
+name: Prevent sensitive envs on main
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  check-sensitive-envs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Scan repository for sensitive envs
+        run: |
+          set -euo pipefail
+          echo "Scanning for dangerous env variables or service keys..."
+          # search for DEV_ADMIN_BYPASS=true (case-insensitive), SUPABASE_SERVICE_ROLE_KEY, NEXTAUTH_SECRET, PAYSTACK_SECRET_KEY
+          matches=$(grep -RIn --binary-files=without-match --exclude-dir=.git -E "DEV_ADMIN_BYPASS\s*=\s*true|SUPABASE_SERVICE_ROLE_KEY\s*=|NEXTAUTH_SECRET\s*=|PAYSTACK_SECRET_KEY\s*=" || true)
+          if [ -n "$matches" ]; then
+            echo "Found sensitive entries in repository:" >&2
+            echo "$matches" >&2
+            echo "Blocking merge: remove sensitive values from tracked files and use repository secrets instead." >&2
+            exit 1
+          else
+            echo "No sensitive env flags or service keys found in the repository.";
+          fi
