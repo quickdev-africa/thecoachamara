@@ -10,7 +10,7 @@ const navItems = [
   { name: "Customers", href: "/admin/customers" },
   { name: "Orders", href: "/admin/orders" },
   { name: "Payments", href: "/admin/payments" },
-  { name: "Payment Events", href: "/admin/payment-events" },
+  // Payment Events removed from sidebar
   { name: "Email Queue", href: "/admin/email-queue" }
 ];
 
@@ -37,7 +37,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <Link
               key={item.href}
               href={item.href}
-              className={`px-3 py-2 rounded-lg font-semibold transition-colors duration-200 ${pathname === item.href ? "bg-sunglow-200 text-gray-900 shadow" : "text-white hover:bg-sunglow-100 hover:text-sunglow-400"}`}
+              className={`px-3 py-2 rounded-lg font-semibold transition-colors duration-200 ${pathname === item.href ? "bg-yellow-300 text-gray-900 shadow" : "text-white hover:bg-sunglow-100 hover:text-sunglow-400"}`}
               onClick={() => setMenuOpen(false)}
             >
               {item.name}
@@ -54,7 +54,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <Link
                 key={item.href}
                 href={item.href}
-                className={`px-4 py-2 rounded-lg font-semibold transition-colors duration-200 ${pathname === item.href ? "bg-sunglow-200 text-gray-900 shadow" : "text-white hover:bg-sunglow-100 hover:text-sunglow-400"}`}
+                className={`px-4 py-2 rounded-lg font-semibold transition-colors duration-200 ${pathname === item.href ? "bg-yellow-300 text-gray-900 shadow" : "text-white hover:bg-sunglow-100 hover:text-sunglow-400"}`}
               >
                 {item.name}
               </Link>

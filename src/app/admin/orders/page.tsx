@@ -1,7 +1,10 @@
 "use client";
 import { useEffect, useState, useMemo } from "react";
+import { useSearchParams } from 'next/navigation';
 import { supabase } from '../../../supabaseClient';
 import { Order, OrderStatus, PaymentStatus } from "@/lib/types";
+import CopyIcon from '@/components/CopyIcon';
+import Tooltip from '@/components/Tooltip';
 
 // Helper to normalize snake_case DB rows to camelCase expected by the UI
 function normalizeDelivery(del: any) {
@@ -108,6 +111,41 @@ function formatDeliverySummary(o: any) {
 }
 
 export default function OrdersAdminPage() {
+  // polling / last-updated timestamps to keep admin UI fresh
+  const [ordersLastUpdated, setOrdersLastUpdated] = useState<number | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const copyToClipboard = async (fullId: string) => {
+    try {
+      await navigator.clipboard.writeText(fullId);
+      setCopiedId(fullId);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch {}
+  };
+  // Prefer realtime updates from Supabase; only poll occasionally when tab becomes visible
+  useEffect(() => {
+    let pollIv: any = null;
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        // fetch once when tab becomes visible to keep UI fresh
+        fetchOrders().catch(() => {});
+        // set a very conservative poll while visible as a fallback (5 minutes)
+        pollIv = setInterval(() => fetchOrders().catch(() => {}), 5 * 60 * 1000);
+      } else {
+        if (pollIv) {
+          clearInterval(pollIv);
+          pollIv = null;
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    // initial run only if visible
+    if (document.visibilityState === 'visible') onVisibility();
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      if (pollIv) clearInterval(pollIv);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // Bulk status update handler
   const handleBulkStatusUpdate = async () => {
     if (!bulkStatus || selectedOrderIds.length === 0) return;
@@ -243,6 +281,10 @@ export default function OrdersAdminPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter, page]);
 
+  useEffect(() => {
+    setOrdersLastUpdated(Date.now());
+  }, [orders]);
+
   // Bulk delete handler
   const handleBulkDelete = async () => {
     if (selectedOrderIds.length === 0) return;
@@ -276,6 +318,32 @@ export default function OrdersAdminPage() {
     };
   }, []);
 
+  // openOrder query param (so /admin can link to /admin/orders?openOrder=<id>)
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    const openId = searchParams?.get?.('openOrder');
+    if (!openId) return;
+    // if we already have the order in the current list, open it; otherwise fetch single order
+    const existing = orders.find(o => o.id === openId);
+    if (existing) {
+      setSelectedOrder(existing as any);
+      return;
+    }
+    (async () => {
+      try {
+        const res = await fetch(`/api/orders?id=eq.${encodeURIComponent(openId)}`);
+        const data = await res.json();
+        const arr = Array.isArray(data) ? data : (Array.isArray(data?.data) ? data.data : []);
+        if (arr.length) {
+          setSelectedOrder(normalizeOrder(arr[0]));
+        }
+      } catch (e) {
+        // ignore
+      }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
   // Fetch order status history when modal opens
   useEffect(() => {
     const fetchHistory = async () => {
@@ -293,28 +361,28 @@ export default function OrdersAdminPage() {
       {/* Analytics Summary */}
       <div className="mb-4 grid grid-cols-1 gap-2 sm:gap-4 md:grid-cols-4">
         <div className="bg-white rounded-lg shadow p-3 sm:p-4 border">
-          <div className="text-xs text-gray-500">Total Sales</div>
+          <div className="text-xs text-gray-700">Total Sales</div>
           <div className="text-xl font-bold text-green-700">₦{analytics.totalSales.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
         </div>
         <div className="bg-white rounded-lg shadow p-3 sm:p-4 border">
-          <div className="text-xs text-gray-500">Orders by Status</div>
-          <ul className="text-sm">
+          <div className="text-xs text-gray-700">Orders by Status</div>
+          <ul className="text-sm text-gray-800">
             {Object.entries(analytics.statusCounts).map(([status, count]: [string, number]) => (
               <li key={status}><span className="capitalize">{status}</span>: <span className="font-bold">{count}</span></li>
             ))}
           </ul>
         </div>
         <div className="bg-white rounded-lg shadow p-3 sm:p-4 border">
-          <div className="text-xs text-gray-500">Top Customers</div>
-          <ul className="text-sm">
+          <div className="text-xs text-gray-700">Top Customers</div>
+          <ul className="text-sm text-gray-800">
             {analytics.topCustomersArr.map(([name, count]: [string, number]) => (
               <li key={name}>{name}: <span className="font-bold">{count}</span></li>
             ))}
           </ul>
         </div>
         <div className="bg-white rounded-lg shadow p-3 sm:p-4 border">
-          <div className="text-xs text-gray-500">Top Products</div>
-          <ul className="text-sm">
+          <div className="text-xs text-gray-700">Top Products</div>
+          <ul className="text-sm text-gray-800">
             {analytics.topProductsArr.map(([name, count]: [string, number]) => (
               <li key={name}>{name}: <span className="font-bold">{count}</span></li>
             ))}
@@ -413,7 +481,7 @@ export default function OrdersAdminPage() {
               </thead>
               <tbody>
                 {orders.map(order => (
-                  <tr key={order.id} className="border-t font-semibold">
+                  <tr key={order.id} className="border-t font-semibold text-gray-900">
                     <td className="py-2">
                       <input
                         type="checkbox"
@@ -427,7 +495,15 @@ export default function OrdersAdminPage() {
                         }}
                       />
                     </td>
-                    <td className="py-2">{order.id}</td>
+                    <td className="py-2"> 
+                      <Tooltip tip="Copy full ID">
+                        <button title="Copy full ID" aria-label={`Copy full ID ${order.id}`} className="inline-flex items-center gap-1 font-mono text-sm hover:underline focus:outline-none group" onClick={() => copyToClipboard(order.id)}>
+                          <CopyIcon className="h-3 w-3" />
+                          {(order.id || '').replace(/-/g, '').slice(-5).toUpperCase()}
+                        </button>
+                      </Tooltip>
+                      {copiedId === order.id && <span className="ml-2 text-xs text-green-700">Copied!</span>}
+                    </td>
                     <td className="py-2">{order.createdAt ? new Date(order.createdAt).toLocaleDateString() : '-'}</td>
                     <td className="py-2">
                       <a
@@ -478,7 +554,6 @@ export default function OrdersAdminPage() {
                         <option value="refunded">Refunded</option>
                       </select>
                     </td>
-    {updateError && <div className="text-red-600 mt-2">{updateError}</div>}
                     <td className="py-2">
                       <button
                         className="underline text-blue-700 hover:text-blue-900"
@@ -535,8 +610,15 @@ export default function OrdersAdminPage() {
               </button>
               {notifyMsg && <span className="ml-2 text-xs text-green-700">{notifyMsg}</span>}
             </div>
-            <div className="mb-2 text-gray-900 text-sm sm:text-base">
-              <strong>Order ID:</strong> {selectedOrder.id}<br />
+              <div className="mb-2 text-gray-900 text-sm sm:text-base">
+              <strong>Order ID:</strong> <span className="font-mono">{selectedOrder.id.replace(/-/g,'').slice(-8).toUpperCase()}</span>
+              <Tooltip tip="Copy full ID">
+                <button className="ml-2 inline-flex items-center gap-1 text-xs text-blue-700 underline" aria-label={`Copy full ID ${selectedOrder.id}`} onClick={() => copyToClipboard(selectedOrder.id)}>
+                  <CopyIcon className="h-3 w-3" />
+                  Copy full ID
+                </button>
+              </Tooltip>
+              <div className="text-xs text-gray-500 mt-1">Full ID: {selectedOrder.id}{copiedId === selectedOrder.id && <span className="ml-2 text-xs text-green-700">Copied!</span>}</div><br />
               <strong>Date:</strong> {selectedOrder.createdAt ? new Date(selectedOrder.createdAt).toLocaleString() : '-'}<br />
               <strong>Customer:</strong> {selectedOrder.customerName} ({selectedOrder.customerEmail})<br />
               <strong>Phone:</strong> {selectedOrder.customerPhone}<br />

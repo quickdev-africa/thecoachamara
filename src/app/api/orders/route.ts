@@ -246,11 +246,47 @@ export async function GET(request: NextRequest) {
       query = query.eq('status', status);
     }
 
-    const { data: orders, error, count } = await query;
-
-    if (error) {
-      console.error('Orders fetch error:', error);
-      return NextResponse.json({ success: false, error: 'Failed to fetch orders' }, { status: 500 });
+    let orders: any = null;
+    let error: any = null;
+    let count: number | null = null;
+    try {
+      const res: any = await query;
+      orders = res.data || res;
+      error = res.error || null;
+      count = res.count ?? null;
+      if (error) throw error;
+    } catch (err: any) {
+      // If the DB complains about a missing column (historical schema differences),
+      // fall back to a safer, smaller select that avoids optional/renamed columns.
+      console.error('Orders fetch error:', err);
+      if (err && (err.code === '42703' || (err.message || '').includes('delivery_info'))) {
+        try {
+          const safeSelect = `
+            id,
+            order_number,
+            customerName,
+            customerEmail,
+            total,
+            status,
+            paymentStatus,
+            created_at,
+            shipping_address,
+            shipping_state,
+            pickup_location,
+            delivery_method
+          `;
+          const safeRes: any = await base.select(safeSelect, { count: 'exact' }).order('created_at', { ascending: false }).range(offset, Math.max(0, offset + limit - 1));
+          orders = safeRes.data || safeRes;
+          error = safeRes.error || null;
+          count = safeRes.count ?? null;
+          if (error) throw error;
+        } catch (safeErr: any) {
+          console.error('Safe fallback orders fetch failed:', safeErr);
+          return NextResponse.json({ success: false, error: 'Failed to fetch orders' }, { status: 500 });
+        }
+      } else {
+        return NextResponse.json({ success: false, error: 'Failed to fetch orders' }, { status: 500 });
+      }
     }
 
     // Normalize DB rows (snake_case) to camelCase expected by frontend

@@ -6,14 +6,14 @@ import { supabase } from '../../../supabaseClient';
 function normalizePayment(p: any) {
   if (!p) return p;
   return {
-    reference: p.reference || p.ref || p.payment_reference || null,
-    order_id: p.order_id || p.orderId || p.order_id || null,
-    email: p.email || p.customer_email || p.customerEmail || null,
-    amount: p.amount ?? p.total ?? p.value ?? 0,
-    method: p.method || p.payment_method || p.gateway || null,
-    status: p.status || p.state || null,
-    created_at: p.created_at || p.createdAt || p.created || null,
-    metadata: p.metadata || p.paystack_data || p.meta || null,
+  reference: p.reference || p.ref || p.payment_reference || p.paymentReference || null,
+  order_id: p.order_id || p.orderId || p.order_id || (p.orders && p.orders.id) || null,
+  email: p.email || p.customer_email || p.customerEmail || p.paystack_data?.customer?.email || p.orders?.customerEmail || null,
+  amount: p.amount ?? p.total ?? p.value ?? (p.amount_paid || null) ?? 0,
+  method: p.method || p.payment_method || p.gateway || p.payment_provider || null,
+  status: p.status || p.state || null,
+  created_at: p.created_at || p.createdAt || p.created || p.initiated_at || null,
+  metadata: p.metadata || p.paystack_data || p.meta || null,
     // keep original for debugging
     __raw: p
   };
@@ -85,28 +85,28 @@ export default function PaymentsPage() {
       <h1 className="text-2xl font-bold mb-2 text-black">Payment Management</h1>
       <div className="mb-4 grid grid-cols-1 gap-2 sm:gap-4 md:grid-cols-4">
         <div className="bg-white rounded-lg shadow p-3 sm:p-4 border">
-          <div className="text-xs text-gray-500">Total Payments</div>
+          <div className="text-xs text-gray-700">Total Payments</div>
           <div className="text-xl font-bold text-green-700">₦{analytics.total.toLocaleString()}</div>
         </div>
         <div className="bg-white rounded-lg shadow p-3 sm:p-4 border">
-          <div className="text-xs text-gray-500">By Status</div>
-          <ul className="text-sm">
+          <div className="text-xs text-gray-700">By Status</div>
+          <ul className="text-sm text-gray-700">
             {Object.entries(analytics.byStatus).map(([status, count]) => (
               <li key={status}><span className="capitalize">{status}</span>: <span className="font-bold">{count}</span></li>
             ))}
           </ul>
         </div>
         <div className="bg-white rounded-lg shadow p-3 sm:p-4 border">
-          <div className="text-xs text-gray-500">By Method</div>
-          <ul className="text-sm">
+          <div className="text-xs text-gray-700">By Method</div>
+          <ul className="text-sm text-gray-700">
             {Object.entries(analytics.byMethod).map(([method, count]) => (
               <li key={method}><span className="capitalize">{method}</span>: <span className="font-bold">{count}</span></li>
             ))}
           </ul>
         </div>
         <div className="bg-white rounded-lg shadow p-3 sm:p-4 border">
-          <div className="text-xs text-gray-500">Top Customers</div>
-          <ul className="text-sm">
+          <div className="text-xs text-gray-700">Top Customers</div>
+          <ul className="text-sm text-gray-700">
             {analytics.topCustomersArr.map(([email, count]) => (
               <li key={email}>{email}: <span className="font-bold">{count}</span></li>
             ))}
@@ -117,7 +117,7 @@ export default function PaymentsPage() {
         <input
           type="text"
           placeholder="Search by email, reference, or order ID"
-          className="border rounded-lg px-3 py-2 text-gray-900 bg-white placeholder:text-gray-400 w-full sm:w-72"
+          className="border rounded-lg px-3 py-2 text-gray-900 bg-white placeholder:text-gray-600 w-full sm:w-72"
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
