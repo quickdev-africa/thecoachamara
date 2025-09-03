@@ -1,0 +1,29 @@
+name: Staging smoke test
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  run-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Run staging smoke test
+        env:
+          BASE_URL: ${{ secrets.STAGING_BASE_URL }}
+          SMOKE_TEST_TOKEN: ${{ secrets.SMOKE_TEST_TOKEN }}
+        run: |
+          echo "Running smoke test against $BASE_URL"
+          node ./scripts/smoke-funnel-test.js
