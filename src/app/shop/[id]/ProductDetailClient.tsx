@@ -87,6 +87,8 @@ export default function ProductDetailClient({ product, related, category }: { pr
   addToCart({ id: product.id, name: product.name, price: Number(product.price || 0), image: images[0] }, times);
   try { window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: `${product.name} added to cart (${times})` } })); } catch (e) {}
   try { window.dispatchEvent(new CustomEvent('cart:item-added', { detail: { id: product.id, name: product.name, quantity: times } })); } catch(e){}
+  // fallback: call global opener to handle hydration/event timing issues
+  try { (window as any).__openCart && (window as any).__openCart(); } catch (e) {}
     // cart:item-added is emitted from CartContext; no need to dispatch here
   setLastAdded(times);
   // hide the small confirmation after 2.5s
