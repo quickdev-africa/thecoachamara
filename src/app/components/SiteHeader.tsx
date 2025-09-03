@@ -14,7 +14,12 @@ export default function SiteHeader() {
   useEffect(() => {
     const handler = () => setOpen(true);
     window.addEventListener('cart:item-added', handler as EventListener);
-    return () => window.removeEventListener('cart:item-added', handler as EventListener);
+    // expose a direct opener for tricky hydration/timing cases
+    try { (window as any).__openCart = () => setOpen(true); } catch (e) {}
+    return () => {
+      window.removeEventListener('cart:item-added', handler as EventListener);
+      try { (window as any).__openCart = undefined; } catch (e) {}
+    };
   }, []);
 
   return (
