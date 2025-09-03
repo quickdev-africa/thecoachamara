@@ -11,7 +11,8 @@ export type CartItem = {
 
 type CartContextType = {
   items: CartItem[];
-  addToCart: (item: Omit<CartItem, "quantity">) => void;
+  // addToCart now accepts an optional quantity (default 1)
+  addToCart: (item: Omit<CartItem, "quantity">, quantity?: number) => void;
   removeFromCart: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
   clearCart: () => void;
@@ -38,17 +39,19 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem("cart", JSON.stringify(items));
   }, [items]);
 
-  function addToCart(item: Omit<CartItem, "quantity">) {
-    setItems((prev) => {
+  function addToCart(item: Omit<CartItem, "quantity">, quantity: number = 1) {
+    const qty = Math.max(1, Math.min(999, Math.floor(quantity || 1)));
+  console.log('CartContext.addToCart', { id: item.id, name: item.name, quantity: qty });
+  setItems((prev) => {
       const existing = prev.find((i) => i.id === item.id);
       if (existing) {
-        const next = prev.map((i) => i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i);
-  // emit event so UI can open cart drawer when item is added
-  try { window.dispatchEvent(new CustomEvent('cart:item-added', { detail: { id: item.id, name: item.name } })); } catch (e) {}
+        const next = prev.map((i) => i.id === item.id ? { ...i, quantity: i.quantity + qty } : i);
+        // emit event so UI can open cart drawer when item is added
+  try { window.dispatchEvent(new CustomEvent('cart:item-added', { detail: { id: item.id, name: item.name, quantity: qty } })); } catch (e) {}
         return next;
       }
-      const next = [...prev, { ...item, quantity: 1 }];
-  try { window.dispatchEvent(new CustomEvent('cart:item-added', { detail: { id: item.id, name: item.name } })); } catch (e) {}
+      const next = [...prev, { ...item, quantity: qty }];
+  try { window.dispatchEvent(new CustomEvent('cart:item-added', { detail: { id: item.id, name: item.name, quantity: qty } })); } catch (e) {}
       return next;
     });
   }
