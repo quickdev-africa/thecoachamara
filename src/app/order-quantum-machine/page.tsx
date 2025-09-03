@@ -11,6 +11,7 @@ declare global {
 import { useRouter, useSearchParams } from 'next/navigation';
 import { usePaystack } from '../../hooks/usePaystack';
 import PaystackButton from '../../components/PaystackButton';
+import AddressForm from '../../components/AddressForm';
 import { useForm } from 'react-hook-form';
 import type { Product } from '../../lib/types';
 import { PICKUP_LOCATIONS, calculateDeliveryFee } from '../../lib/types';
@@ -297,19 +298,7 @@ export default function OrderQuantumMachinePage() {
                           </select>
                         </div>
                       ) : (
-                        <>
-                          <div>
-                            <input {...register('street', { required: 'Address is required' })} placeholder="Address" className="p-3 border rounded-lg text-sm w-full" />
-                            {errors.street && <div className="text-xs text-red-600 mt-1">{(errors.street as any).message}</div>}
-                          </div>
-                          <div>
-                            <input {...register('landmark')} placeholder="Landmark (e.g. near Unity Church)" className="p-3 border rounded-lg text-sm w-full" />
-                          </div>
-                          <div>
-                            <input {...register('region', { required: 'State is required' })} placeholder="State" className="p-3 border rounded-lg text-sm w-full" />
-                            {errors.region && <div className="text-xs text-red-600 mt-1">{(errors.region as any).message}</div>}
-                          </div>
-                        </>
+                        <AddressForm register={register} errors={errors} title="Shipping Address" />
                       )}
                     </div>
 

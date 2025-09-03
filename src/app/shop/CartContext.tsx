@@ -42,9 +42,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setItems((prev) => {
       const existing = prev.find((i) => i.id === item.id);
       if (existing) {
-        return prev.map((i) => i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i);
+        const next = prev.map((i) => i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i);
+  // emit event so UI can open cart drawer when item is added
+  try { window.dispatchEvent(new CustomEvent('cart:item-added', { detail: { id: item.id, name: item.name } })); } catch (e) {}
+        return next;
       }
-      return [...prev, { ...item, quantity: 1 }];
+      const next = [...prev, { ...item, quantity: 1 }];
+  try { window.dispatchEvent(new CustomEvent('cart:item-added', { detail: { id: item.id, name: item.name } })); } catch (e) {}
+      return next;
     });
   }
 

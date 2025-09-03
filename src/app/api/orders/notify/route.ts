@@ -5,25 +5,32 @@ import { requireAdminApi } from '@/lib/requireAdmin';
 
 // POST /api/orders/notify
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  const auth = await requireAdminApi(req);
-  if (auth) return auth;
   try {
+    const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
+    const SENDER_EMAIL = process.env.SENDER_EMAIL;
+    const OWNER_EMAIL = process.env.OWNER_EMAIL;
+
+    // If SendGrid is not configured, allow a simulated notify without requiring admin auth.
+    // Use serverSupabase (service role) to fetch the order safely.
+    if (!SENDGRID_API_KEY || !SENDER_EMAIL || !OWNER_EMAIL) {
+      const { orderId } = await req.json();
+      if (!orderId) return NextResponse.json({ success: false, error: 'Order ID required' });
+      const { data: order, error } = await serverSupabase.from('orders').select('*').eq('id', orderId).maybeSingle();
+      if (error || !order) return NextResponse.json({ success: false, error: 'Order not found' });
+      console.warn('SendGrid not configured; notify simulated');
+      return NextResponse.json({ success: true, message: 'Notification simulated (SendGrid not configured)' });
+    }
+
+    // Otherwise, require admin auth to call this endpoint
+    const auth = await requireAdminApi(req);
+    if (auth) return auth;
+
     const { orderId } = await req.json();
     if (!orderId) return NextResponse.json({ success: false, error: 'Order ID required' });
 
     // Fetch order and customer info
     const { data: order, error } = await supabase.from('orders').select('*').eq('id', orderId).single();
     if (error || !order) return NextResponse.json({ success: false, error: 'Order not found' });
-
-    const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
-    const SENDER_EMAIL = process.env.SENDER_EMAIL;
-    const OWNER_EMAIL = process.env.OWNER_EMAIL;
-
-    // If SendGrid not configured, return simulated success so other flows don't fail
-    if (!SENDGRID_API_KEY || !SENDER_EMAIL || !OWNER_EMAIL) {
-      console.warn('SendGrid not configured; notify simulated');
-      return NextResponse.json({ success: true, message: 'Notification simulated (SendGrid not configured)' });
-    }
 
     const send = async (to: string, subject: string, html: string) => {
       const res = await fetch('https://api.sendgrid.com/v3/mail/send', {

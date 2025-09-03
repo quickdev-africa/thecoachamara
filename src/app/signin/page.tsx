@@ -55,6 +55,7 @@ export default function SignInPage() {
           />
         </div>
         {error && <div className="text-red-600 text-center font-medium">{error}</div>}
+  {/* Simple dev hint removed for a clean signin page in preparation for production */}
         <button
           type="submit"
           className="w-full py-2 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg transition duration-200"

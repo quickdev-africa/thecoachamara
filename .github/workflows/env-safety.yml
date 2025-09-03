@@ -1,4 +1,4 @@
-name: Prevent sensitive envs on main
+name: Env safety checks
 
 on:
   push:
@@ -7,8 +7,30 @@ on:
     branches: [ main ]
 
 jobs:
-  check-sensitive-envs:
+  run-node-env-check:
+    name: Run node env check
     runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node.js setup
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Run env check script
+        env:
+          NODE_ENV: production
+        run: node ./scripts/check-no-dev-bypass.js
+
+  scan-repo-for-sensitive-envs:
+    name: Scan repository for sensitive envs
+    runs-on: ubuntu-latest
+    needs: run-node-env-check
     steps:
       - name: Checkout
         uses: actions/checkout@v4

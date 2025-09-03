@@ -289,9 +289,11 @@ export async function POST(request: NextRequest) {
       const row: any = {
         order_id: order.id,
         product_name: item.productName,
-        product_price: Number(item.unitPrice || item.price),
-        quantity: Number(item.quantity),
-        total_price: Number(item.totalPrice || item.total),
+  product_price: Number(item.unitPrice || item.price || 0),
+  quantity: Number(item.quantity || 0),
+  // Ensure total_price is always a number. Prefer explicit totalPrice/total from client,
+  // otherwise compute as product_price * quantity to avoid inserting null/NaN into DB.
+  total_price: Number(item.totalPrice ?? item.total ?? (Number(item.unitPrice || item.price || 0) * Number(item.quantity || 0))),
         product_snapshot: { ...item, capturedAt: new Date().toISOString() }
       };
       const providedId = item.productId;

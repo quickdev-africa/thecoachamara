@@ -2,15 +2,6 @@
 
 import NextAuth from "next-auth";
 import fs from 'fs';
-import { ensureNoDevBypassInProduction } from '@/lib/requireAdmin';
-
-// Enforce runtime safety: abort startup if the dev bypass is accidentally enabled in production
-try {
-  ensureNoDevBypassInProduction();
-} catch (e) {
-  // Rethrow to ensure server fails fast in misconfigured production environments
-  throw e;
-}
 import CredentialsProvider from "next-auth/providers/credentials";
 import { supabase } from "@/supabaseClient";
 
@@ -43,42 +34,9 @@ export const authOptions = {
   // eslint-disable-next-line no-console
   console.info('[NextAuth][authorize] user=', { id: data.user.id, email: data.user.email, isAdmin: meta && meta.admin === true });
 
-        // Development/testing fallback: allow specified emails to be treated as admin
-        // without modifying Supabase. To enable, set DEV_ADMIN_BYPASS=true and
-        // ADMIN_EMAILS="a@x.com,b@y.com" in your local env. This is ONLY meant
-        // for local development.
-        try {
-          const devBypass = process.env.DEV_ADMIN_BYPASS === 'true';
-          const isDev = process.env.NODE_ENV !== 'production';
-          if (devBypass && !isDev) {
-            // Prevent accidental enabling in production
-            // eslint-disable-next-line no-console
-            console.warn('[NextAuth][authorize] DEV_ADMIN_BYPASS is set but NODE_ENV=production — bypass ignored');
-          }
-          const adminEmailsRaw = process.env.ADMIN_EMAILS || process.env.ADMIN_EMAIL || '';
-          const adminEmails = adminEmailsRaw.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
-          if (!isAdmin && devBypass && isDev && credentials?.email) {
-            if (adminEmails.includes(credentials.email.toLowerCase())) {
-              // eslint-disable-next-line no-console
-              console.info('[NextAuth][authorize] DEV_ADMIN_BYPASS used for', credentials.email);
-              isAdmin = true;
-            }
-          }
-          // Extra safety: if DEV_ADMIN_BYPASS is enabled and the email matches,
-          // short-circuit and return a minimal user object so NextAuth will create a session.
-          if (devBypass && isDev && credentials?.email && adminEmails.includes((credentials.email || '').toLowerCase())) {
-            // eslint-disable-next-line no-console
-            console.info('[NextAuth][authorize] DEV_ADMIN_BYPASS short-circuit returning user for', credentials.email);
-            return {
-              id: `dev-${(credentials.email || '').toLowerCase()}`,
-              name: credentials.email,
-              email: credentials.email,
-              isAdmin: true
-            };
-          }
-        } catch (e) {
-          // ignore errors in fallback parsing
-        }
+  // Optionally allow admin emails listed in ADMIN_EMAILS to be treated as admin
+  const adminEmailsRaw = process.env.ADMIN_EMAILS || process.env.ADMIN_EMAIL || '';
+  const adminEmails = adminEmailsRaw.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
   // eslint-disable-next-line no-console
   console.info('[NextAuth][authorize] final isAdmin=', isAdmin);
   if (isAdmin) {

@@ -15,6 +15,10 @@ async function isAdminToken(token: any) {
 
 export async function GET(req: NextRequest) {
   try {
+    // Disallow in production
+    if (process.env.NODE_ENV === 'production') {
+      return NextResponse.json({ ok: false, error: 'Not found' }, { status: 404 });
+    }
     const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
     const admin = await isAdminToken(token);
     return NextResponse.json({ ok: true, token: token || null, isAdmin: admin });
