@@ -6,19 +6,23 @@ import { requireAdminApi } from '@/lib/requireAdmin';
 export async function GET(req: NextRequest) {
   const auth = await requireAdminApi(req);
   if (auth) return auth;
-  try {
-    // Try to fetch user profiles using server role client (RLS-safe)
-    let users: any[] | null = null;
     try {
-      const { data, error } = await serverSupabase
-        .from('user_profiles')
-        .select('id, name, email, phone, joined_at, is_active');
-      if (error) throw error;
-      users = data as any[];
-    } catch (e) {
-      console.warn('Unable to read user_profiles with anon client, will fallback to orders-derived customers', e);
-      users = null;
-    }
+      // Check query param to optionally return only leads (customers with no orders)
+      const leadsOnly = req.nextUrl.searchParams.get('leads_only') === 'true';
+
+      // Try to fetch user profiles using server role client (RLS-safe)
+      let users: any[] | null = null;
+      try {
+        // include fields we may use for filtering/flags
+        const { data, error } = await serverSupabase
+          .from('user_profiles')
+          .select('id, name, email, phone, joined_at, is_active, auto_created');
+        if (error) throw error;
+        users = data as any[];
+      } catch (e) {
+        console.warn('Unable to read user_profiles with anon client, will fallback to orders-derived customers', e);
+        users = null;
+      }
 
     // Fetch order counts and last order date for each user/email. Select all columns
     // to be resilient to snake_case vs camelCase column naming in different deployments.
@@ -80,7 +84,26 @@ export async function GET(req: NextRequest) {
       customers = Array.from(byEmail.values());
     }
 
-    return NextResponse.json({ success: true, data: customers });
+    // If requested, only return leads.
+    // Prefer explicit `auto_created` flag when present (less noisy).
+    if (leadsOnly) {
+      const hasAutoCreatedFlag = customers.some(c => c.auto_created === true || c.autoCreated === true);
+      if (hasAutoCreatedFlag) {
+        customers = customers.filter(c => c.auto_created === true || c.autoCreated === true);
+      } else {
+        // Fallback: treat zero-orders as leads
+        customers = customers.filter(c => (c.orders_count || 0) === 0);
+      }
+    }
+
+    // Compute summary counts to avoid client-side counting for large datasets
+    const total = customers.length;
+    const leads = customers.filter(c => {
+      // auto_created flag when present indicates a lead; also treat zero-orders as lead
+      return (c.auto_created === true) || ((c.orders_count || 0) === 0);
+    }).length;
+
+    return NextResponse.json({ success: true, data: customers, summary: { total, leads } });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error?.message || 'Failed to fetch customers' }, { status: 500 });
   }

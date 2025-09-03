@@ -30,23 +30,37 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Pa
     const status = url.searchParams.get('status');
     const email = url.searchParams.get('email');
 
-  // Build Supabase query (use server-side client to bypass RLS for admin endpoints)
-  let queryBuilder = serverSupabase
-      .from('payments')
-  .select('*')
-  .order('created_at', { ascending: false })
-      .limit(pageLimit);
+    // Prefer selecting explicit columns to avoid dependency on optional DB columns
+    // (some deployments may not have `paystack_reference` etc.). If the SELECT fails
+    // with an undefined-column error, we fall back to querying `payment_attempts`.
+    let payments: any[] | null = null;
+    try {
+      let qb = serverSupabase
+        .from('payments')
+        .select('id, reference, email, amount, product_id, status, metadata, created_at, updated_at')
+        .order('created_at', { ascending: false })
+        .limit(pageLimit);
 
-    if (status) {
-      queryBuilder = queryBuilder.eq('status', status);
-    }
-    if (email) {
-      queryBuilder = queryBuilder.ilike('email', `%${email}%`);
-    }
+      if (status) qb = qb.eq('status', status);
+      if (email) qb = qb.ilike('email', `%${email}%`);
 
-    const { data: payments, error } = await queryBuilder;
-    if (error) {
-      throw error;
+      const { data, error } = await qb;
+      if (error) {
+        // If the error indicates an undefined column (Postgres 42703), treat as missing schema and
+        // fall through to the payment_attempts fallback. Otherwise rethrow.
+        const pgCode = (error && (error as any).code) || null;
+        if (pgCode === '42703') {
+          console.warn('Payments table missing expected column(s), falling back to payment_attempts');
+        } else {
+          throw error;
+        }
+      } else {
+        payments = Array.isArray(data) ? data : [];
+      }
+    } catch (selectErr: any) {
+      // If selecting from payments failed due to schema mismatch, we'll later try payment_attempts.
+      console.warn('Selecting from payments failed, will fallback to payment_attempts:', selectErr && selectErr.message ? selectErr.message : String(selectErr));
+      payments = null;
     }
 
     // helper: normalize any raw row (from payments or payment_attempts) into Payment
@@ -74,7 +88,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Pa
       };
     };
 
-  // If payments table is empty, fall back to recent payment_attempts (joined to orders)
+  // If payments table is empty or unavailable, fall back to recent payment_attempts (joined to orders)
   if ((!payments || payments.length === 0)) {
       try {
   const { data: attempts, error: attemptsErr } = await serverSupabase
@@ -107,8 +121,8 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Pa
       }
     }
 
-    // Normalize canonical payments rows into the Payment type
-    const normalized = Array.isArray(payments) ? payments.map((p: any) => toPayment(p)) : [];
+  // Normalize canonical payments rows into the Payment type
+  const normalized = Array.isArray(payments) ? payments.map((p: any) => toPayment(p)) : [];
     return NextResponse.json({
       success: true,
       data: normalized,

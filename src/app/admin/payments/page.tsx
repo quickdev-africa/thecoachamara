@@ -19,6 +19,18 @@ function normalizePayment(p: any) {
   };
 }
 
+function shortenRef(ref?: string | null) {
+  if (!ref) return "-";
+  try {
+    const r = String(ref);
+    if (r.length <= 24) return r;
+    // show first 8 and last 8 with ellipsis
+    return `${r.slice(0, 8)}…${r.slice(-8)}`;
+  } catch {
+    return String(ref);
+  }
+}
+
 const fetchPayments = async (params: Record<string, string>) => {
   const url = new URL("/api/payments", window.location.origin);
   Object.entries(params).forEach(([k, v]) => v && url.searchParams.set(k, v));
@@ -155,11 +167,11 @@ export default function PaymentsPage() {
                 </tr>
               </thead>
               <tbody>
-                {payments.map((rawPay: any) => {
+        {payments.map((rawPay: any) => {
                   const pay = normalizePayment(rawPay);
                   return (
                   <tr key={pay.reference} className="border-t">
-                    <td className="py-2">{pay.reference}</td>
+          <td className="py-2 font-mono" title={pay.reference}>{shortenRef(pay.reference)}</td>
                     <td className="py-2">
                       {pay.order_id ? (
                         <a href={`/admin/orders?search=${pay.order_id}`} className="underline text-blue-700 hover:text-blue-900" title="View order">{pay.order_id}</a>
@@ -196,7 +208,9 @@ export default function PaymentsPage() {
             </button>
             <h2 className="text-xl font-bold mb-2 text-black">Payment Details</h2>
             <div className="mb-2 text-gray-900 text-sm sm:text-base">
-              <strong>Reference:</strong> {selected.reference}<br />
+              <strong>Reference:</strong> <span className="font-mono">{shortenRef(selected.reference)}</span>
+              <div className="text-xs text-gray-700 mt-1">Full: <span className="font-mono break-all">{selected.reference}</span></div>
+              <br />
               <strong>Order:</strong> {selected.order_id ? (
                 <a href={`/admin/orders?search=${selected.order_id}`} className="underline text-blue-700 hover:text-blue-900">{selected.order_id}</a>
               ) : "-"}<br />

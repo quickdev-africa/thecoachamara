@@ -40,14 +40,29 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
+    // Validate delivery payload: ensure shipping has full address and pickup has location
+    const incomingDelivery = delivery || {};
+    const inferredMethod = incomingDelivery.method || (incomingDelivery.shippingAddress ? 'shipping' : (incomingDelivery.pickupLocation ? 'pickup' : null));
+    if (inferredMethod === 'shipping') {
+      const addr = incomingDelivery.shippingAddress || incomingDelivery;
+      if (!addr || !addr.street || !addr.city || !addr.state) {
+        return NextResponse.json({ success: false, error: 'Missing shipping address fields: street, city, state' }, { status: 400 });
+      }
+    }
+    if (inferredMethod === 'pickup') {
+      if (!incomingDelivery.pickupLocation) {
+        return NextResponse.json({ success: false, error: 'Missing pickupLocation for pickup delivery' }, { status: 400 });
+      }
+    }
+
     const orderNumber = generateOrderNumber();
 
     // Start transaction
-    // Normalize delivery fields for DB
-    const deliveryMethod = delivery?.method || null;
-    const shippingAddress = delivery?.shippingAddress || null;
-    const pickupLocation = delivery?.pickupLocation || null;
-    const shippingState = shippingAddress?.state || delivery?.state || null;
+  // Normalize delivery fields for DB
+  const deliveryMethod = (delivery && delivery.method) ? delivery.method : inferredMethod;
+  const shippingAddress = delivery?.shippingAddress || (deliveryMethod === 'shipping' ? delivery : null);
+  const pickupLocation = delivery?.pickupLocation || null;
+  const shippingState = shippingAddress?.state || delivery?.state || null;
     const customerState = body.customerState || null;
 
     const { data: order, error: orderError } = await supabase

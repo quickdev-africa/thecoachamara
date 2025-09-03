@@ -86,11 +86,27 @@ async function sendOrderEmails(order: any) {
 }
 
 export async function POST(request: NextRequest) {
-  const auth = await requireAdminApi(request);
-  if (auth) return auth;
   try {
-    const body = await request.json();
+    // Parse body early so we can allow a development-only simulate mode to bypass admin auth.
+    const body = await request.json().catch(() => null);
     const { paymentReference, paystackReference, status } = body || {};
+
+    // In development only, allow simulate=true requests to bypass admin auth but only when
+    // a valid short-lived smoke test token is provided in the `x-smoke-test-token` header.
+    const requestBody = body as any;
+    const isDevSimulateRequested = process.env.NODE_ENV === 'development' && requestBody?.simulate === true;
+    if (isDevSimulateRequested) {
+      const providedToken = request.headers.get('x-smoke-test-token') || '';
+      const expectedToken = process.env.SMOKE_TEST_TOKEN || '';
+      if (!expectedToken || providedToken !== expectedToken) {
+        // token missing or mismatch -> deny
+        return NextResponse.json({ success: false, error: 'Invalid or missing smoke test token' }, { status: 401 });
+      }
+      // token matches -> allow simulate path without admin auth
+    } else {
+      const auth = await requireAdminApi(request);
+      if (auth) return auth;
+    }
 
     if (!paymentReference) {
       return NextResponse.json({ success: false, error: 'paymentReference required' }, { status: 400 });

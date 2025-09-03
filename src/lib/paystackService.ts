@@ -1,5 +1,6 @@
 // Handles Paystack and backend API logic. All original logic preserved.
 import type { Product } from '../lib/types';
+import { getDeliveryZone } from '@/lib/types';
 
 export async function createOrderAndInitPayment({
   form,
@@ -22,7 +23,9 @@ export async function createOrderAndInitPayment({
   setLoading: (loading: boolean) => void;
   router: any;
 }) {
-  function getDeliveryZone(state: string) {
+  // Prefer centralized zone logic from types where available
+  // Keep a small fallback mapping here for older deployments
+  let getDeliveryZoneLocal = (state: string) => {
     const zones = {
       'Lagos': 'Zone 1',
       'Abuja': 'Zone 1',
@@ -32,7 +35,7 @@ export async function createOrderAndInitPayment({
       'Ibadan': 'Zone 2'
     };
     return zones[state as keyof typeof zones] || 'Zone 3';
-  }
+  };
 
   try {
     // Ensure Paystack inline script is loaded and available as window.PaystackPop.setup
@@ -86,7 +89,17 @@ export async function createOrderAndInitPayment({
     return;
   }
   const productId = product.id;
-  const orderData = {
+    // Normalize shipping address to match funnel/create expectations.
+    const normalizedShippingAddress = form.deliveryPref === 'ship' ? {
+      street: form.street || '',
+      city: form.city || form.area || '',
+      state: form.region || '',
+      postalCode: form.postalCode || '',
+      country: form.country || 'Nigeria',
+      landmark: form.landmark || ''
+    } : null;
+
+    const orderData = {
   productId,
       customerName: form.name,
       customerEmail: form.email,
@@ -104,23 +117,25 @@ export async function createOrderAndInitPayment({
       subtotal,
       deliveryFee: shipping,
       total,
-      delivery: form.deliveryPref === 'pickup' 
-        ? { 
-            method: 'pickup', 
+      // top-level shipping fields included for compatibility with funnel/create
+      shippingAddress: normalizedShippingAddress,
+      shipping_address: normalizedShippingAddress,
+      shippingState: form.region || null,
+      // normalized delivery object (also include shippingAddress inside delivery to be exhaustive)
+      delivery: form.deliveryPref === 'pickup'
+        ? {
+            method: 'pickup',
             location: form.pickupLocation,
-            details: `Pickup at ${form.pickupLocation}`
+            details: `Pickup at ${form.pickupLocation}`,
+            pickupLocation: form.pickupLocation
           }
-        : {
+            : {
             method: 'shipping',
-            address: {
-              street: form.street,
-              city: form.area,
-              state: form.region,
-              country: form.country,
-              postalCode: form.postalCode,
-              landmark: form.landmark
-            },
-            zone: form.region ? getDeliveryZone(form.region) : 'Zone 3'
+            shippingAddress: normalizedShippingAddress,
+            address: normalizedShippingAddress, // older clients sometimes use delivery.address
+            zone: (form.region || form.city) ? (getDeliveryZone ? (getDeliveryZone(form.region || form.city) as string) : getDeliveryZoneLocal(form.region || form.city)) : 'Zone 3',
+            state: form.region || null,
+            country: normalizedShippingAddress?.country || 'Nigeria'
           },
       metadata: {
         source: 'quantum-funnel',

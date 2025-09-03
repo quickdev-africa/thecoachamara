@@ -622,7 +622,7 @@ export default function OrdersAdminPage() {
                   Copy full ID
                 </button>
               </Tooltip>
-              <div className="text-xs text-gray-500 mt-1">Full ID: {selectedOrder.id}{copiedId === selectedOrder.id && <span className="ml-2 text-xs text-green-700">Copied!</span>}</div><br />
+              <div className="text-xs text-gray-700 mt-1">Full ID: {selectedOrder.id}{copiedId === selectedOrder.id && <span className="ml-2 text-xs text-green-700">Copied!</span>}</div><br />
               <strong>Date:</strong> {selectedOrder.createdAt ? new Date(selectedOrder.createdAt).toLocaleString() : '-'}<br />
               <strong>Customer:</strong> {selectedOrder.customerName} ({selectedOrder.customerEmail})<br />
               <strong>Phone:</strong> {selectedOrder.customerPhone}<br />
@@ -656,7 +656,7 @@ export default function OrdersAdminPage() {
               <strong>Notes:</strong> {selectedOrder.metadata?.notes || '-'}
             </div>
             {/* Order Timeline/History */}
-            <div className="mb-2 text-sm sm:text-base">
+            <div className="mb-2 text-sm sm:text-base text-gray-900">
               <strong>Order Timeline:</strong>
               <ul className="text-sm mt-1 ml-2 list-disc">
                 <li>Created: {selectedOrder.createdAt ? new Date(selectedOrder.createdAt).toLocaleString() : '-'}</li>

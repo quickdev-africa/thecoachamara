@@ -10,27 +10,44 @@ export default function CustomersPage() {
   const [orders, setOrders] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
   const [detailsLoading, setDetailsLoading] = useState(false);
+  const [leadsOnly, setLeadsOnly] = useState<boolean>(false);
+  const [localSummary, setLocalSummary] = useState<{ total: number; leads: number } | null>(null);
   const fetchCustomers = async () => {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/customers", { credentials: 'same-origin' });
-      const data = await res.json();
-      let arr: Customer[] = [];
-      if (Array.isArray(data)) arr = data;
-      else if (Array.isArray(data?.data)) arr = data.data;
+  // Respect the "leadsOnly" UI toggle by passing the query param to the API
+  const url = `/api/customers${leadsOnly ? '?leads_only=true' : ''}`;
+  const res = await fetch(url, { credentials: 'same-origin' });
+  const data = await res.json();
+  let arr: Customer[] = [];
+  if (Array.isArray(data)) arr = data;
+  else if (Array.isArray(data?.data)) arr = data.data;
+  // accept server summary when present
+  const serverSummary = data?.summary;
       // normalize fields
-      const normalized = arr.map((c: any) => ({
-        id: c.id,
-        name: c.name || c.full_name || c.customer_name,
-        email: c.email,
-        phone: c.phone || c.phone_number || c.mobile,
-        joined_at: c.joined_at || c.joinedAt || c.created_at || null,
-        orders_count: c.orders_count ?? c.ordersCount ?? 0,
-        last_order_at: c.last_order_at || c.lastOrderAt || null,
-        is_active: c.is_active !== false
-      }));
+      const normalized = arr.map((c: any) => {
+        const ordersCount = c.orders_count ?? c.ordersCount ?? 0;
+        const autoCreated = c.auto_created === true || c.autoCreated === true || false;
+        const isLead = autoCreated || ordersCount === 0;
+        return {
+          id: c.id,
+          name: c.name || c.full_name || c.customer_name,
+          email: c.email,
+          phone: c.phone || c.phone_number || c.mobile,
+          joined_at: c.joined_at || c.joinedAt || c.created_at || null,
+          orders_count: ordersCount,
+          last_order_at: c.last_order_at || c.lastOrderAt || null,
+          is_active: c.is_active !== false,
+          auto_created: autoCreated,
+          is_lead: isLead
+        };
+      });
       setCustomers(normalized as Customer[]);
+      if (serverSummary) {
+        // set a lightweight local summary object for display
+        setLocalSummary({ total: serverSummary.total || normalized.length, leads: serverSummary.leads || normalized.filter((c: any) => c.is_lead).length });
+      }
     } catch (err) {
       setError("Failed to fetch customers");
     }
@@ -40,6 +57,11 @@ export default function CustomersPage() {
   useEffect(() => {
     fetchCustomers();
   }, []);
+
+  // Refetch when leadsOnly toggle changes
+  useEffect(() => {
+    fetchCustomers();
+  }, [leadsOnly]);
 
   // Realtime: refresh the customers list when updates occur
   useEffect(() => {
@@ -65,12 +87,46 @@ type Customer = {
   orders_count?: number;
   last_order_at?: string;
   is_active?: boolean;
+  auto_created?: boolean;
+  is_lead?: boolean;
 };
 
 
 
   return (
     <div>
+      <div className="flex items-center justify-between mb-3">
+        <h1 className="text-xl md:text-2xl font-bold mb-0 md:mb-0 text-black tracking-wide">Customer Management</h1>
+        <div className="flex items-center gap-3">
+          <label className="text-sm text-gray-700">Show leads only</label>
+          <button
+            onClick={() => setLeadsOnly(v => !v)}
+            className={`px-3 py-1 rounded-full border ${leadsOnly ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-gray-700'}`}
+            aria-pressed={leadsOnly}
+          >
+            {leadsOnly ? 'Leads' : 'All'}
+          </button>
+            <button
+              onClick={() => {
+                const params = new URLSearchParams();
+                params.set('csv', 'true');
+                params.set('page', '1');
+                params.set('limit', '200');
+                if (leadsOnly) params.set('leads_only', 'true');
+                window.open(`/api/leads?${params.toString()}`, '_blank');
+              }}
+              className="px-3 py-1 rounded-full border bg-white text-gray-700 hover:bg-amber-50"
+              title="Export current leads page (up to 200) as CSV"
+            >
+              Export leads CSV
+            </button>
+        </div>
+      </div>
+      {/* Summary metrics */}
+      <div className="flex items-center justify-start gap-4 mb-4">
+        <div className="text-sm text-gray-700">Total: <span className="font-bold text-black">{localSummary?.total ?? customers.length}</span></div>
+        <div className="text-sm text-gray-700">Leads: <span className="font-bold text-amber-700">{localSummary?.leads ?? customers.filter(c => c.is_lead).length}</span></div>
+      </div>
       <h1 className="text-xl md:text-2xl font-bold mb-4 md:mb-6 text-black tracking-wide">Customer Management</h1>
       <div className="bg-baby_powder-900 rounded-xl shadow p-2 md:p-6 border border-blue_gray-100 overflow-x-auto">
         {error && <div className="text-red-600 mb-2">{error}</div>}
@@ -89,6 +145,7 @@ type Customer = {
                 <th className="py-2 font-bold">Orders</th>
                 <th className="py-2 font-bold">Last Order</th>
                 <th className="py-2 font-bold">Status</th>
+                <th className="py-2 font-bold">Lead</th>
 
                 <th className="py-2 font-bold">Actions</th>
 
@@ -112,6 +169,13 @@ type Customer = {
                       <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold">Active</span>
                     ) : (
                       <span className="bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-bold">Inactive</span>
+                    )}
+                  </td>
+                  <td className="py-2">
+                    {customer.is_lead ? (
+                      <span className="bg-amber-100 text-amber-800 px-2 py-1 rounded text-xs font-bold">Lead</span>
+                    ) : (
+                      <span className="text-gray-500 text-xs">—</span>
                     )}
                   </td>
                   <td className="py-2">

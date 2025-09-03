@@ -20,7 +20,9 @@ export async function GET(
   { params }: RouteParams
 ): Promise<NextResponse<ApiResponse<Product>>> {
   try {
-    const { id } = params;
+  const { id } = params;
+  // Debug: log incoming id for diagnosis
+  console.log('[products/[id] GET] incoming id:', id);
     if (!id) {
       return NextResponse.json({
         success: false,
@@ -32,6 +34,7 @@ export async function GET(
       .select('*')
       .eq('id', id)
       .single();
+  console.log('[products/[id] GET] supabase result:', { product, error });
     if (error || !product) {
       return NextResponse.json({
         success: false,

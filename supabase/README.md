@@ -47,6 +47,25 @@ SUPABASE_URL="https://your-project.supabase.co" SUPABASE_SERVICE_ROLE_KEY="<SERV
 -- Confirm `raw_user_meta_data.admin=true` for production admin accounts using the SQL above.
 - Restart the production app after making env changes.
 
+7) Add the paystack_reference migration
+
+- A new migration file `supabase/migrations/20250903_add_paystack_reference_to_payments.sql` is provided to add the optional `paystack_reference` column and an index.
+- Recommended steps to apply safely:
+	1. Take a DB backup / snapshot in Supabase before running any migration.
+	2. Run the SQL in the Supabase SQL editor or via `psql`/`supabase` CLI against staging first.
+	3. Verify the column exists: `SELECT column_name FROM information_schema.columns WHERE table_name='payments' AND column_name='paystack_reference';`
+	4. Deploy to production and re-run the migration there if staging looks good.
+
+Example (psql):
+
+```bash
+# export PG connection string (from Supabase project settings)
+export DATABASE_URL="postgres://..."
+psql "$DATABASE_URL" -f supabase/migrations/20250903_add_paystack_reference_to_payments.sql
+```
+
+If you'd like, I can also add a small script to run migrations via the Supabase CLI.
+
 6) If you need different emails
 
 Edit `supabase/migrations/20250902_mark_admins.sql` and add or remove emails in the `WHERE email IN (...)` list, then re-run the migration.

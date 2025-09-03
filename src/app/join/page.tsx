@@ -1,15 +1,16 @@
 "use client";
 import React, { useState, useEffect, useRef, ChangeEvent, FormEvent } from "react";
+import { useSearchParams } from 'next/navigation';
 import Image from 'next/image';
+import AddressForm from '@/components/AddressForm';
+import { useRouter } from 'next/navigation';
 import dynamic from "next/dynamic";
 
-const PaystackButton = dynamic(() => import("react-paystack").then(mod => mod.PaystackButton), { ssr: false });
-
-// Product options (with images)
+// Product options (with canonical IDs from the products API)
 const products = [
-  { name: "Quantum Boxers", price: "₦49,000", amount: 49000, img: "/boxers.png" },
-  { name: "Quantum Pendant", price: "₦29,000", amount: 29000, img: "/pendant.png" },
-  { name: "Quantum Water Bottle", price: "₦39,000", amount: 39000, img: "/bottle.png" },
+  { id: '0cd6d480-66ca-4e3c-9c8c-63a64f7fbb78', name: "Quantum Energy Grapheme Men's underwear", price: "₦98,600.00", amount: 98600, img: 'https://res.cloudinary.com/djucbsrds/image/upload/v1756012379/quantumboxer_le2bm8.jpg' },
+  { id: '2bb424e2-fc60-4598-aefa-975b79f579b7', name: "Quantum Energy Polarised Eyeglasses", price: "₦285,600.00", amount: 285600, img: 'https://res.cloudinary.com/djucbsrds/image/upload/v1756013025/sunglasses_jifzgj.jpg' },
+  { id: 'c62a94d2-a5f4-4d40-a65e-3a81550a8a6a', name: "Quantum Energy Bracelets", price: "₦299,880.00", amount: 299880, img: 'https://res.cloudinary.com/djucbsrds/image/upload/v1756012522/bracelets_x1i0rv.jpg' },
 ];
 
 // Nigerian states
@@ -59,7 +60,8 @@ type FormState = {
     street: string;
     city: string;
     state: string;
-    postalCode: string;
+  postalCode: string;
+  country?: string;
   };
 };
 type ErrorState = {
@@ -74,7 +76,8 @@ type ErrorState = {
     street?: string;
     city?: string;
     state?: string;
-    postalCode?: string;
+  postalCode?: string;
+  country?: string;
   };
 };
 
@@ -92,7 +95,8 @@ export default function JoinPage() {
       street: "",
       city: "",
       state: "",
-      postalCode: ""
+  postalCode: "",
+  country: "Nigeria"
     }
   });
   const [errors, setErrors] = useState<ErrorState>({});
@@ -126,9 +130,17 @@ export default function JoinPage() {
   const nameRef = useRef<HTMLInputElement>(null);
   useEffect(() => { nameRef.current?.focus(); }, []);
 
+  // If a name is passed via query param, prefill the form.name
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    const n = searchParams?.get('name');
+    if (n) setForm(f => ({ ...f, name: n }));
+  }, [searchParams]);
+
   // Animate on mount
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
+  const router = useRouter();
 
   // Phone number validation function
   const isValidPhoneNumber = (phone: string): boolean => {
@@ -191,6 +203,7 @@ export default function JoinPage() {
         if (!form.shippingAddress.street) shippingErrors.street = "Street address is required";
         if (!form.shippingAddress.city) shippingErrors.city = "City is required";
         if (!form.shippingAddress.state) shippingErrors.state = "State is required";
+  if (!form.shippingAddress.country) shippingErrors.country = "Country is required";
         if (Object.keys(shippingErrors).length > 0) {
           errs.shippingAddress = shippingErrors;
         } else {
@@ -367,40 +380,157 @@ export default function JoinPage() {
         setPaying(true);
       } else {
         setSubmitting(true);
-        await fetch("/api/signup", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...form, paid: false }),
-        });
+        // Capture as a lead so it appears in admin customer lists (user_profiles)
+        try {
+          await fetch('/api/leads', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: form.name, email: form.email, phone: form.phone }),
+          });
+        } catch (e) {
+          // fallback to original signup endpoint if leads endpoint fails
+          try {
+            await fetch('/api/signup', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ...form, paid: false }),
+            });
+          } catch (e) {
+            // ignore - we'll still redirect
+          }
+        }
         setSubmitting(false);
         setSuccess(true);
         setTimeout(() => {
           if (typeof window !== 'undefined') {
-            window.location.href = "/thank-you";
+            window.location.href = '/thank-you';
           }
         }, 1200);
       }
     }
   };
 
-  const onPaystackSuccess = async (ref: unknown) => {
-    setSubmitting(true);
-    const reference = typeof ref === 'object' && ref && 'reference' in ref ? (ref as { reference: string }).reference : undefined;
-    await fetch("/api/signup", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, paid: true, paymentRef: reference }),
-    });
-    setSubmitting(false);
-    setSuccess(true);
-    setTimeout(() => {
-      if (typeof window !== 'undefined') {
-        window.location.href = "/thank-you-premium";
+  // Initialize payment via server funnel (creates order + payment_attempt) then open Paystack inline or redirect
+  const initFunnelPayment = async () => {
+    try {
+      setSubmitting(true);
+      // Build items array from selectedProducts. Use productName as fallback productId so funnel can create placeholders.
+      const items = selectedProducts.map(p => ({
+        productId: p.name, // external id / name - funnel/create will create placeholder products when needed
+        productName: p.name,
+        quantity: 1,
+        unitPrice: p.amount,
+        total: p.amount,
+        price: p.amount,
+        images: [p.img]
+      }));
+
+      const payload = {
+        customerName: form.name,
+        customerEmail: form.email,
+        customerPhone: form.phone,
+        items,
+        subtotal: items.reduce((s, it) => s + Number(it.total || 0), 0),
+        deliveryFee: getDeliveryFee(),
+        total: getTotal(),
+        delivery: {
+          method: form.deliveryMethod,
+          shippingAddress: form.shippingAddress,
+          pickupLocation: form.pickupLocation,
+          state: form.shippingAddress?.state || form.state
+        },
+        metadata: {
+          source: 'join_page'
+        }
+      };
+
+      const resp = await fetch('/api/funnel/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const json = await resp.json();
+      if (!json || !json.success) {
+        throw new Error(json?.error || 'Failed to initialize payment');
       }
-    }, 1200);
-  };
-  const onPaystackClose = () => {
-    setPaying(false);
+
+      const { paystackAuthorizationUrl, paystackReference, orderId } = json;
+      // If server returned an authorization url, redirect the user there
+      if (paystackAuthorizationUrl) {
+        // ensure we mark submitting false after navigation
+        window.location.assign(paystackAuthorizationUrl);
+        return;
+      }
+
+      // Otherwise use Paystack inline with returned reference
+      // Ensure Paystack script is loaded
+      const ensurePaystackLoaded = async () => {
+        if (typeof (window as any).PaystackPop === 'object' && typeof (window as any).PaystackPop.setup === 'function') return (window as any).PaystackPop;
+        if (!document.querySelector('script[src="https://js.paystack.co/v1/inline.js"]')) {
+          const s = document.createElement('script');
+          s.src = 'https://js.paystack.co/v1/inline.js';
+          s.async = true;
+          document.head.appendChild(s);
+        }
+        let attempts = 0;
+        while (attempts < 50) {
+          if (typeof (window as any).PaystackPop === 'object' && typeof (window as any).PaystackPop.setup === 'function') {
+            return (window as any).PaystackPop;
+          }
+          await new Promise(resolve => setTimeout(resolve, 150));
+          attempts++;
+        }
+        return null;
+      };
+
+      const paystackPop = await ensurePaystackLoaded();
+      if (!paystackPop) throw new Error('Payment system not available.');
+
+      const refToUse = paystackReference || json.paymentReference;
+      const handler = paystackPop.setup({
+        key: paystackKey,
+        email: form.email,
+        amount: Math.round(getTotal() * 100),
+        currency: 'NGN',
+        ref: refToUse,
+        firstname: form.name.split(' ')[0] || form.name,
+        lastname: form.name.split(' ').slice(1).join(' ') || '',
+        phone: form.phone,
+        metadata: {
+          orderId,
+          source: 'join_page'
+        },
+        callback: async (response: any) => {
+          try {
+            // Let server verify and reconcile payment
+            await fetch('/api/payments/verify', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ paymentReference: response.reference, paystackReference: response.reference, status: 'success' })
+            });
+          } catch (e) {
+            // ignore - verification endpoint will be retried via webhook if needed
+          }
+          setSubmitting(false);
+          setSuccess(true);
+          // navigate to thank you with order
+          try { router.push(`/thank-you-premium?order=${orderId}&ref=${response.reference}&amount=${getTotal()}`); } catch (e) { window.location.assign(`/thank-you-premium?order=${orderId}&ref=${response.reference}&amount=${getTotal()}`); }
+        },
+        onClose: function() {
+          setSubmitting(false);
+          setPaying(false);
+          alert('Payment was cancelled. Your order has been saved and you can complete it later.');
+        }
+      });
+      if (handler && typeof handler.openIframe === 'function') {
+        try { handler.openIframe(); } catch (e) { /* ignore */ }
+      }
+
+    } catch (e: any) {
+      console.error('Payment init error', e);
+      setSubmitting(false);
+      alert(e?.message || 'Failed to start payment. Please try again.');
+    }
   };
 
   return (
@@ -511,70 +641,15 @@ export default function JoinPage() {
 
                   {/* State Selection - Only show when shipping */}
                   {form.deliveryMethod === 'ship' && (
-                    <div className="mb-4 space-y-3 sm:space-y-4 p-4 sm:p-5 bg-blue-50 border border-blue-200 rounded-lg">
-                      <h4 className="font-bold text-sm sm:text-base text-blue-700 mb-3">Shipping Address</h4>
-                      
-                      {/* Street Address */}
-                      <div>
-                        <label className="block font-bold mb-2 text-sm text-black">Street Address <span className="text-red-500">*</span></label>
-                        <input
-                          type="text"
-                          name="shippingAddress.street"
-                          value={form.shippingAddress.street}
-                          onChange={handleChange}
-                          className={`w-full px-4 py-3 rounded-lg border ${errors.shippingAddress?.street ? 'border-red-400' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-amber-400 text-sm sm:text-base text-black font-bold`}
-                          placeholder="Enter your street address"
-                          required
-                        />
-                        {errors.shippingAddress?.street && <div className="text-red-500 text-xs mt-1">{errors.shippingAddress.street}</div>}
-                      </div>
-
-                      {/* City */}
-                      <div>
-                        <label className="block font-bold mb-2 text-sm text-black">City <span className="text-red-500">*</span></label>
-                        <input
-                          type="text"
-                          name="shippingAddress.city"
-                          value={form.shippingAddress.city}
-                          onChange={handleChange}
-                          className={`w-full px-4 py-3 rounded-lg border ${errors.shippingAddress?.city ? 'border-red-400' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-amber-400 text-sm sm:text-base text-black font-bold`}
-                          placeholder="Enter your city"
-                          required
-                        />
-                        {errors.shippingAddress?.city && <div className="text-red-500 text-xs mt-1">{errors.shippingAddress.city}</div>}
-                      </div>
-
-                      {/* State */}
-                      <div>
-                        <label className="block font-bold mb-2 text-sm text-black">State <span className="text-red-500">*</span></label>
-                        <select
-                          name="shippingAddress.state"
-                          value={form.shippingAddress.state}
-                          onChange={handleChange}
-                          className={`w-full px-4 py-3 rounded-lg border ${errors.shippingAddress?.state ? 'border-red-400' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-amber-400 text-sm sm:text-base text-black font-bold`}
-                          required
-                        >
-                          <option value="">Choose your state</option>
-                          {nigerianStates.map(state => (
-                            <option key={state} value={state}>{state}</option>
-                          ))}
-                        </select>
-                        {errors.shippingAddress?.state && <div className="text-red-500 text-xs mt-1">{errors.shippingAddress.state}</div>}
-                      </div>
-
-                      {/* Postal Code (Optional) */}
-                      <div>
-                        <label className="block font-bold mb-2 text-sm text-black">Postal Code (Optional)</label>
-                        <input
-                          type="text"
-                          name="shippingAddress.postalCode"
-                          value={form.shippingAddress.postalCode}
-                          onChange={handleChange}
-                          className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-amber-400 text-sm sm:text-base text-black font-bold"
-                          placeholder="Enter postal code (optional)"
-                        />
-                      </div>
-                    </div>
+                    <AddressForm title="Shipping Address" values={form.shippingAddress} errors={errors.shippingAddress || {}} onChange={(name: string, value: string) => {
+                      // name will be like 'shippingAddress.street' so we map into form.shippingAddress
+                      const parts = name.split('.');
+                      if (parts.length === 2 && parts[0] === 'shippingAddress') {
+                        const key = parts[1];
+                        setForm(f => ({ ...f, shippingAddress: { ...f.shippingAddress, [key]: value } , state: key === 'state' ? value : f.state }));
+                      }
+                      setErrors(validate());
+                    }} />
                   )}
 
                   {/* Delivery Zone Info - Only show when shipping and state selected */}
@@ -648,31 +723,16 @@ export default function JoinPage() {
                     <span className="font-bold text-amber-700 mb-3 flex items-center gap-2 text-sm sm:text-base">Secure Payment <span className="inline-block bg-emerald-100 text-emerald-700 text-xs px-2 py-1 rounded-full">100% Safe</span></span>
                     <span className="text-black/80 text-sm mb-3">Pay securely with Paystack</span>
                     <Image src="/secure-payment.png" alt="Secure" width={48} height={24} className="w-12 h-6 sm:w-14 sm:h-7 mb-3" />
-                    {/* Only show PaystackButton as the only button */}
-                    {paying ? (
-                      <PaystackButton
-                        className="w-full px-5 sm:px-6 py-3.5 sm:py-4 rounded-full text-base sm:text-lg font-bold bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 shadow-lg hover:scale-105 hover:shadow-2xl transition-transform duration-200 text-white disabled:opacity-60 flex items-center justify-center gap-2"
-                        email={paystackEmail}
-                        amount={amount}
-                        currency="NGN"
-                        metadata={paystackMetadata}
-                        publicKey={paystackKey}
-                        text={submitting ? "Processing..." : "Pay and Join Now"}
-                        onSuccess={onPaystackSuccess}
-                        onClose={onPaystackClose}
-                        disabled={submitting}
-                      />
-                    ) : (
-                      <button
-                        type="button"
-                        className="w-full px-5 sm:px-6 py-3.5 sm:py-4 rounded-full text-base sm:text-lg font-bold bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 shadow-lg hover:scale-105 hover:shadow-2xl transition-transform duration-200 text-white disabled:opacity-60 flex items-center justify-center gap-2"
-                        onClick={() => setPaying(true)}
-                        disabled={submitting || !paystackKey || Object.keys(errors).length > 0 || !isDeliveryComplete()}
-                      >
-                        {submitting ? <span className="loader" /> : null}
-                        {submitting ? "Processing..." : "Pay and Join Now"}
-                      </button>
-                    )}
+                    {/* Use server-side funnel create then Paystack inline/redirect */}
+                    <button
+                      type="button"
+                      className="w-full px-5 sm:px-6 py-3.5 sm:py-4 rounded-full text-base sm:text-lg font-bold bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 shadow-lg hover:scale-105 hover:shadow-2xl transition-transform duration-200 text-white disabled:opacity-60 flex items-center justify-center gap-2"
+                      onClick={async () => { setPaying(true); await initFunnelPayment(); setPaying(false); }}
+                      disabled={submitting || !paystackKey || Object.keys(errors).length > 0 || !isDeliveryComplete()}
+                    >
+                      {submitting ? <span className="loader" /> : null}
+                      {submitting ? "Processing..." : "Pay and Join Now"}
+                    </button>
                     <span className="text-xs text-black/50 mt-2">You’ll be redirected to Paystack to complete your purchase.</span>
                     <span className="text-xs text-emerald-700 mt-1">Money-back guarantee. No risk, cancel anytime.</span>
                   </div>
