@@ -78,18 +78,28 @@ export default function ProductDetailClient({ product, related, category }: { pr
   const images = product.images && product.images.length ? product.images : ['/image_pro.jpg'];
   const { addToCart } = useCart();
   const router = useRouter();
+  const [qty, setQty] = useState<number>(1);
+  const [lastAdded, setLastAdded] = useState<number | null>(null);
 
   function handleAddToCart() {
-    addToCart({ id: product.id, name: product.name, price: Number(product.price || 0), image: images[0] });
-    try { window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: `${product.name} added to cart` } })); } catch (e) {}
+    const times = Math.max(1, Math.min(99, Number(qty || 1)));
+  console.log('ProductDetailClient.handleAddToCart', { id: product.id, qty: times });
+  addToCart({ id: product.id, name: product.name, price: Number(product.price || 0), image: images[0] }, times);
+  try { window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: `${product.name} added to cart (${times})` } })); } catch (e) {}
+  try { window.dispatchEvent(new CustomEvent('cart:item-added', { detail: { id: product.id, name: product.name, quantity: times } })); } catch(e){}
+    // cart:item-added is emitted from CartContext; no need to dispatch here
+  setLastAdded(times);
+  // hide the small confirmation after 2.5s
+  setTimeout(() => setLastAdded(null), 2500);
   }
 
+  // replaced by WhatsApp flow (see button markup)
   function handleBuyNow() {
-  addToCart({ id: product.id, name: product.name, price: Number(product.price || 0), image: images[0] });
-  try { window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: `${product.name} added — redirecting to checkout` } })); } catch (e) {}
-  // Open cart drawer for visibility, then navigate to checkout shortly after
-  try { window.dispatchEvent(new CustomEvent('cart:item-added', { detail: { id: product.id, name: product.name } })); } catch(e){}
-  setTimeout(() => router.push('/shop/checkout'), 300);
+    // fallback: add single and go to checkout
+    addToCart({ id: product.id, name: product.name, price: Number(product.price || 0), image: images[0] });
+    try { window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: `${product.name} added — redirecting to checkout` } })); } catch (e) {}
+    try { window.dispatchEvent(new CustomEvent('cart:item-added', { detail: { id: product.id, name: product.name } })); } catch(e){}
+    setTimeout(() => router.push('/shop/checkout'), 350);
   }
 
   return (
@@ -104,13 +114,32 @@ export default function ProductDetailClient({ product, related, category }: { pr
               </div>
             </div>
             <aside className="flex-1 flex flex-col justify-start">
-              <h1 className="text-4xl font-extrabold text-gray-900 mb-2">{product.name}</h1>
-              <div className="text-yellow-500 font-extrabold text-3xl mb-2">₦{Number(product.price || 0).toLocaleString()}</div>
-              {category && <div className="text-sm text-gray-700 mb-2">Category: <span className="font-semibold">{category.name}</span></div>}
-              <div className="text-base leading-relaxed text-gray-900 mb-4 whitespace-pre-line">{product.description}</div>
-              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                <button onClick={() => { handleAddToCart(); try { window.dispatchEvent(new CustomEvent('cart:item-added', { detail: { id: product.id, name: product.name } })); } catch(e){} }} className="flex-1 bg-yellow-400 hover:bg-yellow-500 text-black px-3 py-2 rounded text-sm font-medium shadow-sm text-center">Add to cart</button>
-                <button onClick={() => { handleBuyNow(); try { window.dispatchEvent(new CustomEvent('cart:item-added', { detail: { id: product.id, name: product.name } })); } catch(e){} }} className="flex-0 bg-black hover:bg-gray-900 text-white px-3 py-2 rounded text-sm font-medium shadow-sm">Buy now</button>
+              <h1 className="text-5xl md:text-4xl font-extrabold text-gray-900 mb-3">{product.name}</h1>
+              <div className="text-yellow-500 font-extrabold text-3xl md:text-4xl mb-3">₦{Number(product.price || 0).toLocaleString()}</div>
+              {category && <div className="text-base text-gray-800 mb-2">Category: <span className="font-semibold">{category.name}</span></div>}
+              <div className="text-lg leading-relaxed text-gray-900 mb-4 whitespace-pre-line">{product.description}</div>
+              <div className="flex items-center gap-3 mt-3">
+                <div className="flex items-center gap-2">
+                  <label className="text-base text-gray-800 mr-2">Qty</label>
+                  <div className="flex items-center border border-gray-200 rounded overflow-hidden">
+                    <button onClick={() => setQty(q => Math.max(1, q - 1))} className="px-3 py-2 text-lg">−</button>
+                    <input value={qty} onChange={(e) => setQty(Number(e.target.value || 1))} className="w-20 text-center text-lg py-2 text-gray-900 font-medium" />
+                    <button onClick={() => setQty(q => Math.min(99, q + 1))} className="px-3 py-2 text-lg">+</button>
+                  </div>
+                </div>
+
+                <button type="button" onClick={() => { handleAddToCart(); }} className="flex-1 bg-yellow-400 hover:bg-yellow-500 text-black px-6 py-3 rounded text-lg font-semibold shadow-sm text-center cursor-pointer">Add to cart</button>
+
+                {lastAdded ? (
+                  <div className="ml-4 text-sm text-green-700 font-medium">Added {lastAdded} to cart</div>
+                ) : null}
+
+                {/* WhatsApp button like ProductCard */}
+                <a href={`https://wa.me/${'+2348012345678'.replace(/[^0-9]/g,'')}?text=${encodeURIComponent(`Hi, I'm interested in ${product.name} (ID: ${product.id}). Is it available?`)}`} target="_blank" rel="noreferrer" className="flex-0 inline-flex items-center gap-2 px-3 py-2 rounded border-2 border-yellow-400 text-black bg-white hover:bg-yellow-50">
+                  <img src="/whatsapp-mobile.jpg" alt="WhatsApp" className="block sm:hidden w-6 h-6 rounded-full object-cover" />
+                  <svg className="hidden sm:inline w-4 h-4" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M20.52 3.48A11.95 11.95 0 0012.04.01C5.95.01.98 4.98.98 11.06c0 1.95.5 3.85 1.44 5.55L.02 23l6.57-1.7a11.04 11.04 0 005.45 1.33h.02c6.09 0 11.06-4.97 11.06-11.05a11.9 11.9 0 00-2.6-7.1zM12.04 20.1h-.01c-1.67 0-3.3-.45-4.72-1.3l-.34-.2-3.9 1.01 1.04-3.8-.21-.38A8.95 8.95 0 013.1 11.06c0-4.97 4.03-9 8.95-9 2.39 0 4.64.93 6.33 2.62a8.92 8.92 0 012.62 6.32c0 4.97-4.02 9-8.96 9z"/></svg>
+                  <span className="hidden sm:inline">WhatsApp</span>
+                </a>
               </div>
               <TrustBadges />
             </aside>
@@ -118,12 +147,20 @@ export default function ProductDetailClient({ product, related, category }: { pr
         </div>
       </main>
       <RecentBuyersPopup productName={product.name} />
-      <section className="max-w-7xl mx-auto px-4 md:px-8">
+      <section className="max-w-7xl mx-auto px-4 md:px-8 bg-white py-8 rounded-lg mt-8">
         {related && related.length > 0 && (
-          <div className="mt-12">
-            <h2 className="text-xl font-bold mb-4">People also bought</h2>
+          <div className="mt-6">
+            <h2 className="text-xl font-bold mb-4 text-gray-900">People also bought</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {related.map((p) => <RelatedProductTile key={p.id} p={p} />)}
+              {related.slice(0,4).map((p) => (
+                <div key={p.id} className="bg-white rounded-lg shadow-sm p-4">
+                  <a href={`/shop/${p.id}`} className="block w-full h-44 overflow-hidden rounded">
+                    <img src={p.images && p.images[0] ? p.images[0] : '/logo.png'} alt={p.name} className="w-full h-full object-cover" />
+                  </a>
+                  <div className="mt-3 text-sm font-medium text-gray-900">{p.name}</div>
+                  <div className="text-xs text-amber-600 font-semibold">₦{Number(p.price || 0).toLocaleString()}</div>
+                </div>
+              ))}
             </div>
           </div>
         )}
