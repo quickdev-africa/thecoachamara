@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCart } from '../CartContext';
 import type { Product, Category } from '@/lib/types';
+import SiteHeader from '../../components/SiteHeader';
 
 function RecentBuyersPopup({ productName }: { productName: string }) {
   const names = [
@@ -34,7 +35,7 @@ function ProductImageGallery({ images }: { images: string[] }) {
       <div className="flex gap-2 mt-2 justify-center">
         {images.map((img, i) => (
           <button key={img + i} className={`w-12 h-12 rounded border-2 ${i === selected ? 'border-amber-500' : 'border-transparent'} overflow-hidden`} onClick={() => setSelected(i)}>
-            <img src={img} alt={`thumb-${i}`} className="object-cover w-12 h-12" />
+            <img src={img} alt={`thumb-${i}`} className="object-cover w-full h-full" />
           </button>
         ))}
       </div>
@@ -59,9 +60,9 @@ function RelatedProductTile({ p }: { p: Product }) {
       <a href={`/shop/${p.id}`} className="block">
         <div className="relative w-full aspect-square bg-gray-100 rounded-lg overflow-hidden">
           {p.images && p.images.length > 0 ? (
-            <img src={p.images[0]} alt={p.name} className="object-contain w-full h-32" />
+            <img src={p.images[0]} alt={p.name} className="object-cover w-full h-full" />
           ) : (
-            <div className="w-full h-32 flex items-center justify-center text-gray-400 bg-gray-50 rounded-lg">No Image</div>
+            <div className="w-full h-full flex items-center justify-center text-gray-400 bg-gray-50 rounded-lg">No Image</div>
           )}
         </div>
       </a>
@@ -79,20 +80,11 @@ export default function ProductDetailClient({ product, related, category }: { pr
   const { addToCart } = useCart();
   const router = useRouter();
   const [qty, setQty] = useState<number>(1);
-  const [lastAdded, setLastAdded] = useState<number | null>(null);
 
   function handleAddToCart() {
     const times = Math.max(1, Math.min(99, Number(qty || 1)));
-  console.log('ProductDetailClient.handleAddToCart', { id: product.id, qty: times });
   addToCart({ id: product.id, name: product.name, price: Number(product.price || 0), image: images[0] }, times);
-  try { window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: `${product.name} added to cart (${times})` } })); } catch (e) {}
-  try { window.dispatchEvent(new CustomEvent('cart:item-added', { detail: { id: product.id, name: product.name, quantity: times } })); } catch(e){}
-  // fallback: call global opener to handle hydration/event timing issues
-  try { (window as any).__openCart && (window as any).__openCart(); } catch (e) {}
-    // cart:item-added is emitted from CartContext; no need to dispatch here
-  setLastAdded(times);
-  // hide the small confirmation after 2.5s
-  setTimeout(() => setLastAdded(null), 2500);
+  try { window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: `${product.name} added to cart (${times})` } })); } catch {}
   }
 
   // replaced by WhatsApp flow (see button markup)
@@ -106,6 +98,7 @@ export default function ProductDetailClient({ product, related, category }: { pr
 
   return (
     <>
+      <SiteHeader />
       <main className="w-full bg-white min-h-screen py-12">
         <div className="max-w-7xl mx-auto px-4 md:px-8">
           <a href="/shop" className="mb-6 text-yellow-600 hover:underline inline-block">← Back to Shop</a>
@@ -132,9 +125,7 @@ export default function ProductDetailClient({ product, related, category }: { pr
 
                 <button type="button" onClick={() => { handleAddToCart(); }} className="flex-1 bg-yellow-400 hover:bg-yellow-500 text-black px-6 py-3 rounded text-lg font-semibold shadow-sm text-center cursor-pointer">Add to cart</button>
 
-                {lastAdded ? (
-                  <div className="ml-4 text-sm text-green-700 font-medium">Added {lastAdded} to cart</div>
-                ) : null}
+                
 
                 {/* WhatsApp button like ProductCard */}
                 <a href={`https://wa.me/${'+2348012345678'.replace(/[^0-9]/g,'')}?text=${encodeURIComponent(`Hi, I'm interested in ${product.name} (ID: ${product.id}). Is it available?`)}`} target="_blank" rel="noreferrer" className="flex-0 inline-flex items-center gap-2 px-3 py-2 rounded border-2 border-yellow-400 text-black bg-white hover:bg-yellow-50">

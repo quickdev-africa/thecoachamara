@@ -41,17 +41,18 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   function addToCart(item: Omit<CartItem, "quantity">, quantity: number = 1) {
     const qty = Math.max(1, Math.min(999, Math.floor(quantity || 1)));
-  console.log('CartContext.addToCart', { id: item.id, name: item.name, quantity: qty });
-  setItems((prev) => {
+    setItems((prev) => {
       const existing = prev.find((i) => i.id === item.id);
       if (existing) {
         const next = prev.map((i) => i.id === item.id ? { ...i, quantity: i.quantity + qty } : i);
         // emit event so UI can open cart drawer when item is added
-  try { window.dispatchEvent(new CustomEvent('cart:item-added', { detail: { id: item.id, name: item.name, quantity: qty } })); } catch (e) {}
+        try { window.dispatchEvent(new CustomEvent('cart:item-added', { detail: { id: item.id, name: item.name, quantity: qty } })); } catch (e) {}
+        try { window.dispatchEvent(new CustomEvent('cart:updated', { detail: { count: next.reduce((s, it) => s + it.quantity, 0) } })); } catch (e) {}
         return next;
       }
       const next = [...prev, { ...item, quantity: qty }];
-  try { window.dispatchEvent(new CustomEvent('cart:item-added', { detail: { id: item.id, name: item.name, quantity: qty } })); } catch (e) {}
+      try { window.dispatchEvent(new CustomEvent('cart:item-added', { detail: { id: item.id, name: item.name, quantity: qty } })); } catch (e) {}
+      try { window.dispatchEvent(new CustomEvent('cart:updated', { detail: { count: next.reduce((s, it) => s + it.quantity, 0) } })); } catch (e) {}
       return next;
     });
   }

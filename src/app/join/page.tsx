@@ -522,8 +522,35 @@ export default function JoinPage() {
           alert('Payment was cancelled. Your order has been saved and you can complete it later.');
         }
       });
-      if (handler && typeof handler.openIframe === 'function') {
-        try { handler.openIframe(); } catch (e) { /* ignore */ }
+      if (handler) {
+        // Prefer the newer open() method (popup/inline). If unavailable try openIframe().
+        try {
+          if (typeof handler.open === 'function') {
+            handler.open();
+            return;
+          }
+          if (typeof handler.openIframe === 'function') {
+            try { handler.openIframe(); return; } catch (e) { /* continue to fallback */ }
+          }
+        } catch (err) {
+          // ignore and fallback to hosted
+        }
+
+        // Final fallback: ask the server to initialize a hosted Paystack checkout and redirect.
+        try {
+          const hostedResp = await fetch('/api/paystack/hosted', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ amount: Math.round(getTotal() * 100), email: form.email, metadata: { orderId, source: 'join_page' } })
+          });
+          const hostedJson = await hostedResp.json();
+          if (hostedJson && hostedJson.url) {
+            window.location.assign(hostedJson.url);
+            return;
+          }
+        } catch (e) {
+          // ignore - last resort will show error below
+        }
       }
 
     } catch (e: any) {

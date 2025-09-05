@@ -31,10 +31,51 @@ function makeOrderNumber() {
 }
 
 async function sendOrderEmails(order: any) {
+  const RESEND_API_KEY = process.env.RESEND_API_KEY;
+  const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || process.env.SENDER_EMAIL || 'no-reply@yourdomain.com';
+  const OWNER_EMAIL = process.env.OWNER_EMAIL || process.env.STORE_OWNER_EMAIL;
+
+  // Prefer Resend when available
+  if (RESEND_API_KEY) {
+    const sendResend = async (to: string, subject: string, html: string) => {
+      await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${RESEND_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ from: RESEND_FROM_EMAIL, to: [to], subject, html })
+      });
+    };
+
+    try {
+      const customerHtml = `
+        <p>Hi ${order.customerName || 'Customer'},</p>
+        <p>Thank you for your order <strong>${order.order_number}</strong>. We received your payment of ${order.total} and are processing your order.</p>
+        <p>— Coach Amara</p>
+      `;
+
+      const ownerHtml = `
+        <p>New order received: <strong>${order.order_number}</strong></p>
+        <p>Customer: ${order.customerName} &lt;${order.customerEmail}&gt;</p>
+        <p>Total: ${order.total}</p>
+        <p>Order ID: ${order.id}</p>
+      `;
+
+      await Promise.all([
+        order.customerEmail ? sendResend(order.customerEmail, `Order confirmation — ${order.order_number}`, customerHtml) : Promise.resolve(),
+        (OWNER_EMAIL ? sendResend(OWNER_EMAIL, `New order received — ${order.order_number}`, ownerHtml) : Promise.resolve())
+      ]);
+      return;
+    } catch (e) {
+      console.error('Resend send failed', e);
+      // fallthrough to legacy SendGrid fallback
+    }
+  }
+
+  // Legacy SendGrid fallback if Resend not configured
   const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
   const SENDER_EMAIL = process.env.SENDER_EMAIL;
-  const OWNER_EMAIL = process.env.OWNER_EMAIL;
-
   if (!SENDGRID_API_KEY || !SENDER_EMAIL || !OWNER_EMAIL) {
     // Fallback: call an internal notify endpoint if configured
     try {
