@@ -9,7 +9,7 @@ export default function PaymentEventsAdmin() {
   const fetchEvents = async () => {
     setLoading(true);
     try {
-      const { data } = await supabase.from('payment_events').select('*').order('created_at', { ascending: false }).limit(200);
+  const { data } = await supabase.from('payment_events').select('*').neq('archived', true).order('created_at', { ascending: false }).limit(200);
       setEvents(data || []);
     } catch (e) {
       console.error('Failed to fetch payment_events', e);
