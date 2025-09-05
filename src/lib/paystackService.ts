@@ -275,8 +275,23 @@ export async function createOrderAndInitPayment({
         });
 
         // Some Paystack builds return a handler that requires openIframe() to be called.
-        if (handler && typeof handler.openIframe === 'function') {
-          try { handler.openIframe(); } catch (e) { /* ignore */ }
+        // openIframe will try to embed paystack.com, which is blocked by X-Frame-Options.
+        // Prefer popup/open or fallback to hosted checkout instead of calling openIframe().
+        if (handler && typeof handler.open === 'function') {
+          try { handler.open(); } catch (e) { /* ignore */ }
+        } else {
+          // fallback: open hosted checkout using server endpoint
+          try {
+            const hostedResp = await fetch('/api/paystack/hosted', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ amount: Math.round(payAmountNgn * 100), email: form.email })
+            });
+            const hostedJson = await hostedResp.json();
+            if (hostedResp.ok && hostedJson.url) window.location.href = hostedJson.url;
+          } catch (e) {
+            // ignore; user will see an error from earlier logic
+          }
         }
       } catch (e) {
         console.error('Error initializing Paystack:', e);

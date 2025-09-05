@@ -44,9 +44,16 @@ export default function DebugPaystackPage() {
         onClose: function() { append('onClose called'); }
       });
       append('setup returned: ' + (handler ? 'handler' : 'no-handler'));
-      if (handler && typeof handler.openIframe === 'function') {
-        append('calling openIframe()');
-        try { handler.openIframe(); } catch (e) { append('openIframe error: ' + String(e)); }
+      if (handler && typeof handler.open === 'function') {
+        append('calling open()');
+        try { handler.open(); } catch (e) { append('open error: ' + String(e)); }
+      } else {
+        append('openIframe not available; falling back to hosted checkout init');
+        try {
+          const resp = await fetch('/api/paystack/hosted', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amount: 100, email: 'test@example.com' }) });
+          const j = await resp.json();
+          append('hosted init response: ' + JSON.stringify(j));
+        } catch (e: any) { append('hosted init error: ' + String(e)); }
       }
     } catch (e: any) {
       append('exception: ' + (e && e.message ? e.message : String(e)));

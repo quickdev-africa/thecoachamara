@@ -1,7 +1,8 @@
 "use client";
 import React from "react";
 
-export default function ThankYouPremiumPage() {
+export default function ThankYouPremiumPage({ searchParams }: { searchParams?: { ref?: string } }) {
+  const ref = searchParams?.ref;
   return (
     <main className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-amber-50 via-white to-amber-100 px-4 font-sans">
       <div className="bg-white rounded-3xl shadow-2xl border border-amber-100 p-8 md:p-16 max-w-xl w-full flex flex-col items-center animate-fadein">
@@ -12,6 +13,11 @@ export default function ThankYouPremiumPage() {
           Check your email for your order details, next steps, and a link to join our exclusive WhatsApp group.<br />
           We can’t wait for you to experience the benefits of your new product(s)!
         </p>
+        {ref && (
+          <div className="bg-emerald-50 border border-emerald-100 rounded px-4 py-3 text-sm text-emerald-800 mb-4">
+            Payment reference: <strong className="font-mono">{ref}</strong>
+          </div>
+        )}
         <a href="/shop" className="w-full px-6 py-3 rounded-full text-base font-bold bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 shadow-lg hover:scale-105 hover:shadow-2xl transition-transform duration-200 text-white text-center mb-2">Explore More Products</a>
         <div className="text-xs text-black/50 mt-6 text-center">Need help? <a href="https://wa.me/2348012345678" target="_blank" rel="noopener" className="underline text-emerald-700 hover:text-emerald-900">Chat with us on WhatsApp</a></div>
       </div>

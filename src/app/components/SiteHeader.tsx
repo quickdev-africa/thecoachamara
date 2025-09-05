@@ -10,17 +10,26 @@ import Link from "next/link";
 export default function SiteHeader() {
   const [open, setOpen] = useState(false);
   const { getItemCount } = useCart();
+  const [count, setCount] = useState<number>(() => getItemCount());
 
   useEffect(() => {
     const handler = () => setOpen(true);
     window.addEventListener('cart:item-added', handler as EventListener);
-    // expose a direct opener for tricky hydration/timing cases
-    try { (window as any).__openCart = () => setOpen(true); } catch (e) {}
+    const updateBadge = (e: Event) => {
+      try {
+        const detail = (e as CustomEvent).detail;
+        if (typeof detail?.count === 'number') setCount(detail.count);
+        else setCount(getItemCount());
+      } catch {
+        setCount(getItemCount());
+      }
+    };
+    window.addEventListener('cart:updated', updateBadge as EventListener);
     return () => {
       window.removeEventListener('cart:item-added', handler as EventListener);
-      try { (window as any).__openCart = undefined; } catch (e) {}
+      window.removeEventListener('cart:updated', updateBadge as EventListener);
     };
-  }, []);
+  }, [getItemCount]);
 
   return (
     <header className="bg-black text-white sticky top-0 z-50 shadow">
@@ -49,7 +58,7 @@ export default function SiteHeader() {
         <div className="flex items-center gap-3">
           <button aria-label="Cart" onClick={() => setOpen(true)} className="relative p-2 rounded-full hover:bg-gray-800 transition">
             <FaShoppingCart size={18} />
-            <span className="absolute -top-1 -right-1 bg-yellow-400 text-black text-xs font-bold rounded-full px-1.5 py-0.5">{getItemCount()}</span>
+            <span className="absolute -top-1 -right-1 bg-yellow-400 text-black text-xs font-bold rounded-full px-1.5 py-0.5">{count}</span>
           </button>
           <Link href="/signin" className="p-2 rounded-full hover:bg-gray-800 transition"><FaUser size={18} /></Link>
         </div>
