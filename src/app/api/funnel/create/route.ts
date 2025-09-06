@@ -365,9 +365,18 @@ export async function POST(request: NextRequest) {
     try {
       const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
       if (PAYSTACK_SECRET) {
+    // Prefer a runtime-derived base URL (useful in local dev where NEXT_PUBLIC_BASE_URL may point to a different port)
+    const host = request.headers.get('host') || '';
+    const proto = request.headers.get('x-forwarded-proto') || 'http';
+    const envBase = (process.env.NEXT_PUBLIC_BASE_URL || '').replace(/\/+$/, '');
+    const runtimeBase = envBase || (host ? `${proto}://${host.replace(/\/+$/, '')}` : '');
+    // Use the hosted callback endpoint so the server can verify the transaction and then redirect to the public thank-you page
+    const callbackUrl = runtimeBase ? `${runtimeBase}/api/paystack/hosted/callback` : null;
         const initBody = {
           email: customerEmail,
           amount: Math.round(Number(total) * 100), // kobo
+          // ask Paystack to redirect back to our thank-you page after payment
+          ...(callbackUrl ? { callback_url: callbackUrl } : {}),
           metadata: {
             paymentReference,
             orderId: order.id,

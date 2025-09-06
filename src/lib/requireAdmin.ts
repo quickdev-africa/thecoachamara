@@ -19,6 +19,15 @@ async function isAdminSession(req: NextRequest) {
 }
 
 export async function requireAdminApi(req: NextRequest) {
+  try {
+    // Allow server-to-server admin key for internal calls (e.g. payments.confirm -> orders/notify)
+    const adminKeyHeader = req.headers.get('x-admin-key');
+    const expected = process.env.ADMIN_API_KEY || '';
+    if (adminKeyHeader && expected && adminKeyHeader === expected) return null;
+  } catch (e) {
+    // fallthrough to session check
+  }
+
   const ok = await isAdminSession(req);
   if (!ok) {
     return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });

@@ -23,13 +23,15 @@ export async function GET(req: NextRequest) {
     const data = await res.json();
     if (res.ok && data && data.data && (data.data.status === 'success' || data.data.status === 'paid')) {
       // Successful payment - attempt to auto-reconcile via internal verify endpoint
-      try {
-        // Call internal verify to create/ensure payment/order rows
-        await fetch(`${BASE_URL}/api/payments/verify`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ paymentReference: reference, paystackReference: reference, status: 'success' })
-        });
+          try {
+        // Call internal confirm to create/ensure payment/order rows
+        try {
+          const headers: any = { 'Content-Type': 'application/json' };
+          if (process.env.ADMIN_API_KEY) headers['x-admin-key'] = process.env.ADMIN_API_KEY;
+          await fetch(`${BASE_URL}/api/payments/confirm`, { method: 'POST', headers, body: JSON.stringify({ paymentReference: reference, paystackReference: reference, status: 'success' }) });
+        } catch (e) {
+          // ignore - proceed to send emails and redirect anyway
+        }
       } catch (e) {
         // ignore - proceed to send emails and redirect anyway
       }
