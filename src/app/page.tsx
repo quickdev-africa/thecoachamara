@@ -143,6 +143,7 @@ function YouTubePreview({ id, title, className }: { id: string; title?: string; 
 				width="100%"
 				height="100%"
 				src={src}
+				onLoad={() => setMounted(true)}
 				title={title || 'YouTube video'}
 				frameBorder="0"
 				allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
@@ -192,13 +193,59 @@ export default function Home() {
 		const [smallName, setSmallName] = useState('');
 		const router = useRouter();
 
+	// Ref + state for the product gallery (mobile horizontal snap)
+	const productRef = useRef<HTMLDivElement | null>(null);
+	const [canScrollLeft, setCanScrollLeft] = useState(false);
+	const [canScrollRight, setCanScrollRight] = useState(false);
+
+	useEffect(() => {
+		function update() {
+			const el = productRef.current;
+			if (!el) return;
+			setCanScrollLeft(el.scrollLeft > 10);
+			setCanScrollRight(el.scrollWidth - el.clientWidth - el.scrollLeft > 10);
+		}
+		update();
+		const el = productRef.current;
+		if (!el) return;
+		el.addEventListener('scroll', update, { passive: true });
+		window.addEventListener('resize', update);
+		return () => {
+			el.removeEventListener('scroll', update);
+			window.removeEventListener('resize', update);
+		};
+	}, []);
+
+	function scrollProducts(offset: number) {
+		const el = productRef.current;
+		if (!el) return;
+		el.scrollBy({ left: offset, behavior: 'smooth' });
+	}
+
+	function handleKeyNav(e: React.KeyboardEvent) {
+		if (!productRef.current) return;
+		if (e.key === 'ArrowRight') {
+			e.preventDefault();
+			scrollProducts(productRef.current.clientWidth * 0.9);
+		} else if (e.key === 'ArrowLeft') {
+			e.preventDefault();
+			scrollProducts(-productRef.current.clientWidth * 0.9);
+		} else if (e.key === 'Home') {
+			e.preventDefault();
+			productRef.current.scrollTo({ left: 0, behavior: 'smooth' });
+		} else if (e.key === 'End') {
+			e.preventDefault();
+			productRef.current.scrollTo({ left: productRef.current.scrollWidth, behavior: 'smooth' });
+		}
+	}
+
 	// Hero rotating typed headings (only text above the video)
 	const HERO_ITEMS = [
 		{
 			heading:
-				"Discover the Quantum Energy Breakthrough That’s Transforming Lives",
+				"Discover the Quantum Energy Breakthrough Transforming Health and Vitality",
 			subtext:
-				"✨ Step into a world of energy alignment and experience the shift toward healing, balance, and inner renewal.",
+				"Guided by Coach Amara, Quantum Energy empowers the body to heal itself — reducing pain, boosting immunity, and restoring vitality naturally.",
 		},
 		{
 			heading:
@@ -267,35 +314,36 @@ variants={fadeIn}
 		{
 		 	/* Keep existing sizes; swap static text for rotating typed headings */
 		}
-					<div className="w-full h-[10rem] md:h-[12rem] flex flex-col items-center justify-center">
-						<AnimatePresence mode="wait" initial={false}>
-							<motion.h1
-								key={heroIndex}
-								initial={{ opacity: 0, y: 6 }}
-								animate={{ opacity: 1, y: 0 }}
-								exit={{ opacity: 0, y: -6 }}
-								transition={{ duration: 0.6 }}
-								className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold mb-2 leading-tight font-playfair drop-shadow-2xl text-center"
-							>
-								<span className="bg-clip-text text-transparent bg-gradient-to-r from-yellow-400 via-yellow-300 to-white">
-									<Typewriter text={HERO_ITEMS[heroIndex].heading} speed={110} />
-								</span>
-							</motion.h1>
-						</AnimatePresence>
+						{/* Rotating typed heading + subtext (reserve vertical space so typing doesn't shift the video) */}
+						<div className="w-full flex flex-col items-center px-2 min-h-[12rem] md:min-h-[14rem] justify-center">
+							<AnimatePresence mode="wait" initial={false}>
+								<motion.h1
+									key={heroIndex}
+									initial={{ opacity: 0, y: 6 }}
+									animate={{ opacity: 1, y: 0 }}
+									exit={{ opacity: 0, y: -6 }}
+									transition={{ duration: 0.6 }}
+									className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold mb-2 leading-tight font-playfair drop-shadow-2xl text-center"
+								>
+									<span className="bg-clip-text text-transparent bg-gradient-to-r from-yellow-400 via-yellow-300 to-white">
+										<Typewriter text={HERO_ITEMS[heroIndex].heading} speed={110} />
+									</span>
+								</motion.h1>
+							</AnimatePresence>
 
-						<AnimatePresence mode="wait">
-							<motion.p
-								key={`sub-${heroIndex}`}
-								initial={{ opacity: 0 }}
-								animate={{ opacity: 1 }}
-								exit={{ opacity: 0 }}
-								transition={{ duration: 0.6 }}
-								className="text-base sm:text-lg md:text-xl font-semibold mt-2 text-white max-w-2xl mx-auto px-2 text-center"
-							>
-								{HERO_ITEMS[heroIndex].subtext}
-							</motion.p>
-						</AnimatePresence>
-					</div>
+							<AnimatePresence mode="wait">
+								<motion.p
+									key={`sub-${heroIndex}`}
+									initial={{ opacity: 0 }}
+									animate={{ opacity: 1 }}
+									exit={{ opacity: 0 }}
+									transition={{ duration: 0.6 }}
+									className="text-base sm:text-lg md:text-xl font-semibold mt-2 text-white max-w-2xl mx-auto px-2 text-center"
+								>
+									{HERO_ITEMS[heroIndex].subtext}
+								</motion.p>
+							</AnimatePresence>
+						</div>
 {/* Video Embed */}
 <div id="explainer-video" className="w-full max-w-3xl mx-auto aspect-video bg-black rounded-2xl md:rounded-3xl flex items-center justify-center text-gray-500 text-sm md:text-lg font-semibold mb-6 md:mb-8 overflow-hidden shadow-2xl border-2 md:border-4 border-yellow-400/50">
 	<YouTubePreview id="vkG_plov8Ao" title="Energy Explainer Video" className="w-full h-full rounded-2xl md:rounded-3xl" />
@@ -304,10 +352,11 @@ variants={fadeIn}
 href="/join"
 className="inline-block px-6 py-3 md:px-10 md:py-5 rounded-full text-base md:text-xl lg:text-2xl font-extrabold bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 text-black shadow-2xl hover:scale-105 hover:shadow-yellow-400/50 transition-all duration-200 mb-2 drop-shadow-lg max-w-xs md:max-w-none text-center"
 >
-Join the Community
+Start Your Journey
 </a>
 </div>
 </motion.section>
+
 
 {/* SECTION 2: WHAT IS ENERGY */}
 <motion.section
@@ -327,12 +376,13 @@ variants={fadeIn}
 		Quantum Energy is more than just a concept — it’s a powerful force you can harness to restore balance and unlock your full potential. By embracing it, people have been able to:
 	</p>
 
-	<ul className="list-none text-left text-lg font-bold mb-6 text-gray-900 space-y-3">
-		<li className="flex items-start"><span className="mr-3 text-yellow-500 text-xl">⚡</span> <span className="font-bold">Boost immunity naturally — strengthening the body’s defenses from within</span></li>
-		<li className="flex items-start"><span className="mr-3 text-yellow-500 text-xl">🔄</span> <span className="font-bold">Accelerate recovery and healing — supporting the body’s natural renewal process</span></li>
-		<li className="flex items-start"><span className="mr-3 text-yellow-500 text-xl">⚖️</span> <span className="font-bold">Balance mind, body, and spirit — aligning all aspects of life for harmony</span></li>
-		<li className="flex items-start"><span className="mr-3 text-yellow-500 text-xl">✨</span> <span className="font-bold">Live with sustained energy and clarity — experiencing focus, vitality, and purpose every day</span></li>
-	</ul>
+		<ul className="list-none text-left text-lg mb-6 text-gray-900 space-y-3">
+			<li className="flex items-start"><span className="mr-3 text-yellow-500 text-xl">✅</span> <span className="font-bold italic">Relieves pain and inflammation</span></li>
+			<li className="flex items-start"><span className="mr-3 text-yellow-500 text-xl">✅</span> <span className="font-bold italic">Boosts immunity and recovery</span></li>
+			<li className="flex items-start"><span className="mr-3 text-yellow-500 text-xl">✅</span> <span className="font-bold italic">Improves sleep and energy levels</span></li>
+			<li className="flex items-start"><span className="mr-3 text-yellow-500 text-xl">✅</span> <span className="font-bold italic">Protects against stress, radiation, and pollution</span></li>
+			<li className="flex items-start"><span className="mr-3 text-yellow-500 text-xl">✅</span> <span className="font-bold italic">Supports long-term wellness</span></li>
+		</ul>
 
 	<p className="text-base md:text-lg font-bold text-gray-900">
 		Embracing Quantum Energy means stepping into a new way of living — one where wellness, resilience, and transformation become part of your daily reality.
@@ -421,7 +471,7 @@ variants={fadeInUp}
 href="/join"
 className="inline-block px-6 py-3 md:px-8 md:py-4 rounded-full text-base md:text-lg font-bold bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 text-black shadow-lg hover:scale-105 hover:shadow-yellow-400/50 transition-all duration-200 max-w-xs md:max-w-none text-center"
 >
-Be Part of This Movement Today
+Get the Price list Now
 </a>
 </motion.section>
 
@@ -459,7 +509,7 @@ She&apos;s an unapologetic Energy advocate, merging business mastery with healin
 href="/join"
 className="inline-block px-6 py-3 md:px-8 md:py-4 rounded-full text-base md:text-lg font-bold bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 text-black shadow-lg hover:scale-105 hover:shadow-yellow-400/50 transition-all duration-200 max-w-xs md:max-w-none text-center"
 >
-Join TheCoachAmara Community
+Order Quantum Products Today
 </a>
 </div>
 </div>
@@ -540,11 +590,73 @@ Hear directly from real people whose lives have been transformed by Energy. Thes
 href="/join"
 className="inline-block px-6 py-3 md:px-8 md:py-4 rounded-full text-base md:text-lg font-bold bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 text-black shadow-lg hover:scale-105 hover:shadow-yellow-400/50 transition-all duration-200 max-w-xs md:max-w-none text-center"
 >
-Start Your Own Energy Journey
+Start Healing with Quantum Energy
 </a>
 </motion.section>
 
 {/* SECTION 6: JOIN THE MOVEMENT */}
+<motion.section
+className="w-full relative overflow-hidden"
+initial="hidden"
+whileInView="show"
+viewport={{ once: true, amount: 0.2 }}
+variants={fadeIn}
+>
+	{/* Background image layer: 4 equal columns, no gaps */}
+				<div ref={productRef} tabIndex={0} onKeyDown={handleKeyNav} role="list" aria-label="Product gallery" className="absolute inset-0 h-full w-full flex md:grid md:grid-cols-4 gap-0 overflow-x-auto md:overflow-hidden snap-x snap-mandatory">
+				<div className="relative w-full h-full min-w-full md:min-w-0 snap-center md:snap-none">
+					<img src="/Quantum_machine_coachamara.jpg" alt="Quantum Healing Machines" className="w-full h-full object-cover" />
+					<div className="absolute bottom-0 left-0 right-0 text-center py-3 bg-black/50 text-white font-bold">Quantum Healing Machines</div>
+				</div>
+				<div className="relative w-full h-full min-w-full md:min-w-0 snap-center md:snap-none">
+					<img src="/quantumboxer.jpg" alt="Quantum Energy Boxers" className="w-full h-full object-cover" />
+					<div className="absolute bottom-0 left-0 right-0 text-center py-3 bg-black/50 text-white font-bold">Quantum Energy Boxers</div>
+				</div>
+				<div className="relative w-full h-full min-w-full md:min-w-0 snap-center md:snap-none">
+					<img src="/sunglasses.jpg" alt="Quantum Eyeglasses" className="w-full h-full object-cover" />
+					<div className="absolute bottom-0 left-0 right-0 text-center py-3 bg-black/50 text-white font-bold">Quantum Eyeglasses</div>
+				</div>
+				<div className="relative w-full h-full min-w-full md:min-w-0 snap-center md:snap-none">
+					<img src="/bracelets.jpg" alt="Quantum Bracelets" className="w-full h-full object-cover" />
+					<div className="absolute bottom-0 left-0 right-0 text-center py-3 bg-black/50 text-white font-bold">Quantum Bracelets</div>
+				</div>
+			</div>
+
+	{/* Subtle overlay so foreground text remains legible but images still show */}
+	<div className="absolute inset-0 bg-black/25 pointer-events-none" />
+
+	{/* Foreground text layer (centered). Increased min-height by ~25% and reduced heading sizes; CTA removed as requested */}
+	<div className="relative z-10 flex items-center justify-center min-h-[400px] md:min-h-[525px] py-16 px-4">
+		<div className="max-w-4xl text-center text-white">
+			<h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold italic leading-tight mb-4">Your journey to wellness and transformation starts here</h2>
+			<p className="sr-only">Product guide and price list</p>
+			{/* CTA intentionally removed per request */}
+		</div>
+	</div>
+
+	{/* Mobile nav arrows (only visible on small screens) */}
+	<div className="absolute left-3 top-1/2 -translate-y-1/2 z-20 md:hidden">
+		<button
+			aria-label="Scroll products left"
+			disabled={!canScrollLeft}
+			onClick={() => scrollProducts(-productRef.current!.clientWidth * 0.9)}
+			className={`w-10 h-10 rounded-full bg-black/60 text-white flex items-center justify-center shadow-lg ${!canScrollLeft ? 'opacity-40 pointer-events-none' : 'hover:scale-105'}`}
+		>
+			<svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+		</button>
+	</div>
+	<div className="absolute right-3 top-1/2 -translate-y-1/2 z-20 md:hidden">
+		<button
+			aria-label="Scroll products right"
+			disabled={!canScrollRight}
+			onClick={() => scrollProducts(productRef.current!.clientWidth * 0.9)}
+			className={`w-10 h-10 rounded-full bg-black/60 text-white flex items-center justify-center shadow-lg ${!canScrollRight ? 'opacity-40 pointer-events-none' : 'hover:scale-105'}`}
+		>
+			<svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+		</button>
+	</div>
+
+</motion.section>
 <motion.section
 className="w-full py-20 px-4 bg-white flex flex-col items-center"
 initial="hidden"
@@ -557,9 +669,8 @@ variants={fadeIn}
 <div className="w-16 h-16 rounded-full bg-black border-2 border-yellow-400 flex items-center justify-center shadow-xl mb-4">
 <svg width="36" height="36" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="text-yellow-400"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m9-5.13a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
 </div>
-<h2 className="text-4xl md:text-5xl font-extrabold mb-2 text-black font-playfair text-center drop-shadow">Join the Community Today</h2>
+<h2 className="text-4xl md:text-5xl font-extrabold mb-2 text-black font-playfair text-center drop-shadow">Enter your details to receive the Quantum Energy product guide &amp; price list instantly.</h2>
 <div className="w-20 h-1 bg-yellow-400 mb-4"></div>
-<p className="text-lg md:text-xl font-semibold mb-2 text-center text-gray-700 max-w-xl">Be part of a vibrant, supportive community dedicated to healing, growth, and real transformation. Your journey starts here.</p>
 </div>
 					<div className="w-full bg-black rounded-2xl border-2 border-yellow-400 shadow-2xl p-8 flex flex-col items-center">
 					<div className="w-full flex flex-col gap-4 font-bold">
@@ -576,7 +687,7 @@ variants={fadeIn}
 						className="w-full px-6 py-3 md:px-8 md:py-4 rounded-full text-base md:text-lg font-bold bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 text-black shadow-lg hover:scale-105 hover:shadow-yellow-400/50 transition-all duration-200"
 						onClick={e => { e.preventDefault(); const target = '/join' + (smallName ? `?name=${encodeURIComponent(smallName)}` : ''); router.push(target); }}
 					>
-						Yes, I'm Ready to Join
+						<span className="font-extrabold">Start My Journey to Wellness &amp; Freedom</span>
 					</button>
 					</div>
 <ul className="list-none text-left text-lg font-bold mt-8 mb-0 text-gray-300 space-y-2">
