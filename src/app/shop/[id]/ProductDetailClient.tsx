@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCart } from '../CartContext';
 import type { Product, Category } from '@/lib/types';
-import SiteHeader from '../../components/SiteHeader';
+// SiteHeader removed here — use global header from root layout
 
 function RecentBuyersPopup({ productName }: { productName: string }) {
   const names = [
@@ -98,7 +98,6 @@ export default function ProductDetailClient({ product, related, category }: { pr
 
   return (
     <>
-      <SiteHeader />
       <main className="w-full bg-white min-h-screen py-12">
         <div className="max-w-7xl mx-auto px-4 md:px-8">
           <a href="/shop" className="mb-6 text-yellow-600 hover:underline inline-block">← Back to Shop</a>

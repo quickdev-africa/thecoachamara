@@ -133,7 +133,8 @@ export const DELIVERY_ZONES = {
 } as const;
 
 export const PICKUP_LOCATIONS = [
-  "Lagos", "Abuja", "Port Harcourt", "Kaduna", "Imo"
+  "OGBA LAGOS: Adeola Avenue Karaole, Estate Rollege Road Ogba.",
+  "Experience Center LAGOS: 7 Onipinla str Harmony Enclave off Adeniyi Jones Ikeja"
 ] as const;
 
 // ============================================================================

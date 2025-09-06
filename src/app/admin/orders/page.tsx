@@ -261,9 +261,32 @@ export default function OrdersAdminPage() {
       if (Array.isArray(data)) arr = data;
       else if (Array.isArray(data?.data)) arr = data.data;
       // normalize snake_case -> camelCase for UI
-      const normalized = arr.map(normalizeOrder);
+      let normalized = arr.map(normalizeOrder);
+      // Sort newest orders first by createdAt (desc). Nulls go last.
+      normalized = normalized.sort((a: any, b: any) => {
+        if (!a.createdAt && !b.createdAt) return 0;
+        if (!a.createdAt) return 1;
+        if (!b.createdAt) return -1;
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
       setOrders(normalized);
-      setTotalOrders(data?.meta?.total || arr.length);
+      // Prefer server-provided total when available. If missing, derive a safe fallback:
+      // - If the server returned an exact count (data.meta.total) use it.
+      // - Otherwise use the number of items returned plus the current offset so the UI can show ranges.
+      // - If the returned items equal the page size, assume there's at least one more item (helpful when DB count isn't available)
+      const reportedTotal = data?.meta?.total;
+      const offset = (page - 1) * pageSize;
+      let computedTotal: number;
+      if (typeof reportedTotal === 'number') {
+        computedTotal = reportedTotal;
+      } else {
+        computedTotal = offset + (arr.length || 0);
+        if ((arr.length || 0) === pageSize) {
+          // indicate there are more items (at least one) so Next is enabled
+          computedTotal = offset + arr.length + 1;
+        }
+      }
+      setTotalOrders(computedTotal);
       // Client-side filter by customer
       if (filter.customer) {
         const filtered = normalized.filter(o =>
@@ -280,7 +303,9 @@ export default function OrdersAdminPage() {
   };
 
   useEffect(() => {
-    fetchOrders();
+  // reset to first page when filters change
+  setPage(1);
+  fetchOrders();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter, page]);
 
@@ -421,6 +446,7 @@ export default function OrdersAdminPage() {
         ) : orders.length === 0 ? (
           <div className="text-gray-900 text-base">No orders found.</div>
         ) : (
+          <>
           <form
             onSubmit={e => {
               e.preventDefault();
@@ -571,6 +597,40 @@ export default function OrdersAdminPage() {
               </table>
             </div>
           </form>
+          {/* Pagination Controls placed below the table */}
+          <div className="flex items-center justify-between mt-4">
+            <div className="text-sm text-gray-700">Showing {(page - 1) * pageSize + 1} – {Math.min(page * pageSize, totalOrders)} of {totalOrders}</div>
+            <div className="flex items-center gap-2">
+              <button
+                className="px-3 py-1 rounded border bg-white text-gray-900 disabled:opacity-50"
+                disabled={page === 1}
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+              >
+                Prev
+              </button>
+
+              {totalOrders > pageSize && (
+                <div className="hidden sm:flex items-center gap-1">
+                  {Array.from({ length: Math.ceil(totalOrders / pageSize) }).map((_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setPage(i + 1)}
+                      className={`px-3 py-1 rounded ${page === i + 1 ? 'bg-amber-500 text-white' : 'bg-white text-gray-700 border'}`}
+                    >{i + 1}</button>
+                  ))}
+                </div>
+              )}
+
+              <button
+                className="px-3 py-1 rounded border bg-white text-gray-900 disabled:opacity-50"
+                disabled={page * pageSize >= totalOrders}
+                onClick={() => setPage(p => p + 1)}
+              >
+                Next
+              </button>
+            </div>
+          </div>
+          </>
         )}
       </div>
       {/* Order Details Modal */}
@@ -669,24 +729,8 @@ export default function OrdersAdminPage() {
                 <li>Current: <span className="capitalize">{selectedOrder.status}</span> (last updated: {selectedOrder.updatedAt ? new Date(selectedOrder.updatedAt).toLocaleString() : '-'})</li>
               </ul>
             </div>
-      {/* Pagination Controls */}
-  <div className="flex flex-col sm:flex-row justify-end items-center gap-2 mt-4">
-        <button
-          className="px-3 py-1 rounded border bg-white text-gray-900 disabled:opacity-50"
-          disabled={page === 1}
-          onClick={() => setPage(p => Math.max(1, p - 1))}
-        >
-          Previous
-        </button>
-        <span className="text-sm">Page {page} of {Math.ceil(totalOrders / pageSize) || 1}</span>
-        <button
-          className="px-3 py-1 rounded border bg-white text-gray-900 disabled:opacity-50"
-          disabled={page * pageSize >= totalOrders}
-          onClick={() => setPage(p => p + 1)}
-        >
-          Next
-        </button>
-      </div>
+    {/* Pagination Controls: left summary, right navigation (Prev / pages / Next)
+      Moved out of the modal so pagination is visible when no order is selected */}
             <div className="mb-2">
               <strong>Order Items:</strong>
               <div className="overflow-x-auto">

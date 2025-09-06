@@ -62,115 +62,140 @@ export default function CheckoutPage() {
   }
 
   return (
-    <main className="min-h-screen bg-white max-w-4xl mx-auto px-4 py-12 font-sans antialiased text-gray-900">
-      <div className="p-8 rounded-lg">
-        <h1 className="text-4xl font-extrabold mb-6 text-center text-gray-900">Checkout</h1>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* error summary for screen readers and visual */}
-          {Object.keys(errors).length > 0 && (
-            <div className="md:col-span-2 mb-4" role="alert">
-              <div className="text-sm text-red-600 font-medium">Please fix the following:</div>
-              <ul className="mt-2 text-sm text-red-600 list-disc list-inside">
-                {Object.values(errors).map((msg, idx) => <li key={idx}>{msg}</li>)}
-              </ul>
-            </div>
-          )}
-          <div className="text-gray-900 space-y-2">
-            <label className="block text-sm font-medium text-gray-900">Name</label>
-            <input value={form.name} onChange={(e)=>setForm({...form, name: e.target.value})} className="w-full p-3 border border-gray-200 rounded-lg mt-1 text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-yellow-400" aria-invalid={!!errors.name} />
-            {errors.name && <div className="text-red-600 text-sm mt-1">{errors.name}</div>}
-            <label className="block text-sm font-medium text-gray-900 mt-4">Email</label>
-            <input value={form.email} onChange={(e)=>setForm({...form, email: e.target.value})} className="w-full p-3 border border-gray-200 rounded-lg mt-1 text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-yellow-400" aria-invalid={!!errors.email} />
-            {errors.email && <div className="text-red-600 text-sm mt-1">{errors.email}</div>}
-            <label className="block text-sm font-medium text-gray-900 mt-4">Phone</label>
-            <input value={form.phone} onChange={(e)=>setForm({...form, phone: e.target.value})} className="w-full p-3 border border-gray-200 rounded-lg mt-1 text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-yellow-400" aria-invalid={!!errors.phone} />
-            {errors.phone && <div className="text-red-600 text-sm mt-1">{errors.phone}</div>}
-
-            <div className="mt-4">
-              <div className="text-sm font-medium mb-2 text-gray-900">Delivery option</div>
-              <label className="inline-flex items-center mr-4 text-gray-900"><input type="radio" name="delivery" checked={form.deliveryPref==='ship'} onChange={()=>setForm({...form, deliveryPref:'ship'})} className="mr-2"/> Ship</label>
-              <label className="inline-flex items-center text-gray-900"><input type="radio" name="delivery" checked={form.deliveryPref==='pickup'} onChange={()=>setForm({...form, deliveryPref:'pickup'})} className="mr-2"/> Pickup</label>
-            </div>
-
-            {form.deliveryPref === 'ship' && (
-              <div className="mt-4 space-y-3">
-                <label className="block text-sm font-medium text-gray-900">Street Address</label>
-                <input value={form.street} onChange={(e)=>setForm({...form, street: e.target.value})} className="w-full p-3 border border-gray-200 rounded-lg mt-1 text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-yellow-400" aria-invalid={!!errors.street} />
-                {errors.street && <div className="text-red-600 text-sm mt-1">{errors.street}</div>}
-
-                <label className="block text-sm font-medium text-gray-900">Area / Landmark</label>
-                <input value={form.area} onChange={(e)=>setForm({...form, area: e.target.value})} className="w-full p-3 border border-gray-200 rounded-lg mt-1 text-gray-900 bg-white" />
-
-                <div className="grid grid-cols-2 gap-3 mt-2">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-900">City</label>
-                    <input value={form.city} onChange={(e)=>setForm({...form, city: e.target.value})} className="w-full p-3 border border-gray-200 rounded-lg mt-1 text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-yellow-400" aria-invalid={!!errors.city} />
-                    {errors.city && <div className="text-red-600 text-sm mt-1">{errors.city}</div>}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-900">State / Region</label>
-                    <input value={form.region} onChange={(e)=>setForm({...form, region: e.target.value})} className="w-full p-3 border border-gray-200 rounded-lg mt-1 text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-yellow-400" aria-invalid={!!errors.region} />
-                    {errors.region && <div className="text-red-600 text-sm mt-1">{errors.region}</div>}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 mt-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-900">Postal code (optional)</label>
-                    <input value={form.postalCode} onChange={(e)=>setForm({...form, postalCode: e.target.value})} className="w-full p-3 border border-gray-200 rounded-lg mt-1 text-gray-900 bg-white" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-900">Country</label>
-                    <input value={form.country} onChange={(e)=>setForm({...form, country: e.target.value})} placeholder="Nigeria" className="w-full p-3 border border-gray-200 rounded-lg mt-1 text-gray-900 bg-white" />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {form.deliveryPref === 'pickup' && (
-              <div className="mt-4">
-                <label className="block text-sm font-medium text-gray-900">Select Pickup Location</label>
-                <select value={form.pickupLocation} onChange={(e)=>setForm({...form, pickupLocation: e.target.value})} className="w-full p-3 border border-gray-200 rounded mt-1 text-gray-900 bg-white" aria-invalid={!!errors.pickupLocation}>
-                  <option value="">Choose pickup location</option>
-                  {PICKUP_LOCATIONS.map(loc => <option key={loc} value={loc}>{loc}</option>)}
-                </select>
-                {errors.pickupLocation && <div className="text-red-600 text-sm mt-1">{errors.pickupLocation}</div>}
-              </div>
-            )}
-          </div>
-
-          <div className="relative">
-            <div className="absolute -left-4 top-6 w-2 h-32 bg-yellow-400 rounded-r-md shadow-md"></div>
-            <div className="bg-white p-6 rounded-xl shadow-2xl ring-1 ring-gray-100 text-gray-900 transform -translate-y-1">
-              <h3 className="font-semibold text-lg">Order Summary</h3>
-              {items.map(it => (
-                <div key={it.id} className="flex items-center justify-between mt-3 text-gray-900">
-                  <div>{it.name} x{it.quantity}</div>
-                  <div>₦{(it.price * it.quantity).toLocaleString()}</div>
-                </div>
-              ))}
-              <div className="flex items-center justify-between mt-4">
-                <div className="text-sm text-gray-700">Subtotal</div>
-                <div className="text-sm font-medium text-gray-900">₦{subtotal.toLocaleString()}</div>
-              </div>
-              <div className="flex items-center justify-between mt-2">
-                <div className="text-sm text-gray-700">Shipping</div>
-                <div className="text-sm font-medium text-gray-900">{shipping > 0 ? `₦${shipping.toLocaleString()}` : 'Free / Pickup'}</div>
-              </div>
-              {shippingZoneName && (
-                <div className="mt-1 text-sm text-gray-600">Shipping zone: <span className="font-medium text-gray-800">{shippingZoneName}</span></div>
-              )}
-              <div className="flex items-center justify-between mt-4 font-bold text-gray-900">Total <div>₦{(subtotal + shipping).toLocaleString()}</div></div>
-            </div>
-          </div>
+    <main className="min-h-screen bg-gray-50 px-4 py-12 font-sans antialiased text-gray-900">
+      <div className="max-w-6xl mx-auto">
+        <div className="mb-8 text-center">
+          <h1 className="text-4xl font-extrabold text-gray-900">Checkout</h1>
+          <p className="mt-2 text-sm text-gray-600">Complete your order and choose a delivery option</p>
         </div>
 
-        <div className="mt-6 flex flex-col sm:flex-row gap-3">
-          <PaystackButton loading={!!loading} canPay={!!canProceed()} paystackReady={true} total={subtotal + shipping} onClick={() => {
-            const ok = validateForm();
-            if (!ok) return;
-            paystack.handlePayment();
-          }} />
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
+          {/* Left: form */}
+          <section className="md:col-span-7 bg-white p-8 rounded-xl shadow">
+            {/* error summary for screen readers and visual */}
+            {Object.keys(errors).length > 0 && (
+              <div className="mb-4" role="alert">
+                <div className="text-sm text-red-600 font-medium">Please fix the following:</div>
+                <ul className="mt-2 text-sm text-red-600 list-disc list-inside">
+                  {Object.values(errors).map((msg, idx) => <li key={idx}>{msg}</li>)}
+                </ul>
+              </div>
+            )}
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-900">Name</label>
+                <input value={form.name} onChange={(e)=>setForm({...form, name: e.target.value})} className="mt-1 w-full p-3 border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-amber-400" aria-invalid={!!errors.name} />
+                {errors.name && <div className="text-red-600 text-sm mt-1">{errors.name}</div>}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-900">Email</label>
+                <input value={form.email} onChange={(e)=>setForm({...form, email: e.target.value})} className="mt-1 w-full p-3 border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-amber-400" aria-invalid={!!errors.email} />
+                {errors.email && <div className="text-red-600 text-sm mt-1">{errors.email}</div>}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-900">Phone</label>
+                <input value={form.phone} onChange={(e)=>setForm({...form, phone: e.target.value})} className="mt-1 w-full p-3 border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-amber-400" aria-invalid={!!errors.phone} />
+                {errors.phone && <div className="text-red-600 text-sm mt-1">{errors.phone}</div>}
+              </div>
+
+              <div className="pt-4 border-t border-gray-100">
+                <div className="text-sm font-medium mb-3 text-gray-900">Delivery option</div>
+                <div className="flex items-center gap-6">
+                  <label className="inline-flex items-center"><input type="radio" name="delivery" checked={form.deliveryPref==='ship'} onChange={()=>setForm({...form, deliveryPref:'ship'})} className="mr-2"/> <span className="text-sm">Ship</span></label>
+                  <label className="inline-flex items-center"><input type="radio" name="delivery" checked={form.deliveryPref==='pickup'} onChange={()=>setForm({...form, deliveryPref:'pickup'})} className="mr-2"/> <span className="text-sm">Pickup</span></label>
+                </div>
+              </div>
+
+              {form.deliveryPref === 'ship' && (
+                <div className="mt-4 space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-900">Street Address</label>
+                    <input value={form.street} onChange={(e)=>setForm({...form, street: e.target.value})} className="mt-1 w-full p-3 border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-amber-400" aria-invalid={!!errors.street} />
+                    {errors.street && <div className="text-red-600 text-sm mt-1">{errors.street}</div>}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-900">Area / Landmark</label>
+                    <input value={form.area} onChange={(e)=>setForm({...form, area: e.target.value})} className="mt-1 w-full p-3 border border-gray-200 rounded-lg bg-white" />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-900">City</label>
+                      <input value={form.city} onChange={(e)=>setForm({...form, city: e.target.value})} className="mt-1 w-full p-3 border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-amber-400" aria-invalid={!!errors.city} />
+                      {errors.city && <div className="text-red-600 text-sm mt-1">{errors.city}</div>}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-900">State / Region</label>
+                      <input value={form.region} onChange={(e)=>setForm({...form, region: e.target.value})} className="mt-1 w-full p-3 border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-amber-400" aria-invalid={!!errors.region} />
+                      {errors.region && <div className="text-red-600 text-sm mt-1">{errors.region}</div>}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-900">Postal code (optional)</label>
+                      <input value={form.postalCode} onChange={(e)=>setForm({...form, postalCode: e.target.value})} className="mt-1 w-full p-3 border border-gray-200 rounded-lg bg-white" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-900">Country</label>
+                      <input value={form.country} onChange={(e)=>setForm({...form, country: e.target.value})} placeholder="Nigeria" className="mt-1 w-full p-3 border border-gray-200 rounded-lg bg-white" />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {form.deliveryPref === 'pickup' && (
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-gray-900">Select Pickup Location</label>
+                  <select value={form.pickupLocation} onChange={(e)=>setForm({...form, pickupLocation: e.target.value})} className="mt-1 w-full p-3 border border-gray-200 rounded bg-white" aria-invalid={!!errors.pickupLocation}>
+                    <option value="">Choose pickup location</option>
+                    {PICKUP_LOCATIONS.map(loc => <option key={loc} value={loc}>{loc}</option>)}
+                  </select>
+                  {errors.pickupLocation && <div className="text-red-600 text-sm mt-1">{errors.pickupLocation}</div>}
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* Right: order summary & payment */}
+          <aside className="md:col-span-5">
+            <div className="sticky top-24 space-y-4">
+              <div className="bg-white p-6 rounded-xl shadow-lg">
+                <h3 className="font-semibold text-lg">Order Summary</h3>
+                <div className="mt-4 space-y-3">
+                  {items.map(it => (
+                    <div key={it.id} className="flex items-start justify-between gap-4">
+                      <div className="text-sm text-gray-800">{it.name} <span className="text-xs text-gray-500">x{it.quantity}</span></div>
+                      <div className="text-sm font-medium text-amber-600">₦{(it.price * it.quantity).toLocaleString()}</div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-4 border-t pt-4 text-sm text-gray-700">
+                  <div className="flex items-center justify-between"><span>Subtotal</span><span className="font-medium text-gray-900">₦{subtotal.toLocaleString()}</span></div>
+                  <div className="flex items-center justify-between mt-2"><span>Shipping</span><span className="font-medium text-gray-900">{shipping > 0 ? `₦${shipping.toLocaleString()}` : 'Free / Pickup'}</span></div>
+                  {shippingZoneName && <div className="mt-2 text-xs text-gray-600">Shipping zone: <span className="font-medium text-gray-800">{shippingZoneName}</span></div>}
+                  <div className="mt-4 flex items-center justify-between text-lg font-bold">Total <span>₦{(subtotal + shipping).toLocaleString()}</span></div>
+                </div>
+              </div>
+
+              <div className="bg-white p-6 rounded-xl shadow-lg">
+                <PaystackButton loading={!!loading} canPay={!!canProceed()} paystackReady={true} total={subtotal + shipping} onClick={() => {
+                  const ok = validateForm();
+                  if (!ok) return;
+                  paystack.handlePayment();
+                }} />
+
+                <div className="mt-4">
+                  <button type="button" onClick={() => clearCart()} className="w-full border border-gray-200 rounded px-4 py-2 text-sm">Clear cart</button>
+                </div>
+              </div>
+            </div>
+          </aside>
         </div>
       </div>
     </main>

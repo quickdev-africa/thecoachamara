@@ -11,6 +11,8 @@ export default function CustomersPage() {
   const [payments, setPayments] = useState<any[]>([]);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [leadsOnly, setLeadsOnly] = useState<boolean>(false);
+  const [pageNum, setPageNum] = useState<number>(1);
+  const PAGE_SIZE = 20;
   const [localSummary, setLocalSummary] = useState<{ total: number; leads: number } | null>(null);
   const fetchCustomers = async () => {
     setLoading(true);
@@ -26,7 +28,7 @@ export default function CustomersPage() {
   // accept server summary when present
   const serverSummary = data?.summary;
       // normalize fields
-      const normalized = arr.map((c: any) => {
+      let normalized = arr.map((c: any) => {
         const ordersCount = c.orders_count ?? c.ordersCount ?? 0;
         const autoCreated = c.auto_created === true || c.autoCreated === true || false;
         const isLead = autoCreated || ordersCount === 0;
@@ -43,7 +45,15 @@ export default function CustomersPage() {
           is_lead: isLead
         };
       });
-      setCustomers(normalized as Customer[]);
+
+      // Sort newest joins first (joined_at desc). Null joined_at goes last.
+      normalized = normalized.sort((a: any, b: any) => {
+        if (!a.joined_at && !b.joined_at) return 0;
+        if (!a.joined_at) return 1;
+        if (!b.joined_at) return -1;
+        return new Date(b.joined_at).getTime() - new Date(a.joined_at).getTime();
+      });
+  setCustomers(normalized as Customer[]);
       if (serverSummary) {
         // set a lightweight local summary object for display
         setLocalSummary({ total: serverSummary.total || normalized.length, leads: serverSummary.leads || normalized.filter((c: any) => c.is_lead).length });
@@ -60,7 +70,9 @@ export default function CustomersPage() {
 
   // Refetch when leadsOnly toggle changes
   useEffect(() => {
-    fetchCustomers();
+  // Reset to first page when toggling the leads filter
+  setPageNum(1);
+  fetchCustomers();
   }, [leadsOnly]);
 
   // Realtime: refresh the customers list when updates occur
@@ -135,6 +147,7 @@ type Customer = {
         ) : customers.length === 0 ? (
           <div className="text-gray-900 text-base">No customers found.</div>
         ) : (
+          <>
           <table className="min-w-full text-left text-sm text-gray-900">
             <thead>
               <tr>
@@ -152,7 +165,7 @@ type Customer = {
               </tr>
             </thead>
             <tbody>
-              {customers.map(customer => (
+              {customers.slice((pageNum - 1) * PAGE_SIZE, pageNum * PAGE_SIZE).map(customer => (
                 <tr key={customer.id} className="border-t font-semibold">
                   <td className="py-2">
                     <button className="underline text-blue-700 hover:text-blue-900" onClick={() => setSelected(customer)}>{customer.name}</button>
@@ -182,9 +195,27 @@ type Customer = {
                     <button className="underline text-blue-700 hover:text-blue-900" onClick={() => setSelected(customer)}>View</button>
                   </td>
                 </tr>
-              ))}
+                ))}
             </tbody>
           </table>
+
+            {/* Pagination controls when results exceed one page */}
+            {customers.length > PAGE_SIZE && (
+              <div className="flex items-center justify-between mt-4">
+                <div className="text-sm text-gray-700">Showing {(pageNum - 1) * PAGE_SIZE + 1} – {Math.min(pageNum * PAGE_SIZE, customers.length)} of {customers.length}</div>
+                <div className="flex items-center gap-2">
+                  <button className="px-3 py-1 rounded border bg-white text-gray-700 disabled:opacity-50" onClick={() => setPageNum(p => Math.max(1, p - 1))} disabled={pageNum === 1}>Prev</button>
+                  {/* simple page numbers */}
+                  <div className="hidden sm:flex items-center gap-1">
+                    {Array.from({ length: Math.ceil(customers.length / PAGE_SIZE) }).map((_, i) => (
+                      <button key={i} onClick={() => setPageNum(i + 1)} className={`px-2 py-1 rounded ${pageNum === i + 1 ? 'bg-amber-500 text-white' : 'bg-white text-gray-700 border'}`}>{i + 1}</button>
+                    ))}
+                  </div>
+                  <button className="px-3 py-1 rounded border bg-white text-gray-700 disabled:opacity-50" onClick={() => setPageNum(p => Math.min(Math.ceil(customers.length / PAGE_SIZE), p + 1))} disabled={pageNum >= Math.ceil(customers.length / PAGE_SIZE)}>Next</button>
+                </div>
+              </div>
+            )}
+            </>
         )}
       </div>
       {/* Customer Details Modal */}

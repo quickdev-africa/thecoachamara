@@ -5,6 +5,7 @@ import "./logoFont.css";
 import "./playfair.css";
 import dynamic from "next/dynamic";
 const SessionProvider = dynamic(() => import("./SessionProvider"), { ssr: false });
+const SiteHeader = dynamic(() => import("./components/ConditionalHeader"), { ssr: false });
 import ReactQueryProvider from "./ReactQueryProvider";
 import { CartProvider } from "./shop/CartContext";
 
@@ -59,7 +60,10 @@ export default function RootLayout({
         />
         <SessionProvider>
           <ReactQueryProvider>
-            <CartProvider>{children}</CartProvider>
+            <CartProvider>
+              <SiteHeader />
+              {children}
+            </CartProvider>
           </ReactQueryProvider>
         </SessionProvider>
       </body>

@@ -23,13 +23,16 @@ export async function POST(req: NextRequest) {
 
     // If email exists, upsert into user_profiles to avoid duplicates by email
     if (email) {
-      const { data: existing } = await serverSupabase.from('user_profiles').select('id').eq('email', email).maybeSingle();
+      const { data: existing } = await serverSupabase.from('user_profiles').select('id,auto_created').eq('email', email).maybeSingle();
       if (existing && existing.id) {
         // update existing record with latest phone/name if provided
+        // Do NOT set `auto_created` here to avoid misclassifying existing customers as leads.
         await serverSupabase.from('user_profiles').update({ name: payload.name, phone: payload.phone }).eq('id', existing.id);
         return NextResponse.json({ success: true, id: existing.id, upserted: false });
       }
-      const { data: ins, error } = await serverSupabase.from('user_profiles').insert([payload]).select('id').maybeSingle();
+      // mark inserted leads as auto_created so admin filters show them as leads
+      const insertPayload = { ...payload, auto_created: true };
+      const { data: ins, error } = await serverSupabase.from('user_profiles').insert([insertPayload]).select('id').maybeSingle();
       if (error) {
         console.warn('user_profiles insert failed, falling back to signups table', error.message || error);
         // fallback to signups so lead isn't lost
@@ -40,10 +43,40 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, id: ins?.id || null });
     }
 
-    // Fallback: if no email, put into signups table for traceability
-    const { data: s, error: signErr } = await serverSupabase.from('signups').insert([{ ...payload, source: 'lead_no_email' }]).select('id').maybeSingle();
-    if (signErr) throw signErr;
-    return NextResponse.json({ success: true, id: s?.id || null });
+    // If there's no email but a phone is provided, upsert into user_profiles by phone
+    if (!email && phone) {
+      const { data: existingByPhone } = await serverSupabase.from('user_profiles').select('id').eq('phone', phone).maybeSingle();
+      if (existingByPhone && existingByPhone.id) {
+        await serverSupabase.from('user_profiles').update({ name: payload.name }).eq('id', existingByPhone.id);
+        return NextResponse.json({ success: true, id: existingByPhone.id, upserted: false, note: 'matched_by_phone' });
+      }
+      // Build a safe email placeholder because user_profiles.email is NOT NULL in many deployments
+      const phoneDigits = phone.replace(/\D/g, '') || `noemail${Date.now()}`;
+      const placeholderEmail = `${phoneDigits}@no-reply.thecoachamara.local`;
+      const insertPayload = { ...payload, email: placeholderEmail, auto_created: true };
+      const { data: insPhone, error: insPhoneErr } = await serverSupabase.from('user_profiles').insert([insertPayload]).select('id').maybeSingle();
+      if (insPhoneErr) {
+        console.warn('user_profiles insert by phone failed, falling back to signups table', insPhoneErr.message || insPhoneErr);
+      } else {
+        return NextResponse.json({ success: true, id: insPhone?.id || null, note: 'inserted_by_phone' });
+      }
+    }
+
+    // Final fallback: always insert into `user_profiles`. We do NOT use a separate `signups` table.
+    // Ensure a non-null email for DB constraints by creating a harmless placeholder when needed.
+    try {
+      const fallbackEmail = email || (phone ? `${phone.replace(/\D/g,'')}@no-reply.thecoachamara.local` : `noemail${Date.now()}@no-reply.thecoachamara.local`);
+      const insertPayload = { ...payload, email: fallbackEmail, auto_created: true };
+      const { data: ins, error: insErr } = await serverSupabase.from('user_profiles').insert([insertPayload]).select('id').maybeSingle();
+      if (insErr) {
+        console.error('user_profiles insert failed', insErr);
+        return NextResponse.json({ success: false, error: 'failed to store lead' }, { status: 500 });
+      }
+      return NextResponse.json({ success: true, id: ins?.id || null, source: 'user_profiles' });
+    } catch (err: any) {
+      console.error('user_profiles insert unexpected error', err?.message || err);
+      return NextResponse.json({ success: false, error: 'failed to store lead' }, { status: 500 });
+    }
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err?.message || 'failed' }, { status: 500 });
   }

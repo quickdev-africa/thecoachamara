@@ -11,6 +11,8 @@ export interface Payment {
   email: string;
   amount: number;
   productId?: string;
+  order_id?: string;
+  payment_method?: string;
   status: 'pending' | 'success' | 'failed';
   metadata?: Record<string, any>;
   createdAt: string;
@@ -35,9 +37,10 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Pa
     // with an undefined-column error, we fall back to querying `payment_attempts`.
     let payments: any[] | null = null;
     try {
+      // Request order_id and payment_method where available so admin UI can show Order and Method columns.
       let qb = serverSupabase
         .from('payments')
-        .select('id, reference, email, amount, product_id, status, metadata, created_at, updated_at')
+        .select('id, reference, email, amount, product_id, status, metadata, created_at, updated_at, order_id, payment_method, payment_provider')
         .order('created_at', { ascending: false })
         .limit(pageLimit);
 
@@ -69,6 +72,8 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Pa
       const reference = r.reference || r.payment_reference || r.ref || id;
       const email = r.email || r.paystack_data?.customer?.email || r.orders?.customerEmail || '';
       const amount = r.amount == null ? 0 : Number(r.amount) || 0;
+      const order_id = r.order_id || r.orderId || (r.orders && r.orders.id) || null;
+      const payment_method = r.payment_method || r.payment_provider || r.method || null;
       const productId = r.product_id || r.productId || null;
       const statusRaw = (r.status || r.state || '').toString();
       const status = statusRaw === 'success' ? 'success' : (statusRaw === 'pending' ? 'pending' : 'failed');
@@ -81,6 +86,8 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Pa
         email: String(email),
         amount,
         productId: productId ? String(productId) : undefined,
+        order_id: order_id ? String(order_id) : undefined,
+        payment_method: payment_method ? String(payment_method) : undefined,
         status: status as Payment['status'],
         metadata,
         createdAt: String(createdAt),
@@ -109,7 +116,11 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Pa
 
         if (!attemptsErr && Array.isArray(attempts) && attempts.length > 0) {
           const mapped = attempts.map((a: any) => {
-            const p = toPayment({ ...a, metadata: { source: 'payment_attempts', raw: a.paystack_data || a } });
+            const row = { ...a, metadata: { source: 'payment_attempts', raw: a.paystack_data || a } };
+            // Ensure order_id and payment_provider show up in the normalized shape
+            row.order_id = a.order_id || (a.orders && a.orders.id) || null;
+            row.payment_provider = a.payment_provider || a.gateway || null;
+            const p = toPayment(row);
             return p;
           });
 
