@@ -1,18 +1,23 @@
 "use client";
 import { useState, useEffect } from "react";
-import { FaShoppingCart, FaUser } from 'react-icons/fa';
+import { usePathname } from 'next/navigation';
+import { FaShoppingCart, FaUser, FaBars, FaTimes } from 'react-icons/fa';
 import { useCart } from "../shop/CartContext";
 import CartDrawer from "../shop/components/CartDrawer";
+import { createPortal } from 'react-dom';
 import SiteToast from "./SiteToast";
 import Image from "next/image";
 import Link from "next/link";
 
 export default function SiteHeader() {
   const [open, setOpen] = useState(false);
+  // Hide header on specific pages that should not render the global header
+  const [hidden, setHidden] = useState(false);
   const { getItemCount } = useCart();
   const [count, setCount] = useState<number>(() => getItemCount());
 
   useEffect(() => {
+  // initial mount handled below by pathname effect
     const handler = () => setOpen(true);
     window.addEventListener('cart:item-added', handler as EventListener);
     const updateBadge = (e: Event) => {
@@ -31,8 +36,47 @@ export default function SiteHeader() {
     };
   }, [getItemCount]);
 
+  // update hidden state whenever the pathname changes (so header reappears on checkout)
+  const pathname = usePathname();
+  useEffect(() => {
+    try {
+      const path = pathname || (typeof window !== 'undefined' ? window.location.pathname : '');
+      const hidePaths = ['/join', '/order-quantum-machine', '/quantum', '/shop/checkout'];
+      if (hidePaths.includes(path) || hidePaths.some(p => path.startsWith(p + '/'))) {
+        setHidden(true);
+      } else {
+        setHidden(false);
+      }
+      // if navigating to checkout, make sure the cart drawer is closed
+      if (path === '/shop/checkout' || path.startsWith('/shop/checkout/')) {
+        setOpen(false);
+      }
+    } catch {
+      // ignore
+    }
+  }, [pathname]);
+
+  // Avoid returning early (which would change hook order). Hide via CSS instead.
+  const headerClass = hidden ? 'hidden' : 'bg-[rgba(6,7,11,0.96)] text-white sticky top-0 z-50 backdrop-blur-sm border-b border-gray-800';
+
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  useEffect(() => {
+    if (!mobileOpen) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setMobileOpen(false);
+    }
+    window.addEventListener('keydown', onKey);
+    // focus first link in menu when opened
+    setTimeout(() => {
+      const el = document.querySelector('.mobile-menu-first') as HTMLElement | null;
+      el?.focus();
+    }, 50);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [mobileOpen]);
+
   return (
-    <header className="bg-black text-white sticky top-0 z-50 shadow">
+  <header className={headerClass}>
       <div className="bg-amber-500 text-black text-sm md:text-base py-1 px-2 text-center font-semibold tracking-wide">
         <a href="/quantum" className="block w-full hover:underline">
           <span className="inline-flex items-center justify-center gap-2 w-full">
@@ -43,27 +87,52 @@ export default function SiteHeader() {
           </span>
         </a>
       </div>
-      <nav className="flex items-center justify-between px-4 py-3 md:px-8">
-        <div className="flex items-center gap-3">
-          <Link href="/" className="flex items-center gap-2">
-            <Image src="/logo.svg" alt="CoachAmara logo" width={36} height={36} priority />
-            <span className="text-2xl font-extrabold tracking-tight text-yellow-400 hover:text-yellow-300 transition">CoachAmara</span>
+      <nav className="flex items-center justify-between px-4 py-3 md:px-8 max-w-7xl mx-auto">
+        <div className="flex items-center gap-4">
+          <Link href="/" className="flex items-center gap-3">
+            <Image src="/logo.svg" alt="CoachAmara logo" width={40} height={40} priority />
+            <span className="text-xl md:text-2xl font-extrabold tracking-tight text-yellow-400 hover:text-yellow-300 transition">CoachAmara</span>
           </Link>
         </div>
-        <div className="hidden md:flex items-center gap-4 md:gap-6">
-          <Link href="/about" className="px-3 py-2 rounded text-sm md:text-base font-medium text-white hover:text-yellow-400">About</Link>
-          <Link href="/contact" className="px-3 py-2 rounded text-sm md:text-base font-medium text-white hover:text-yellow-400">Maralis Solutions</Link>
-          <Link href="/shop" className="px-3 py-2 rounded text-sm md:text-base font-medium text-white hover:text-yellow-400">Shop</Link>
+        <div className="hidden md:flex items-center gap-4">
+          <Link href="/about" className="px-3 py-2 rounded text-sm md:text-base font-medium text-gray-200 hover:text-yellow-400 transition-colors">About</Link>
+          <Link href="/contact" className="px-3 py-2 rounded text-sm md:text-base font-medium text-gray-200 hover:text-yellow-400 transition-colors">Contact</Link>
+          <Link href="/talktoamara" className="px-3 py-2 rounded text-sm md:text-base font-medium text-gray-200 hover:text-yellow-400 transition-colors">Talk to Amara</Link>
+          <Link href="/shop" className="px-3 py-2 rounded text-sm md:text-base font-medium text-gray-100 hover:text-yellow-400 transition-colors">Maralis Solutions</Link>
         </div>
         <div className="flex items-center gap-3">
-          <button aria-label="Cart" onClick={() => setOpen(true)} className="relative p-2 rounded-full hover:bg-gray-800 transition">
+          <button aria-label="Cart" onClick={() => setOpen(true)} className="relative p-2 rounded-full hover:bg-gray-800/40 transition">
             <FaShoppingCart size={18} />
             <span className="absolute -top-1 -right-1 bg-yellow-400 text-black text-xs font-bold rounded-full px-1.5 py-0.5">{count}</span>
           </button>
-          <Link href="/signin" className="p-2 rounded-full hover:bg-gray-800 transition"><FaUser size={18} /></Link>
+          <Link href="/signin" className="p-2 rounded-full hover:bg-gray-800/40 transition"><FaUser size={18} /></Link>
+          {/* Mobile menu button */}
+          <button aria-label="Menu" className="md:hidden p-2 ml-1 rounded-full hover:bg-gray-800/40 transition" onClick={() => setMobileOpen(!mobileOpen)}>
+            {mobileOpen ? <FaTimes size={18} /> : <FaBars size={18} />}
+          </button>
         </div>
       </nav>
-      {open && <CartDrawer onClose={() => setOpen(false)} />}
+      {/* Mobile menu panel (render only when open to avoid always-visible menu on mobile) */}
+      {mobileOpen && (
+        <div className="md:hidden w-full absolute left-0 top-full z-40" aria-hidden={!mobileOpen}>
+          <div className="bg-[rgba(6,7,11,0.98)] border-t border-gray-800">
+            <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col gap-3">
+              <Link href="/shop" className="mobile-menu-first block px-3 py-3 rounded text-lg font-semibold text-gray-100 hover:bg-gray-800/30">Maralis Solutions</Link>
+              <Link href="/about" className="block px-3 py-3 rounded text-lg font-medium text-gray-200 hover:bg-gray-800/30">About</Link>
+              <Link href="/contact" className="block px-3 py-3 rounded text-lg font-medium text-gray-200 hover:bg-gray-800/30">Contact</Link>
+              <div className="flex items-center gap-3 pt-2">
+                <button aria-label="Cart" onClick={() => { setOpen(true); setMobileOpen(false); }} className="relative p-2 rounded-full hover:bg-gray-800/30 transition">
+                  <FaShoppingCart size={18} />
+                  <span className="absolute -top-1 -right-1 bg-yellow-400 text-black text-xs font-bold rounded-full px-1.5 py-0.5">{count}</span>
+                </button>
+                <Link href="/signin" className="p-2 rounded-full hover:bg-gray-800/30 transition"><FaUser size={18} /></Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+  {/* render the cart drawer in a portal so it overlays the whole page and isn't affected by header stacking contexts */}
+  {typeof document !== 'undefined' ? createPortal(open ? <CartDrawer onClose={() => setOpen(false)} /> : null, document.body) : null}
   <SiteToast />
     </header>
   );

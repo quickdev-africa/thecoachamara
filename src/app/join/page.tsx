@@ -1,10 +1,11 @@
 "use client";
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 import React, { useState, useEffect, useRef, ChangeEvent, FormEvent } from "react";
 import { useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import AddressForm from '@/components/AddressForm';
+import { PICKUP_LOCATIONS } from '@/lib/types';
 import { useRouter } from 'next/navigation';
-import dynamic from "next/dynamic";
 
 // Product options (with canonical IDs from the products API)
 const products = [
@@ -22,14 +23,7 @@ const nigerianStates = [
   "Yobe", "Zamfara"
 ];
 
-// Pickup locations
-const pickupLocations = [
-  "Lagos",
-  "Abuja", 
-  "Port Harcourt",
-  "Kaduna",
-  "Imo"
-];
+// Pickup locations are provided centrally from src/lib/types.ts (PICKUP_LOCATIONS)
 
 // Delivery zones mapping
 const deliveryZones = {
@@ -562,13 +556,7 @@ export default function JoinPage() {
 
   return (
     <main className={`min-h-screen bg-white flex flex-col transition-opacity duration-700 ${mounted ? 'opacity-100' : 'opacity-0'} font-sans`}>
-      {/* Top Bar with Logo */}
-      <div className="w-full flex items-center justify-center px-6 py-4 bg-white border-b border-amber-100">
-        <a href="/" className="flex items-center gap-2">
-          {/* Stylized logo text */}
-          <span className="font-logo text-amber-600 drop-shadow-sm text-2xl md:text-3xl" style={{fontWeight: 400, fontFamily: "'Great Vibes', cursive, var(--font-logo)"}}>Coach Amara</span>
-        </a>
-      </div>
+  {/* top bar removed — use global SiteHeader in root layout */}
       {/* Split Layout */}
       <section className="flex flex-col lg:flex-row w-full max-w-6xl mx-auto bg-white rounded-none sm:rounded-3xl shadow-none sm:shadow-2xl border-0 sm:border border-amber-100 overflow-hidden my-0 sm:my-10">
         {/* Form Left */}
@@ -688,25 +676,25 @@ export default function JoinPage() {
                     </div>
                   )}
 
-                  {/* Pickup Location - Only show when pickup is selected */}
-                  {form.deliveryMethod === 'pickup' && (
-                    <div className="mb-4">
-                      <label className="block font-bold mb-2 text-sm text-black">Select Pickup Location <span className="text-red-500">*</span></label>
-                      <select
-                        name="pickupLocation"
-                        value={form.pickupLocation || ''}
-                        onChange={handleChange}
-                        className={`w-full px-4 py-3 rounded-lg border ${errors.pickupLocation ? 'border-red-400' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-amber-400 text-sm sm:text-base text-black font-bold`}
-                        required
-                      >
-                        <option value="">Choose pickup location</option>
-                        {pickupLocations.map(location => (
-                          <option key={location} value={location}>{location}</option>
-                        ))}
-                      </select>
-                      {errors.pickupLocation && <div className="text-red-500 text-xs mt-1">{errors.pickupLocation}</div>}
-                    </div>
-                  )}
+                  {/* Pickup Location - always rendered but disabled until 'Pick up' is chosen */}
+                  <div className="mb-4">
+                    <label className="block font-bold mb-2 text-sm text-black">Select Pickup Location <span className="text-red-500">*</span></label>
+                    <select
+                      name="pickupLocation"
+                      value={form.pickupLocation || ''}
+                      onChange={handleChange}
+                      className={`w-full px-4 py-3 rounded-lg border ${errors.pickupLocation ? 'border-red-400' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-amber-400 text-sm sm:text-base text-black font-bold`}
+                      required={form.deliveryMethod === 'pickup'}
+                      disabled={form.deliveryMethod !== 'pickup'}
+                    >
+                      <option value="">Choose pickup location</option>
+                      {PICKUP_LOCATIONS.map(location => (
+                        <option key={location} value={location}>{location}</option>
+                      ))}
+                    </select>
+                    {errors.pickupLocation && <div className="text-red-500 text-xs mt-1">{errors.pickupLocation}</div>}
+                    {form.deliveryMethod !== 'pickup' && <div className="text-xs text-gray-500 mt-1">Select "Pick up" above to choose a pickup location.</div>}
+                  </div>
 
                   {/* Pickup Confirmation - Only show when pickup location is selected */}
                   {form.deliveryMethod === 'pickup' && form.pickupLocation && (

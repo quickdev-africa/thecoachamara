@@ -1,81 +1,11 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from 'next/navigation';
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { fadeIn, fadeInUp } from "./fadeMotion";
 
-function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
-	const pathname = usePathname();
-	const active = pathname === href;
-	return (
-		<Link href={href} className={`px-3 py-2 rounded text-sm md:text-base font-medium transition ${active ? 'text-yellow-400' : 'text-white hover:text-yellow-400'}`}>
-			{children}
-		</Link>
-	);
-}
-
-function MobileMenu() {
-	const [open, setOpen] = useState(false);
-	const pathname = usePathname();
-
-	// prevent background scrolling when menu is open
-	useEffect(() => {
-		if (open) {
-			const prev = document.body.style.overflow;
-			document.body.style.overflow = 'hidden';
-			return () => { document.body.style.overflow = prev; };
-		}
-	}, [open]);
-
-	return (
-		<div className="md:hidden">
-			<button
-				aria-label={open ? 'Close menu' : 'Open menu'}
-				aria-expanded={open}
-				onClick={() => setOpen(v => !v)}
-				className="p-2 rounded text-white hover:text-yellow-400"
-			>
-				{!open ? (
-					<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-white">
-						<path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-					</svg>
-				) : (
-					<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-white">
-						<path d="M6 18L18 6M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-					</svg>
-				)}
-			</button>
-
-			{/* full-screen fixed overlay so menu never gets clipped by parent containers */}
-			{open && (
-				<div className="fixed inset-0 z-[9999] bg-black/95 text-white flex flex-col items-stretch">
-					<div className="flex items-center justify-between px-4 pt-4 pb-2 border-b border-yellow-400">
-						<div />
-						<button aria-label="Close menu" onClick={() => setOpen(false)} className="p-2 rounded bg-black/0 border-2 border-yellow-400 text-white">
-							<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-								<path d="M6 18L18 6M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-							</svg>
-						</button>
-					</div>
-					<nav style={{paddingTop: 'env(safe-area-inset-top, 16px)'}} className="flex-grow flex flex-col justify-center gap-2 overflow-auto">
-						<Link href="/about" onClick={() => setOpen(false)} className={`block text-center px-6 py-4 text-2xl font-menu ${pathname === '/about' ? 'bg-yellow-400 text-black' : 'text-white hover:text-yellow-400'}`}>
-							About
-						</Link>
-						<Link href="/contact" onClick={() => setOpen(false)} className={`block text-center px-6 py-4 text-2xl font-menu ${pathname === '/contact' ? 'bg-yellow-400 text-black' : 'text-white hover:text-yellow-400'}`}>
-							Maralis Solutions
-						</Link>
-						<Link href="/shop" onClick={() => setOpen(false)} className={`block text-center px-6 py-4 text-2xl font-menu ${pathname === '/shop' ? 'bg-yellow-400 text-black' : 'text-white hover:text-yellow-400'}`}>
-							Shop
-						</Link>
-					</nav>
-				</div>
-			)}
-		</div>
-	);
-}
+// ...existing code... (NavMenu moved to global `SiteHeader`)
 
 // Simple global slot manager for limiting concurrently mounted iframes
 const MAX_IFRAMES = 2;
@@ -161,7 +91,7 @@ function YouTubePreview({ id, title, className }: { id: string; title?: string; 
 							link.href = 'https://www.youtube.com';
 							link.crossOrigin = '';
 							document.head.appendChild(link);
-						} catch (e) {}
+						} catch {}
 
 						// attempt to acquire slot and render iframe (no autoplay)
 						const ok = tryAcquireSlot(id);
@@ -238,14 +168,15 @@ function YouTubePreview({ id, title, className }: { id: string; title?: string; 
 					setActive(true);
 					setPending(false);
 				}}
-				onKeyDown={(e) => {
-					if (e.key === 'Enter' || e.key === ' ') {
-						e.preventDefault();
-						(e.target as HTMLElement).click();
-					}
-				}}
+							onKeyDown={(ev) => {
+								if (ev.key === 'Enter' || ev.key === ' ') {
+									ev.preventDefault();
+									(ev.target as HTMLElement).click();
+								}
+							}}
 				className="w-full h-full relative flex items-center justify-center focus:outline-none focus:ring-4 focus:ring-yellow-400/50 focus:ring-offset-2 focus:ring-offset-black"
 			>
+				{/* eslint-disable-next-line @next/next/no-img-element */}
 				<img src={thumb} alt={title || 'Video thumbnail'} className="w-full h-full object-cover" />
 				<div className="absolute inset-0 flex items-center justify-center">
 					<div className="w-20 h-20 bg-black/60 rounded-full flex items-center justify-center shadow-lg">
@@ -261,37 +192,60 @@ export default function Home() {
 		const [smallName, setSmallName] = useState('');
 		const router = useRouter();
 
+	// Hero rotating typed headings (only text above the video)
+	const HERO_ITEMS = [
+		{
+			heading:
+				"Discover the Quantum Energy Breakthrough That’s Transforming Lives",
+			subtext:
+				"✨ Step into a world of energy alignment and experience the shift toward healing, balance, and inner renewal.",
+		},
+		{
+			heading:
+				"Unlock the Power of Quantum Energy – A New Path to Healing and Transformation",
+			subtext:
+				"🌿 Restore vitality, elevate your spirit, and embrace a holistic approach to living your best life.",
+		},
+		{
+			heading: "Get Quantum Coaching to Transform Your Health and Prosperity",
+			subtext:
+				"💡 Learn how quantum principles can guide you to vibrant wellness and create lasting financial freedom.",
+		},
+	];
+
+	const [heroIndex, setHeroIndex] = useState(0);
+	useEffect(() => {
+		// a longer rotation so users can finish reading; prevents rapid jumps
+		const id = setInterval(() => setHeroIndex((i) => (i + 1) % HERO_ITEMS.length), 12000);
+		return () => clearInterval(id);
+	}, [HERO_ITEMS.length]);
+
+	function Typewriter({ text, speed = 110 }: { text: string; speed?: number }) {
+		const [display, setDisplay] = useState("");
+		const i = useRef(0);
+		useEffect(() => {
+			setDisplay("");
+			i.current = 0;
+			let cancelled = false;
+			function tick() {
+				if (cancelled) return;
+				if (i.current <= text.length) {
+					setDisplay(text.slice(0, i.current));
+					i.current += 1;
+					setTimeout(tick, speed);
+				}
+			}
+			tick();
+			return () => {
+				cancelled = true;
+			};
+			// eslint-disable-next-line react-hooks/exhaustive-deps
+		}, [text, speed]);
+		return <span>{display}</span>;
+	}
+
 	return (
 <>
-{/* HEADER / NAVIGATION */}
-<header className="bg-black text-white sticky top-0 z-50 shadow">
-<div className="bg-amber-500 text-black text-sm md:text-base py-1 px-2 text-center font-semibold tracking-wide">
-	<a href="/quantum" className="block w-full hover:underline">
-		<span className="inline-flex items-center justify-center gap-2 w-full">
-			<span className="truncate whitespace-nowrap max-w-[95%]">Discount offer on Quantum Machine – Hospital in the home!</span>
-			<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 md:h-5 md:w-5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-				<path fillRule="evenodd" d="M10.293 15.707a1 1 0 010-1.414L13.586 11H4a1 1 0 110-2h9.586l-3.293-3.293a1 1 0 111.414-1.414l5 5a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0z" clipRule="evenodd" />
-			</svg>
-		</span>
-	</a>
-</div>
-	<nav className="flex items-center justify-between px-4 py-3 md:px-8">
-		<div className="flex items-center gap-3">
-					<Link href="/" className="flex items-center gap-2">
-						<Image src="/logo.svg" alt="CoachAmara logo" width={36} height={36} priority />
-						<span className="text-2xl font-extrabold tracking-tight text-yellow-400 hover:text-yellow-300 transition">CoachAmara</span>
-					</Link>
-		</div>
-		<div className="hidden md:flex items-center gap-4 md:gap-6">
-			<NavLink href="/about"><span className="font-menu">About</span></NavLink>
-			<NavLink href="/contact"><span className="font-menu">Maralis Solutions</span></NavLink>
-			<NavLink href="/shop"><span className="font-menu">Shop</span></NavLink>
-		</div>
-		{/* Mobile hamburger */}
-		<MobileMenu />
-	</nav>
-</header>
-
 <main className="bg-white min-h-screen w-full flex flex-col items-center font-sans text-black">
 {/* HERO SECTION */}
 <motion.section
@@ -310,13 +264,38 @@ variants={fadeIn}
 <div className="absolute top-1/2 left-1/4 w-8 h-8 md:w-16 md:h-16 border border-yellow-400/25 rotate-90"></div>
 </div>
 <div className="relative z-10 max-w-4xl mx-auto flex flex-col items-center">
-<h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-extrabold mb-6 md:mb-8 leading-tight font-playfair drop-shadow-2xl">
-<span className="bg-gradient-to-r from-yellow-400 via-yellow-300 to-yellow-500 bg-clip-text text-transparent block">Discover the Energy Breakthrough</span>
-<span className="text-white block mt-2">That's Transforming Lives</span>
-</h1>
-<p className="text-base sm:text-lg md:text-xl lg:text-2xl font-semibold mb-8 md:mb-10 text-gray-200 max-w-2xl mx-auto px-2">
-For thousands worldwide, <span className="text-yellow-400 font-bold">Energy</span> has been the turning point — restoring vitality, promoting healing, and empowering people to live healthier, stronger, and more fulfilled lives.
-</p>
+		{
+		 	/* Keep existing sizes; swap static text for rotating typed headings */
+		}
+					<div className="w-full h-[10rem] md:h-[12rem] flex flex-col items-center justify-center">
+						<AnimatePresence mode="wait" initial={false}>
+							<motion.h1
+								key={heroIndex}
+								initial={{ opacity: 0, y: 6 }}
+								animate={{ opacity: 1, y: 0 }}
+								exit={{ opacity: 0, y: -6 }}
+								transition={{ duration: 0.6 }}
+								className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold mb-2 leading-tight font-playfair drop-shadow-2xl text-center"
+							>
+								<span className="bg-clip-text text-transparent bg-gradient-to-r from-yellow-400 via-yellow-300 to-white">
+									<Typewriter text={HERO_ITEMS[heroIndex].heading} speed={110} />
+								</span>
+							</motion.h1>
+						</AnimatePresence>
+
+						<AnimatePresence mode="wait">
+							<motion.p
+								key={`sub-${heroIndex}`}
+								initial={{ opacity: 0 }}
+								animate={{ opacity: 1 }}
+								exit={{ opacity: 0 }}
+								transition={{ duration: 0.6 }}
+								className="text-base sm:text-lg md:text-xl font-semibold mt-2 text-white max-w-2xl mx-auto px-2 text-center"
+							>
+								{HERO_ITEMS[heroIndex].subtext}
+							</motion.p>
+						</AnimatePresence>
+					</div>
 {/* Video Embed */}
 <div id="explainer-video" className="w-full max-w-3xl mx-auto aspect-video bg-black rounded-2xl md:rounded-3xl flex items-center justify-center text-gray-500 text-sm md:text-lg font-semibold mb-6 md:mb-8 overflow-hidden shadow-2xl border-2 md:border-4 border-yellow-400/50">
 	<YouTubePreview id="vkG_plov8Ao" title="Energy Explainer Video" className="w-full h-full rounded-2xl md:rounded-3xl" />
@@ -341,17 +320,24 @@ variants={fadeIn}
 <div className="w-full max-w-7xl grid grid-cols-1 md:grid-cols-2 gap-0 items-stretch">
 {/* Left: Text Content */}
 <div className="flex flex-col justify-center w-full h-full p-8 md:p-12">
-<h2 className="text-3xl md:text-4xl font-bold mb-6 font-playfair text-black">What Is Energy?</h2>
-<div className="w-16 h-1 bg-yellow-400 mb-6"></div>
-<p className="text-lg md:text-xl font-bold mb-6 text-gray-800">
-Energy is more than a buzzword — it's a practical tool that has helped people:
-</p>
-<ul className="list-none text-left text-lg font-bold mb-8 text-gray-800 space-y-3">
-<li className="flex items-center"><span className="mr-3 text-yellow-500 text-xl">⚡</span> Boost immunity naturally</li>
-<li className="flex items-center"><span className="mr-3 text-yellow-500 text-xl">🔄</span> Accelerate recovery and healing</li>
-<li className="flex items-center"><span className="mr-3 text-yellow-500 text-xl">⚖️</span> Balance mind, body, and spirit</li>
-<li className="flex items-center"><span className="mr-3 text-yellow-500 text-xl">✨</span> Live with sustained energy and clarity</li>
-</ul>
+	<h2 className="text-3xl md:text-4xl font-bold mb-6 font-playfair text-black">What Is Quantum Energy?</h2>
+	<div className="w-16 h-1 bg-yellow-400 mb-6"></div>
+
+	<p className="text-lg md:text-xl font-bold mb-6 text-gray-900">
+		Quantum Energy is more than just a concept — it’s a powerful force you can harness to restore balance and unlock your full potential. By embracing it, people have been able to:
+	</p>
+
+	<ul className="list-none text-left text-lg font-bold mb-6 text-gray-900 space-y-3">
+		<li className="flex items-start"><span className="mr-3 text-yellow-500 text-xl">⚡</span> <span className="font-bold">Boost immunity naturally — strengthening the body’s defenses from within</span></li>
+		<li className="flex items-start"><span className="mr-3 text-yellow-500 text-xl">🔄</span> <span className="font-bold">Accelerate recovery and healing — supporting the body’s natural renewal process</span></li>
+		<li className="flex items-start"><span className="mr-3 text-yellow-500 text-xl">⚖️</span> <span className="font-bold">Balance mind, body, and spirit — aligning all aspects of life for harmony</span></li>
+		<li className="flex items-start"><span className="mr-3 text-yellow-500 text-xl">✨</span> <span className="font-bold">Live with sustained energy and clarity — experiencing focus, vitality, and purpose every day</span></li>
+	</ul>
+
+	<p className="text-base md:text-lg font-bold text-gray-900">
+		Embracing Quantum Energy means stepping into a new way of living — one where wellness, resilience, and transformation become part of your daily reality.
+	</p>
+
 </div>
 {/* Right: Image */}
 <div className="w-full h-full flex items-stretch">
@@ -634,7 +620,7 @@ variants={fadeIn}
 					<ul className="space-y-2 text-base text-gray-400">
 						<li><a href="/about" className="hover:text-yellow-400">About</a></li>
 						<li><a href="/quantum" className="hover:text-yellow-400">Quantum Machine</a></li>
-						<li><a href="/shop" className="hover:text-yellow-400">Shop</a></li>
+						<li><a href="/shop" className="hover:text-yellow-400">Maralis Solutions</a></li>
 						<li><a href="/join" className="hover:text-yellow-400">Join</a></li>
 					</ul>
 				</div>

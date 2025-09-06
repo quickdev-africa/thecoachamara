@@ -31,13 +31,14 @@ export default function SiteFooter() {
               <ul className="space-y-2 text-base text-gray-400">
                 <li><a href="/about" className="hover:text-yellow-400">About</a></li>
                 <li><a href="/quantum" className="hover:text-yellow-400">Quantum Machine</a></li>
-                <li><a href="/shop" className="hover:text-yellow-400">Shop</a></li>
+                <li><a href="/shop" className="hover:text-yellow-400">Maralis Solutions</a></li>
                 <li><a href="/join" className="hover:text-yellow-400">Join</a></li>
               </ul>
             </div>
             <div>
               <h4 className="text-base font-bold text-gray-200 mb-2">Support</h4>
               <ul className="space-y-2 text-base text-gray-400">
+                <li><a href="/talktoamara" className="hover:text-yellow-400">Talk to Amara</a></li>
                 <li><a href="/contact" className="hover:text-yellow-400">Contact Maralis</a></li>
                 <li><a href="/privacy" className="hover:text-yellow-400">Privacy</a></li>
                 <li><a href="/terms" className="hover:text-yellow-400">Terms</a></li>

@@ -38,12 +38,13 @@ export async function POST(req: NextRequest) {
     const { reference, amount, status, customer, metadata } = data;
     try {
       const payment = await ensurePaymentExists(serverSupabase, {
-        reference,
-        amount: amount / 100,
-        status: 'success',
-        payment_method: 'paystack',
-        email: customer?.email || null,
-        metadata
+  reference,
+  amount: amount / 100,
+  status: 'success',
+  payment_method: 'paystack',
+  email: customer?.email || null,
+  metadata,
+  order_id: metadata?.order_id || null
       });
       console.log('Webhook ensured payment', reference, payment?.id);
       // Log event

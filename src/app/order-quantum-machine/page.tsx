@@ -1,7 +1,9 @@
 "use client";
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 
 import React, { useEffect } from 'react';
 import Head from 'next/head';
+import Image from 'next/image';
 // Fix PaystackPop type for TypeScript
 declare global {
   interface Window {
@@ -10,6 +12,7 @@ declare global {
 }
 import { useRouter, useSearchParams } from 'next/navigation';
 import { usePaystack } from '../../hooks/usePaystack';
+import { useCallback } from 'react';
 import PaystackButton from '../../components/PaystackButton';
 import AddressForm from '../../components/AddressForm';
 import { useForm } from 'react-hook-form';
@@ -83,12 +86,7 @@ export default function OrderQuantumMachinePage() {
     } catch {}
   }, [form?.deliveryPref]);
 
-  useEffect(() => {
-    loadProduct();
-    createCartSession();
-  }, []);
-
-  async function loadProduct() {
+  const loadProduct = useCallback(async () => {
     try {
       if (productIdFromQuery) {
         const res = await fetch(`/api/products/${productIdFromQuery}`);
@@ -103,8 +101,8 @@ export default function OrderQuantumMachinePage() {
       const resp = await fetch('/api/products?category=quantum');
       const d = await resp.json();
       const list: Product[] = Array.isArray(d.products) ? d.products : (Array.isArray(d.data) ? d.data : []);
-  // best-effort match: prefer exact quantum product id, then name match, then first
-  const match = list.find(p => p.id === QUANTUM_PRODUCT_ID) || list.find(p => p.name && p.name.toLowerCase().trim().includes('quantum')) || list[0];
+      // best-effort match: prefer exact quantum product id, then name match, then first
+      const match = list.find(p => p.id === QUANTUM_PRODUCT_ID) || list.find(p => p.name && p.name.toLowerCase().trim().includes('quantum')) || list[0];
       if (match) {
         setProducts([match]);
         setProductError(null);
@@ -118,7 +116,12 @@ export default function OrderQuantumMachinePage() {
       setProducts([]);
       setProductError('Failed to load product. Check server or network.');
     }
-  }
+  }, [productIdFromQuery]);
+
+  useEffect(() => {
+    loadProduct();
+    createCartSession();
+  }, [loadProduct]);
 
   async function createCartSession() {
     try {
@@ -172,11 +175,12 @@ export default function OrderQuantumMachinePage() {
         <meta name="description" content="Order the Quantum Healing Machine — discounted price ₦2,800,000. Secure checkout, fast delivery across Nigeria." />
       </Head>
 
-      {/* HERO — full-width background image with blended primary-black + secondary-yellow overlay; centered text/CTA */}
+    {/* HERO — full-width background image with blended primary-black + secondary-yellow overlay; centered text/CTA
+      Note: any inline top-bar/header removed to rely on global SiteHeader in root layout */}
       <section className="w-full relative overflow-hidden">
         {/* full-bleed background image */}
         <div className="absolute inset-0 z-0">
-          <img src={heroImage} alt={product?.name || 'Quantum Healing Machine'} className="w-full h-full object-cover object-center" />
+          <Image src={heroImage} alt={product?.name || 'Quantum Healing Machine'} fill className="object-cover object-center" />
           {/* lighter overlay so the header image shows through more */}
           <div className="absolute inset-0 bg-black/40" />
         </div>
@@ -226,6 +230,18 @@ export default function OrderQuantumMachinePage() {
                 <span className="mt-1 text-amber-400 text-2xl">➤</span>
                 <span className="text-xl md:text-2xl font-extrabold italic">Fast shipping nationwide</span>
               </li>
+              <li className="flex items-start gap-4 text-gray-800">
+                <span className="mt-1 text-amber-400 text-2xl">➤</span>
+                <span className="text-xl md:text-2xl font-extrabold italic">Boosts circulation and cellular vitality</span>
+              </li>
+              <li className="flex items-start gap-4 text-gray-800">
+                <span className="mt-1 text-amber-400 text-2xl">➤</span>
+                <span className="text-xl md:text-2xl font-extrabold italic">Enhances focus, clarity, and overall resilience.</span>
+              </li>
+              <li className="flex items-start gap-4 text-gray-800">
+                <span className="mt-1 text-amber-400 text-2xl">➤</span>
+                <span className="text-xl md:text-2xl font-extrabold italic">Fast shipping nationwide;</span>
+              </li>
             </ul>
 
             <div className="relative inline-flex items-center bg-amber-400 text-black px-6 py-5 rounded-r-xl rounded-l-md shadow-xl">
@@ -243,8 +259,8 @@ export default function OrderQuantumMachinePage() {
           </div>
 
           {/* Right: Compact thin shipping/billing card (1/3) */}
-          <div className="order-2 md:col-span-1 h-full">
-            <div className="bg-white p-6 rounded-2xl border shadow-2xl ring-1 ring-black/5 h-full flex flex-col justify-start gap-4 transition-all">
+          <div className="order-2 md:col-span-1 self-start">
+            <div className="bg-white p-4 rounded-2xl border shadow-2xl ring-1 ring-black/5 flex flex-col justify-start gap-2 transition-all">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-3">
                   <div className={`w-9 h-9 rounded-full flex items-center justify-center ${step===1? 'bg-amber-400 text-black':'bg-gray-100 text-gray-500'}`}>1</div>
@@ -256,7 +272,7 @@ export default function OrderQuantumMachinePage() {
                 <div className="text-xs text-gray-500">Step {step} of 2</div>
               </div>
 
-              <form id="shipping-form" onSubmit={step===1 ? handleSubmit(onSubmitStep1) : handleSubmit((data) => onPay(data))} className="space-y-4 text-sm">
+              <form id="shipping-form" onSubmit={step===1 ? handleSubmit(onSubmitStep1) : handleSubmit((data) => onPay(data))} className="space-y-2 text-sm">
                 {productError && <div className="p-2 bg-red-50 border border-red-200 rounded text-red-700">{productError}</div>}
 
                 {step === 1 && (
@@ -303,7 +319,7 @@ export default function OrderQuantumMachinePage() {
                     </div>
 
                     <div className="pt-2">
-                      <button type="submit" className="w-full bg-amber-500 text-black py-3 rounded-lg font-bold shadow-md">Go To Step #2</button>
+                      <button type="submit" className="w-full bg-amber-500 text-black py-2 rounded-lg font-bold shadow-md">Go To Step #2</button>
                     </div>
                   </div>
                 )}
@@ -316,7 +332,9 @@ export default function OrderQuantumMachinePage() {
                     </div>
                     <div className="bg-gray-50 p-3 rounded-md border">
                       <div className="flex items-start gap-3">
-                        <img src={productImage} alt={product?.name} className="w-16 h-16 object-cover rounded" />
+                        <div className="w-16 h-16 relative">
+                          <Image src={productImage} alt={product?.name} fill className="object-cover rounded" />
+                        </div>
                         <div>
                           <div className="font-bold text-sm">{product?.name || 'Quantum Healing Machine'}</div>
                           <div className="text-xs text-gray-600">{product?.description?.slice(0,100) || 'Powerful healing device for wellbeing.'}</div>
@@ -378,7 +396,7 @@ export default function OrderQuantumMachinePage() {
           <div className="grid md:grid-cols-2 gap-8 items-start">
             <div className="flex flex-col">
               <div className="relative w-full h-[560px] rounded-2xl overflow-hidden mb-6 shadow-2xl ring-1 ring-black/30">
-                <img src="/quantum-machine-section.jpg" alt="Quantum machine" className="w-full h-full object-cover object-top" />
+                <Image src="/quantum-machine-section.jpg" alt="Quantum machine" fill className="object-cover object-top" />
                 <div className="absolute inset-0 bg-black/30" />
               </div>
               {/* intro blurb removed per request */}
