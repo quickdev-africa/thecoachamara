@@ -210,8 +210,8 @@ export async function createOrderAndInitPayment({
           callback: function(response: any) {
             (async () => {
               setLoading(false);
-              try {
-                await fetch('/api/payments/verify', {
+                try {
+                await fetch('/api/payments/confirm', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({

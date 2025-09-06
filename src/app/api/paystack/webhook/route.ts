@@ -69,7 +69,9 @@ export async function POST(req: NextRequest) {
         } catch (e) {}
         try {
           const notifyUrl = `${process.env.NEXT_PUBLIC_BASE_URL || ''}/api/orders/notify`;
-          await fetch(notifyUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ orderId: metadata.order_id }) });
+          const headers: any = { 'Content-Type': 'application/json' };
+          if (process.env.ADMIN_API_KEY) headers['x-admin-key'] = process.env.ADMIN_API_KEY;
+          await fetch(notifyUrl, { method: 'POST', headers, body: JSON.stringify({ orderId: metadata.order_id }) });
         } catch (e) {}
       })();
     }

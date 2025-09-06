@@ -17,18 +17,21 @@ const allowlist = new Set([
 ]);
 
 const patterns = [
-  /\bADMIN_API_KEY\s*=/i,
-  /\bSUPABASE_SERVICE_ROLE_KEY\s*=/i,
-  /\bNEXTAUTH_SECRET\s*=/i,
-  /\bRESEND_API_KEY\s*=/i,
-  /\bPAYSTACK_SECRET_KEY\s*=/i,
-  /\bNEXT_PUBLIC_SUPABASE_ANON_KEY\s*=/i,
-  /\b[A-Za-z0-9_+-]{20,}={0,2}\b/, // long base64-like tokens
+  // explicit env var assignments (common unsafe patterns)
+  /\bADMIN_API_KEY\s*=\s*[^\s#]+/i,
+  /\bSUPABASE_SERVICE_ROLE_KEY\s*=\s*[^\s#]+/i,
+  /\bNEXTAUTH_SECRET\s*=\s*[^\s#]+/i,
+  /\bRESEND_API_KEY\s*=\s*[^\s#]+/i,
+  /\bPAYSTACK_SECRET_KEY\s*=\s*[^\s#]+/i,
+  /\bNEXT_PUBLIC_SUPABASE_ANON_KEY\s*=\s*[^\s#]+/i,
+  // provider-prefixed tokens
   /sk_live_[A-Za-z0-9]{10,}/i,
   /sk_test_[A-Za-z0-9]{10,}/i,
   /re_[A-Za-z0-9_]{8,}/i,
   /ak_live_[A-Za-z0-9_]{8,}/i,
   /AIza[0-9A-Za-z\-_]{35}/i, // Google API key
+  // long opaque tokens when seen in an assignment (avoid catching identifiers in code)
+  /(?:=|:\s*)\s*[A-Za-z0-9_+-]{40,}={0,2}/,
 ];
 
 function isBinary(filename) {

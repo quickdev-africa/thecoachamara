@@ -50,6 +50,21 @@ export default function PaymentsPage() {
     queryFn: () => fetchPayments({ ...filter, email: search }),
   });
 
+  // pagination state (client-side, 20 rows per page)
+  const [page, setPage] = useState(1);
+  const perPage = 20;
+  const total = Array.isArray(payments) ? payments.length : 0;
+  const pageCount = Math.max(1, Math.ceil(total / perPage));
+
+  // reset page when filters/search or payments change
+  useEffect(() => {
+    setPage(1);
+  }, [filter, search, payments.length]);
+
+  const startIndex = (page - 1) * perPage;
+  const endIndex = Math.min(total, page * perPage);
+  const visiblePayments = Array.isArray(payments) ? payments.slice(startIndex, endIndex) : [];
+
   // normalize fetched payments when the query updates
   useEffect(() => {
     if (Array.isArray(payments) && payments.length > 0) {
@@ -167,10 +182,10 @@ export default function PaymentsPage() {
                 </tr>
               </thead>
               <tbody>
-        {payments.map((rawPay: any) => {
-                  const pay = normalizePayment(rawPay);
-                  return (
-                  <tr key={pay.reference} className="border-t">
+  {visiblePayments.map((rawPay: any) => {
+      const pay = normalizePayment(rawPay);
+      return (
+      <tr key={pay.reference} className="border-t">
           <td className="py-2 font-mono" title={pay.reference}>{shortenRef(pay.reference)}</td>
                     <td className="py-2">
                       {pay.order_id ? (
@@ -196,6 +211,38 @@ export default function PaymentsPage() {
           </div>
         )}
       </div>
+      {/* Pagination controls */}
+      {total > perPage && (
+        <div className="mt-4 flex items-center justify-between">
+          <div className="text-sm text-gray-700">Showing {startIndex + 1} – {endIndex} of {total}</div>
+          <div className="flex items-center gap-2">
+            <button
+              className="px-3 py-1 border rounded disabled:opacity-50"
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page === 1}
+            >Prev</button>
+            <div className="flex items-center gap-1">
+              {Array.from({ length: pageCount }).map((_, i) => {
+                const p = i + 1;
+                const isActive = p === page;
+                return (
+                  <button
+                    key={p}
+                    className={`px-3 py-1 border rounded ${isActive ? 'bg-amber-500 text-white' : 'bg-white text-gray-700'}`}
+                    onClick={() => setPage(p)}
+                    aria-current={isActive ? 'page' : undefined}
+                  >{p}</button>
+                );
+              })}
+            </div>
+            <button
+              className="px-3 py-1 border rounded disabled:opacity-50"
+              onClick={() => setPage(p => Math.min(pageCount, p + 1))}
+              disabled={page === pageCount}
+            >Next</button>
+          </div>
+        </div>
+      )}
       {selected && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 px-2 sm:px-0">
           <div className="bg-white rounded-xl shadow-lg p-2 sm:p-4 md:p-6 w-full max-w-xl relative">

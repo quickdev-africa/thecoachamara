@@ -496,19 +496,25 @@ export default function JoinPage() {
         },
         callback: async (response: any) => {
           try {
-            // Let server verify and reconcile payment
-            await fetch('/api/payments/verify', {
+            // Let server verify and reconcile payment via public confirm endpoint
+            await fetch('/api/payments/confirm', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ paymentReference: response.reference, paystackReference: response.reference, status: 'success' })
+                      body: JSON.stringify({ paymentReference: response.reference, paystackReference: response.reference, status: 'success' })
             });
           } catch (e) {
             // ignore - verification endpoint will be retried via webhook if needed
           }
-          setSubmitting(false);
-          setSuccess(true);
-          // navigate to thank you with order
-          try { router.push(`/thank-you-premium?order=${orderId}&ref=${response.reference}&amount=${getTotal()}`); } catch (e) { window.location.assign(`/thank-you-premium?order=${orderId}&ref=${response.reference}&amount=${getTotal()}`); }
+                  // Call the new public confirm endpoint which performs server-side verify + emails
+                  try {
+                    await fetch('/api/payments/confirm', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ paymentReference: response.reference, paystackReference: response.reference }) });
+                  } catch (err) {
+                    console.warn('payments.confirm call failed (client)', err);
+                  }
+                  setSubmitting(false);
+                  setSuccess(true);
+                  // navigate to thank you with order
+                  try { router.push(`/thank-you-premium?order=${orderId}&ref=${response.reference}&amount=${getTotal()}`); } catch (e) { window.location.assign(`/thank-you-premium?order=${orderId}&ref=${response.reference}&amount=${getTotal()}`); }
         },
         onClose: function() {
           setSubmitting(false);
