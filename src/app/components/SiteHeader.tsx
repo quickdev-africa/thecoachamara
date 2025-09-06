@@ -41,7 +41,7 @@ export default function SiteHeader() {
   useEffect(() => {
     try {
       const path = pathname || (typeof window !== 'undefined' ? window.location.pathname : '');
-      const hidePaths = ['/join', '/order-quantum-machine', '/quantum', '/shop/checkout'];
+    const hidePaths = ['/join', '/order-quantum-machine', '/quantum', '/shop/checkout', '/admin'];
       if (hidePaths.includes(path) || hidePaths.some(p => path.startsWith(p + '/'))) {
         setHidden(true);
       } else {
@@ -96,16 +96,16 @@ export default function SiteHeader() {
         </div>
         <div className="hidden md:flex items-center gap-4">
           <Link href="/about" className="px-3 py-2 rounded text-sm md:text-base font-medium text-gray-200 hover:text-yellow-400 transition-colors">About</Link>
-          <Link href="/contact" className="px-3 py-2 rounded text-sm md:text-base font-medium text-gray-200 hover:text-yellow-400 transition-colors">Contact</Link>
-          <Link href="/talktoamara" className="px-3 py-2 rounded text-sm md:text-base font-medium text-gray-200 hover:text-yellow-400 transition-colors">Talk to Amara</Link>
           <Link href="/shop" className="px-3 py-2 rounded text-sm md:text-base font-medium text-gray-100 hover:text-yellow-400 transition-colors">Maralis Solutions</Link>
+          <Link href="/talktoamara" className="px-3 py-2 rounded text-sm md:text-base font-medium text-gray-200 hover:text-yellow-400 transition-colors">Talk to Amara</Link>
+          <Link href="/contact" className="px-3 py-2 rounded text-sm md:text-base font-medium text-gray-200 hover:text-yellow-400 transition-colors">Contact</Link>
         </div>
         <div className="flex items-center gap-3">
           <button aria-label="Cart" onClick={() => setOpen(true)} className="relative p-2 rounded-full hover:bg-gray-800/40 transition">
             <FaShoppingCart size={18} />
             <span className="absolute -top-1 -right-1 bg-yellow-400 text-black text-xs font-bold rounded-full px-1.5 py-0.5">{count}</span>
           </button>
-          <Link href="/signin" className="p-2 rounded-full hover:bg-gray-800/40 transition"><FaUser size={18} /></Link>
+          <Link href="/signup" className="p-2 rounded-full hover:bg-gray-800/40 transition"><FaUser size={18} /></Link>
           {/* Mobile menu button */}
           <button aria-label="Menu" className="md:hidden p-2 ml-1 rounded-full hover:bg-gray-800/40 transition" onClick={() => setMobileOpen(!mobileOpen)}>
             {mobileOpen ? <FaTimes size={18} /> : <FaBars size={18} />}
@@ -116,16 +116,16 @@ export default function SiteHeader() {
       {mobileOpen && (
         <div className="md:hidden w-full absolute left-0 top-full z-40" aria-hidden={!mobileOpen}>
           <div className="bg-[rgba(6,7,11,0.98)] border-t border-gray-800">
-            <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col gap-3">
-              <Link href="/shop" className="mobile-menu-first block px-3 py-3 rounded text-lg font-semibold text-gray-100 hover:bg-gray-800/30">Maralis Solutions</Link>
+              <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col gap-3">
+              <Link href="/contact" className="mobile-menu-first block px-3 py-3 rounded text-lg font-semibold text-gray-100 hover:bg-gray-800/30">Contact</Link>
               <Link href="/about" className="block px-3 py-3 rounded text-lg font-medium text-gray-200 hover:bg-gray-800/30">About</Link>
-              <Link href="/contact" className="block px-3 py-3 rounded text-lg font-medium text-gray-200 hover:bg-gray-800/30">Contact</Link>
+              <Link href="/shop" className="block px-3 py-3 rounded text-lg font-medium text-gray-200 hover:bg-gray-800/30">Maralis Solutions</Link>
               <div className="flex items-center gap-3 pt-2">
                 <button aria-label="Cart" onClick={() => { setOpen(true); setMobileOpen(false); }} className="relative p-2 rounded-full hover:bg-gray-800/30 transition">
                   <FaShoppingCart size={18} />
                   <span className="absolute -top-1 -right-1 bg-yellow-400 text-black text-xs font-bold rounded-full px-1.5 py-0.5">{count}</span>
                 </button>
-                <Link href="/signin" className="p-2 rounded-full hover:bg-gray-800/30 transition"><FaUser size={18} /></Link>
+                <Link href="/signup" className="p-2 rounded-full hover:bg-gray-800/30 transition"><FaUser size={18} /></Link>
               </div>
             </div>
           </div>
