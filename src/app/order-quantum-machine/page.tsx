@@ -1,7 +1,9 @@
 "use client";
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 
 import React, { useEffect } from 'react';
 import Head from 'next/head';
+import Image from 'next/image';
 // Fix PaystackPop type for TypeScript
 declare global {
   interface Window {
@@ -10,7 +12,9 @@ declare global {
 }
 import { useRouter, useSearchParams } from 'next/navigation';
 import { usePaystack } from '../../hooks/usePaystack';
+import { useCallback } from 'react';
 import PaystackButton from '../../components/PaystackButton';
+import AddressForm from '../../components/AddressForm';
 import { useForm } from 'react-hook-form';
 import type { Product } from '../../lib/types';
 import { PICKUP_LOCATIONS, calculateDeliveryFee } from '../../lib/types';
@@ -18,7 +22,7 @@ import { PICKUP_LOCATIONS, calculateDeliveryFee } from '../../lib/types';
 const QUANTUM_PRODUCT_ID = 'a0e22d4f-b4aa-4704-b5f2-5fd801b1ed88';
 
 const DEFAULT_REGULAR_PRICE = 3039600;
-const DISCOUNTED_PRICE = 2800000;
+const DISCOUNTED_PRICE = 2900000;
 
 function Testimonials({ className }: { className?: string }) {
   const items = [
@@ -82,12 +86,7 @@ export default function OrderQuantumMachinePage() {
     } catch {}
   }, [form?.deliveryPref]);
 
-  useEffect(() => {
-    loadProduct();
-    createCartSession();
-  }, []);
-
-  async function loadProduct() {
+  const loadProduct = useCallback(async () => {
     try {
       if (productIdFromQuery) {
         const res = await fetch(`/api/products/${productIdFromQuery}`);
@@ -102,8 +101,8 @@ export default function OrderQuantumMachinePage() {
       const resp = await fetch('/api/products?category=quantum');
       const d = await resp.json();
       const list: Product[] = Array.isArray(d.products) ? d.products : (Array.isArray(d.data) ? d.data : []);
-  // best-effort match: prefer exact quantum product id, then name match, then first
-  const match = list.find(p => p.id === QUANTUM_PRODUCT_ID) || list.find(p => p.name && p.name.toLowerCase().trim().includes('quantum')) || list[0];
+      // best-effort match: prefer exact quantum product id, then name match, then first
+      const match = list.find(p => p.id === QUANTUM_PRODUCT_ID) || list.find(p => p.name && p.name.toLowerCase().trim().includes('quantum')) || list[0];
       if (match) {
         setProducts([match]);
         setProductError(null);
@@ -117,7 +116,12 @@ export default function OrderQuantumMachinePage() {
       setProducts([]);
       setProductError('Failed to load product. Check server or network.');
     }
-  }
+  }, [productIdFromQuery]);
+
+  useEffect(() => {
+    loadProduct();
+    createCartSession();
+  }, [loadProduct]);
 
   async function createCartSession() {
     try {
@@ -168,14 +172,15 @@ export default function OrderQuantumMachinePage() {
     <main className="min-h-screen w-full bg-white text-black font-sans">
       <Head>
         <title>Order Quantum Healing Machine — Coach Amara</title>
-        <meta name="description" content="Order the Quantum Healing Machine — discounted price ₦2,800,000. Secure checkout, fast delivery across Nigeria." />
+  <meta name="description" content="Order the Quantum Healing Machine — discounted price ₦2,900,000. Secure checkout, fast delivery across Nigeria." />
       </Head>
 
-      {/* HERO — full-width background image with blended primary-black + secondary-yellow overlay; centered text/CTA */}
+    {/* HERO — full-width background image with blended primary-black + secondary-yellow overlay; centered text/CTA
+      Note: any inline top-bar/header removed to rely on global SiteHeader in root layout */}
       <section className="w-full relative overflow-hidden">
         {/* full-bleed background image */}
         <div className="absolute inset-0 z-0">
-          <img src={heroImage} alt={product?.name || 'Quantum Healing Machine'} className="w-full h-full object-cover object-center" />
+          <Image src={heroImage} alt={product?.name || 'Quantum Healing Machine'} fill className="object-cover object-center" />
           {/* lighter overlay so the header image shows through more */}
           <div className="absolute inset-0 bg-black/40" />
         </div>
@@ -188,13 +193,13 @@ export default function OrderQuantumMachinePage() {
             <div className="text-white text-2xl md:text-3xl italic mb-4">Energy | Wellness | Inner Balance</div>
 
             <div className="bg-black/40 rounded-xl px-6 py-4 mb-6">
-              <div className="text-amber-400 text-lg md:text-xl font-extrabold">Discounted offer N2,800,000.00</div>
+              <div className="text-amber-400 text-lg md:text-xl font-extrabold">Discounted offer N2,900,000.00</div>
             </div>
 
             <p className="max-w-3xl text-white/90 text-lg md:text-xl mb-8">Step into the future of natural healing. The Quantum Healing Machine helps restore your body’s energy flow, reduce stress, and support deep wellness from within. Designed with advanced frequency technology, it works to harmonize mind, body, and spirit — so you can feel lighter, stronger, and more balanced every day.</p>
 
             <div className="w-full flex justify-center">
-              <button onClick={() => window.scrollTo({ top: 700, behavior: 'smooth' })} className="bg-amber-400 text-black rounded-2xl py-4 px-10 text-xl md:text-2xl font-extrabold shadow-lg">Order Now — ₦2,800,000</button>
+              <button onClick={() => window.scrollTo({ top: 700, behavior: 'smooth' })} className="bg-amber-400 text-black rounded-2xl py-4 px-10 text-xl md:text-2xl font-extrabold shadow-lg">Order Now — ₦2,900,000</button>
             </div>
           </div>
         </div>
@@ -225,12 +230,24 @@ export default function OrderQuantumMachinePage() {
                 <span className="mt-1 text-amber-400 text-2xl">➤</span>
                 <span className="text-xl md:text-2xl font-extrabold italic">Fast shipping nationwide</span>
               </li>
+              <li className="flex items-start gap-4 text-gray-800">
+                <span className="mt-1 text-amber-400 text-2xl">➤</span>
+                <span className="text-xl md:text-2xl font-extrabold italic">Boosts circulation and cellular vitality</span>
+              </li>
+              <li className="flex items-start gap-4 text-gray-800">
+                <span className="mt-1 text-amber-400 text-2xl">➤</span>
+                <span className="text-xl md:text-2xl font-extrabold italic">Enhances focus, clarity, and overall resilience.</span>
+              </li>
+              <li className="flex items-start gap-4 text-gray-800">
+                <span className="mt-1 text-amber-400 text-2xl">➤</span>
+                <span className="text-xl md:text-2xl font-extrabold italic">Fast shipping nationwide;</span>
+              </li>
             </ul>
 
             <div className="relative inline-flex items-center bg-amber-400 text-black px-6 py-5 rounded-r-xl rounded-l-md shadow-xl">
               <div className="pr-6">
                 <div className="text-sm uppercase font-bold">Instant Discount</div>
-                <div className="text-2xl md:text-3xl font-extrabold italic">Get the device now for ₦2,800,000 <span className="text-lg md:text-xl line-through ml-3 font-semibold text-black/70">(was ₦3,039,600)</span></div>
+                <div className="text-2xl md:text-3xl font-extrabold italic">Get the device now for ₦2,900,000 <span className="text-lg md:text-xl line-through ml-3 font-semibold text-black/70">(was ₦3,039,600)</span></div>
               </div>
               <div className="ml-4 pl-4 border-l border-black/20">
                 <svg className="w-12 h-12 text-black" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -242,8 +259,8 @@ export default function OrderQuantumMachinePage() {
           </div>
 
           {/* Right: Compact thin shipping/billing card (1/3) */}
-          <div className="order-2 md:col-span-1 h-full">
-            <div className="bg-white p-6 rounded-2xl border shadow-2xl ring-1 ring-black/5 h-full flex flex-col justify-start gap-4 transition-all">
+          <div className="order-2 md:col-span-1 self-start">
+            <div className="bg-white p-4 rounded-2xl border shadow-2xl ring-1 ring-black/5 flex flex-col justify-start gap-2 transition-all">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-3">
                   <div className={`w-9 h-9 rounded-full flex items-center justify-center ${step===1? 'bg-amber-400 text-black':'bg-gray-100 text-gray-500'}`}>1</div>
@@ -255,7 +272,7 @@ export default function OrderQuantumMachinePage() {
                 <div className="text-xs text-gray-500">Step {step} of 2</div>
               </div>
 
-              <form id="shipping-form" onSubmit={step===1 ? handleSubmit(onSubmitStep1) : handleSubmit((data) => onPay(data))} className="space-y-4 text-sm">
+              <form id="shipping-form" onSubmit={step===1 ? handleSubmit(onSubmitStep1) : handleSubmit((data) => onPay(data))} className="space-y-2 text-sm">
                 {productError && <div className="p-2 bg-red-50 border border-red-200 rounded text-red-700">{productError}</div>}
 
                 {step === 1 && (
@@ -289,32 +306,20 @@ export default function OrderQuantumMachinePage() {
                       {/* if pickup is selected only show pickup options (no address/state/landmark) */}
                       {form.deliveryPref === 'pickup' ? (
                         <div className="w-full">
-                          <select {...register('pickupLocation', { required: true })} className="w-full p-3 border rounded-lg text-sm">
-                            <option value="">Choose pickup location</option>
+                          <select {...register('pickupLocation', { required: true })} defaultValue={PICKUP_LOCATIONS[0]} className="w-full p-3 border rounded-lg text-sm">
+                            {PICKUP_LOCATIONS.length > 1 ? <option value="">Choose pickup location</option> : null}
                             {PICKUP_LOCATIONS.map((loc) => (
                               <option key={loc} value={loc}>{loc}</option>
                             ))}
                           </select>
                         </div>
                       ) : (
-                        <>
-                          <div>
-                            <input {...register('street', { required: 'Address is required' })} placeholder="Address" className="p-3 border rounded-lg text-sm w-full" />
-                            {errors.street && <div className="text-xs text-red-600 mt-1">{(errors.street as any).message}</div>}
-                          </div>
-                          <div>
-                            <input {...register('landmark')} placeholder="Landmark (e.g. near Unity Church)" className="p-3 border rounded-lg text-sm w-full" />
-                          </div>
-                          <div>
-                            <input {...register('region', { required: 'State is required' })} placeholder="State" className="p-3 border rounded-lg text-sm w-full" />
-                            {errors.region && <div className="text-xs text-red-600 mt-1">{(errors.region as any).message}</div>}
-                          </div>
-                        </>
+                        <AddressForm register={register} errors={errors} title="Shipping Address" />
                       )}
                     </div>
 
                     <div className="pt-2">
-                      <button type="submit" className="w-full bg-amber-500 text-black py-3 rounded-lg font-bold shadow-md">Go To Step #2</button>
+                      <button type="submit" className="w-full bg-amber-500 text-black py-2 rounded-lg font-bold shadow-md">Go To Step #2</button>
                     </div>
                   </div>
                 )}
@@ -327,7 +332,9 @@ export default function OrderQuantumMachinePage() {
                     </div>
                     <div className="bg-gray-50 p-3 rounded-md border">
                       <div className="flex items-start gap-3">
-                        <img src={productImage} alt={product?.name} className="w-16 h-16 object-cover rounded" />
+                        <div className="w-16 h-16 relative">
+                          <Image src={productImage} alt={product?.name} fill className="object-cover rounded" />
+                        </div>
                         <div>
                           <div className="font-bold text-sm">{product?.name || 'Quantum Healing Machine'}</div>
                           <div className="text-xs text-gray-600">{product?.description?.slice(0,100) || 'Powerful healing device for wellbeing.'}</div>
@@ -389,7 +396,7 @@ export default function OrderQuantumMachinePage() {
           <div className="grid md:grid-cols-2 gap-8 items-start">
             <div className="flex flex-col">
               <div className="relative w-full h-[560px] rounded-2xl overflow-hidden mb-6 shadow-2xl ring-1 ring-black/30">
-                <img src="/quantum-machine-section.jpg" alt="Quantum machine" className="w-full h-full object-cover object-top" />
+                <Image src="/quantum-machine-section.jpg" alt="Quantum machine" fill className="object-cover object-top" />
                 <div className="absolute inset-0 bg-black/30" />
               </div>
               {/* intro blurb removed per request */}
@@ -416,7 +423,7 @@ export default function OrderQuantumMachinePage() {
             </div>
 
             <div>
-              <button onClick={() => document.getElementById('shipping-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="bg-amber-400 text-black rounded-2xl py-4 px-10 text-xl md:text-2xl font-extrabold shadow-lg">Order Now — ₦2,800,000</button>
+              <button onClick={() => document.getElementById('shipping-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="bg-amber-400 text-black rounded-2xl py-4 px-10 text-xl md:text-2xl font-extrabold shadow-lg">Order Now — ₦2,900,000</button>
             </div>
           </div>
         </div>
@@ -428,13 +435,13 @@ export default function OrderQuantumMachinePage() {
           <div className="grid md:grid-cols-3 gap-8">
             <div>
               <div className="font-bold text-lg">Coach Amara</div>
-              <div className="mt-2 text-sm">123 Wellness Avenue, Victoria Island, Lagos</div>
+              <div className="mt-2 text-sm">10 Ajibodu Street Karaole Estate College Road Ogba, Lagos</div>
               <div className="mt-1 text-sm">NIGERIA</div>
             </div>
 
             <div>
               <div className="font-bold text-lg">Contact</div>
-              <div className="mt-2 text-sm">Phone: +234 800 000 0000</div>
+              <div className="mt-2 text-sm">Phone: +2349127768471</div>
               <div className="mt-1 text-sm">Email: info@coachamara.com</div>
             </div>
 

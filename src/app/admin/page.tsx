@@ -9,7 +9,7 @@ import Tooltip from '@/components/Tooltip';
 
 // SWR fetcher for our APIs
 const fetcher = async (url: string): Promise<ApiResponse<any>> => {
-  const response = await fetch(url);
+  const response = await fetch(url, { credentials: 'same-origin' });
   if (!response.ok) {
     throw new Error('Failed to fetch');
   }

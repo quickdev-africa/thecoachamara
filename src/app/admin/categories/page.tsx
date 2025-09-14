@@ -18,7 +18,7 @@ export default function CategoriesPage() {
 
   const fetchCategories = async () => {
     setLoading(true);
-    const res = await fetch("/api/categories");
+  const res = await fetch("/api/categories", { credentials: 'same-origin' });
     const data = await res.json();
     // Robustly handle API response and filter out inactive categories
     let cats: Category[] = [];
@@ -40,7 +40,8 @@ export default function CategoriesPage() {
     e.preventDefault();
     setSubmitting(true);
     setError("");
-    const res = await fetch("/api/categories", {
+    const res = await fetch("/api/categories", { 
+      credentials: 'same-origin',
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: newCategory }),
@@ -57,7 +58,7 @@ export default function CategoriesPage() {
   const handleDelete = async (id: string, name: string) => {
     if (!confirm(`Delete category "${name}"?`)) return;
     try {
-      const res = await fetch(`/api/categories/${encodeURIComponent(id)}`, { method: "DELETE" });
+  const res = await fetch(`/api/categories/${encodeURIComponent(id)}`, { method: "DELETE", credentials: 'same-origin' });
       const data = await res.json();
       console.log('Delete response:', data);
       if (!res.ok || !data.success) {
@@ -89,6 +90,7 @@ export default function CategoriesPage() {
     }
     try {
       const res = await fetch(`/api/categories/${encodeURIComponent(cat.id)}`, {
+        credentials: 'same-origin',
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: editValue.trim() }),

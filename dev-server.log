@@ -7,6 +7,7 @@
   - Environments: .env.local
 
  ✓ Starting...
+<<<<<<< HEAD
  ✓ Ready in 1757ms
  ✓ Compiled /api/orders/notify in 430ms (175 modules)
 (node:49476) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
@@ -2978,3 +2979,279 @@ Orders fetch error: {
 <w>  at file /Users/user/Desktop/thecoachamara/node_modules/next/dist/build/webpack/loaders/next-swc-loader.js
 <w>  at resolve commonjs /Users/user/Desktop/thecoachamara/node_modules/next/dist/build/webpack/loaders/next-swc-loader.js
 [?25h
+=======
+ ✓ Ready in 2.7s
+ ○ Compiling / ...
+ ✓ Compiled / in 3.4s (1543 modules)
+ GET / 200 in 3553ms
+ ✓ Compiled /api/auth/[...nextauth] in 377ms (850 modules)
+(node:20724) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+[next-auth][warn][DEBUG_ENABLED] 
+https://next-auth.js.org/warnings#debug_enabled
+ GET /api/auth/session 200 in 571ms
+ GET /api/auth/session 200 in 4ms
+ GET /api/auth/session 200 in 9ms
+ GET /api/auth/session 200 in 9ms
+ GET /api/auth/session 200 in 25ms
+ GET /api/auth/session 200 in 4ms
+ GET /api/auth/session 200 in 4ms
+ GET /api/auth/session 200 in 38ms
+ GET /api/auth/session 200 in 5ms
+ GET /api/auth/session 200 in 3ms
+ GET /api/auth/session 200 in 11ms
+ GET /api/auth/session 200 in 8ms
+ GET /api/auth/session 200 in 10ms
+ GET / 200 in 133ms
+ GET /api/auth/session 200 in 39ms
+ GET /api/auth/session 200 in 10ms
+ GET /api/auth/session 200 in 13ms
+ GET /api/auth/session 200 in 14ms
+ ○ Compiling /join ...
+ ✓ Compiled /join in 1042ms (1755 modules)
+ ✓ Compiled /_not-found in 166ms (1744 modules)
+ GET /secure-payment.png 404 in 239ms
+ ⨯ The requested resource isn't a valid image for /secure-payment.png received null
+ ○ Compiling /api/leads ...
+ ✓ Compiled /api/leads in 580ms (1047 modules)
+ POST /api/leads 200 in 14175ms
+ ✓ Compiled /thank-you in 249ms (1956 modules)
+ GET /thank-you 200 in 310ms
+ ✓ Compiled /api/auth/[...nextauth] in 163ms (1072 modules)
+ GET /api/auth/session 200 in 192ms
+ GET /api/auth/session 200 in 2ms
+ GET /api/auth/session 200 in 3ms
+ GET /api/auth/session 200 in 2ms
+ ○ Compiling /shop ...
+ ✓ Compiled /shop in 1173ms (2034 modules)
+ GET /shop 200 in 1290ms
+ GET /api/auth/session 200 in 24ms
+ ✓ Compiled /api/products in 153ms (1100 modules)
+ ✓ Compiled (1102 modules)
+ GET /api/auth/session 200 in 235ms
+ GET /api/auth/session 200 in 51ms
+ GET /api/auth/session 200 in 2ms
+ GET /api/products?limit=12&offset=0 200 in 1006ms
+ GET /api/categories 200 in 1011ms
+ GET /api/products?limit=12&offset=0 200 in 274ms
+ GET /api/categories 200 in 376ms
+ GET /api/auth/session 200 in 8ms
+ GET /api/auth/session 200 in 10ms
+ GET /api/auth/session 200 in 3ms
+ ✓ Compiled /shop/checkout in 310ms (2036 modules)
+ ✓ Compiled /api/funnel/create in 262ms (973 modules)
+Persisted top-level delivery columns on order f8acd58c-5215-4b4c-b5df-2e267db04bb9
+ POST /api/funnel/create 201 in 5800ms
+ GET /shop/checkout 200 in 88ms
+ ✓ Compiled /api/auth/[...nextauth] in 187ms (895 modules)
+ GET /api/auth/session 200 in 218ms
+ GET /api/auth/session 200 in 2ms
+ GET /api/auth/session 200 in 3ms
+ GET /api/auth/session 200 in 4ms
+ ✓ Compiled /signin in 432ms (1830 modules)
+ GET /signin 200 in 519ms
+ GET /api/auth/session 200 in 5ms
+ GET /api/auth/session 200 in 3ms
+ GET /api/auth/session 200 in 3ms
+ GET /api/auth/session 200 in 4ms
+ GET /api/auth/session 200 in 2ms
+ GET /api/auth/session 200 in 5ms
+ GET /api/auth/session 200 in 3ms
+ GET /api/auth/session 200 in 3ms
+ GET /api/auth/providers 200 in 7ms
+ GET /api/auth/csrf 200 in 5ms
+[NextAuth][authorize] user= {
+  id: 'dc6cdee0-a704-4126-9605-ed6d6582a382',
+  email: 'info.laserstarglobal@gmail.com',
+  isAdmin: true
+}
+[NextAuth][authorize] final isAdmin= true
+ POST /api/auth/callback/credentials 200 in 978ms
+ GET /api/auth/session 200 in 4ms
+ ✓ Compiled /admin in 261ms (1861 modules)
+ GET /admin 200 in 320ms
+ ✓ Compiled /api/products in 262ms (1123 modules)
+ ✓ Compiled (1125 modules)
+ GET /api/auth/session 200 in 554ms
+ GET /api/auth/session 200 in 63ms
+ GET /api/auth/session 200 in 3ms
+ GET /api/auth/session 200 in 5ms
+ GET /api/products 200 in 1127ms
+ GET /api/orders 200 in 1225ms
+ ○ Compiling /admin/orders ...
+ ✓ Compiled /admin/orders in 675ms (2196 modules)
+ GET /api/orders?limit=20&offset=0 200 in 545ms
+ GET /api/orders?limit=20&offset=0 200 in 243ms
+ GET /api/orders?limit=20&offset=0 200 in 316ms
+ GET /api/orders?limit=20&offset=0 200 in 294ms
+ ✓ Compiled /api/orders/history in 238ms (1162 modules)
+ GET /api/orders/history?orderId=f8acd58c-5215-4b4c-b5df-2e267db04bb9 200 in 951ms
+ ✓ Compiled /admin/customers in 315ms (2175 modules)
+ ✓ Compiled /api/customers in 111ms (1167 modules)
+ GET /api/customers 200 in 1286ms
+ GET /api/customers 200 in 699ms
+ GET /api/customers 200 in 577ms
+ GET /api/customers 200 in 653ms
+ ✓ Compiled /admin/email-queue in 314ms (1786 modules)
+ GET /api/customers 200 in 905ms
+ GET /api/customers 200 in 625ms
+ GET /api/customers 200 in 567ms
+ GET /api/customers 200 in 648ms
+ ○ Compiling /quantum ...
+ ✓ Compiled /quantum in 602ms (2235 modules)
+ GET /quantum 200 in 731ms
+ ✓ Compiled /api/auth/[...nextauth] in 278ms (1206 modules)
+ GET /api/auth/session 200 in 311ms
+ GET /api/auth/session 200 in 4ms
+ GET /api/auth/session 200 in 6ms
+ GET /api/auth/session 200 in 4ms
+ GET /api/auth/session 200 in 3ms
+ GET /api/auth/session 200 in 11ms
+ GET /api/auth/session 200 in 4ms
+ GET /api/auth/session 200 in 5ms
+ ○ Compiling /order-quantum-machine ...
+ ✓ Compiled /order-quantum-machine in 665ms (2041 modules)
+ ✓ Compiled /api/cart/session in 301ms (1190 modules)
+ ✓ Compiled (1192 modules)
+ POST /api/cart/session 200 in 1168ms
+ GET /api/products?category=quantum 200 in 1213ms
+ POST /api/cart/session 200 in 1279ms
+ GET /api/products?category=quantum 200 in 296ms
+ GET /admin/email-queue 200 in 103ms
+ ✓ Compiled /api/auth/[...nextauth] in 200ms (995 modules)
+ GET /api/auth/session 200 in 248ms
+ GET /api/auth/session 200 in 6ms
+ GET /api/auth/session 200 in 3ms
+ GET /api/auth/session 200 in 5ms
+ ✓ Compiled /api/customers in 363ms (1199 modules)
+ GET /api/customers 200 in 1463ms
+ GET /api/customers 200 in 497ms
+ GET /api/customers 200 in 581ms
+ GET /api/customers 200 in 585ms
+ GET /api/customers 200 in 853ms
+ GET /api/customers 200 in 568ms
+ GET /api/customers 200 in 600ms
+ GET /api/customers 200 in 614ms
+ ✓ Compiled /signin in 311ms (1182 modules)
+ GET /signin 200 in 426ms
+ ✓ Compiled /api/auth/[...nextauth] in 106ms (1203 modules)
+ GET /api/auth/session 200 in 138ms
+ GET /api/auth/session 200 in 6ms
+ GET /api/auth/session 200 in 4ms
+ GET /api/auth/session 200 in 3ms
+ GET /api/auth/session 200 in 3ms
+ ✓ Compiled /shop in 395ms (1224 modules)
+ GET /shop 200 in 508ms
+ ✓ Compiled /api/products in 343ms (1227 modules)
+ ✓ Compiled (1229 modules)
+ GET /api/auth/session 200 in 622ms
+ GET /api/auth/session 200 in 52ms
+ GET /api/auth/session 200 in 4ms
+ GET /api/auth/session 200 in 6ms
+ GET /api/categories 200 in 1204ms
+ GET /api/products?limit=12&offset=0 200 in 1241ms
+ GET /api/categories 200 in 210ms
+ GET /api/products?limit=12&offset=0 200 in 244ms
+ ✓ Compiled /shop/[id] in 433ms (2289 modules)
+(node:22306) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:22307) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ ✓ Compiled /shop/checkout in 407ms (1232 modules)
+ GET /api/auth/session 200 in 438ms
+ GET /api/auth/session 200 in 63ms
+ GET /api/auth/session 200 in 12ms
+ GET /api/auth/session 200 in 22ms
+ GET /api/auth/session 200 in 22ms
+ GET /api/auth/session 200 in 20ms
+ ○ Compiling /about ...
+ ✓ Compiled /about in 1304ms (2063 modules)
+ GET /api/auth/session 200 in 14ms
+ GET /api/auth/session 200 in 10ms
+ GET /api/auth/session 200 in 7ms
+ ✓ Compiled /signin in 132ms (1012 modules)
+ GET /signin 200 in 205ms
+ GET /api/auth/session 200 in 8ms
+ GET /api/auth/session 200 in 6ms
+ GET /api/auth/session 200 in 5ms
+ GET /api/auth/session 200 in 8ms
+ GET /api/auth/session 200 in 6ms
+ GET /shop 200 in 43ms
+ ✓ Compiled /api/products in 160ms (1152 modules)
+ ✓ Compiled (1154 modules)
+ GET /api/auth/session 200 in 554ms
+ GET /api/auth/session 200 in 6ms
+ GET /api/auth/session 200 in 7ms
+ GET /api/auth/session 200 in 4ms
+ GET /api/products?limit=12&offset=0 200 in 1947ms
+ GET /api/categories 200 in 1958ms
+ GET /api/products?limit=12&offset=0 200 in 373ms
+ GET /api/categories 200 in 388ms
+ GET /api/auth/session 200 in 9ms
+ GET /api/auth/session 200 in 9ms
+ GET /api/auth/session 200 in 7ms
+ ✓ Compiled /join in 381ms (1159 modules)
+ GET /join 200 in 505ms
+ GET /api/auth/session 200 in 7ms
+ GET /api/auth/session 200 in 5ms
+ GET /api/auth/session 200 in 5ms
+ GET /api/auth/session 200 in 4ms
+ GET /api/auth/session 200 in 13ms
+ GET /api/auth/session 200 in 14ms
+ GET /api/auth/session 200 in 8ms
+ GET /api/auth/session 200 in 9ms
+ GET /api/auth/session 200 in 10ms
+ GET /api/auth/session 200 in 5ms
+ GET /shop 200 in 54ms
+ GET /api/auth/session 200 in 15ms
+ GET /api/auth/session 200 in 5ms
+ GET /api/auth/session 200 in 5ms
+ GET /api/auth/session 200 in 6ms
+ GET /api/categories 200 in 801ms
+ GET /api/products?limit=12&offset=0 200 in 842ms
+ GET /api/categories 200 in 360ms
+ GET /api/products?limit=12&offset=0 200 in 446ms
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 679ms (2168 modules)
+ GET /maralis 404 in 729ms
+ GET /api/auth/session 200 in 8ms
+ GET /api/auth/session 200 in 6ms
+ GET /api/auth/session 200 in 4ms
+ GET /api/auth/session 200 in 4ms
+ GET /shop/35bc91e0-2428-48b2-8ece-4efa309feb8b 200 in 165ms
+(node:24106) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ GET /api/auth/session 200 in 12ms
+ GET /api/auth/session 200 in 4ms
+ GET /api/auth/session 200 in 6ms
+ ○ Compiling /admin/email-queue ...
+ ✓ Compiled /admin/email-queue in 614ms (1040 modules)
+ GET /admin/email-queue 200 in 946ms
+ GET /api/auth/session 200 in 11ms
+ GET /api/auth/session 200 in 6ms
+ GET /api/auth/session 200 in 9ms
+ GET /api/auth/session 200 in 4ms
+ ○ Compiling / ...
+ ✓ Compiled / in 745ms (1018 modules)
+ HEAD / 200 in 917ms
+ HEAD / 200 in 23ms
+ HEAD / 200 in 22ms
+ GET / 200 in 172ms
+ ○ Compiling /api/auth/[...nextauth] ...
+ ✓ Compiled /api/auth/[...nextauth] in 1184ms (1038 modules)
+ GET /api/auth/session 200 in 1277ms
+ GET /api/auth/session 200 in 5ms
+ GET /api/auth/session 200 in 4ms
+ GET /api/auth/session 200 in 5ms
+ GET /api/auth/session 200 in 6ms
+ ✓ Compiled /api/funnel/create in 369ms (1054 modules)
+Persisted top-level delivery columns on order 51447b1a-288b-49d1-beb5-97783f359e21
+Created placeholder products for missing productIds during funnel create: [ 'auto-smoke-ship' ]
+ POST /api/funnel/create 201 in 5895ms
+Persisted top-level delivery columns on order 6e77c6ae-015d-43bc-ae18-ca3656c46e40
+Created placeholder products for missing productIds during funnel create: [ 'auto-smoke-pick' ]
+ POST /api/funnel/create 201 in 3145ms
+ ✓ Compiled /api/orders in 431ms (1167 modules)
+ GET /api/orders?limit=5&offset=0 401 in 504ms
+ DELETE /api/orders?ids=51447b1a-288b-49d1-beb5-97783f359e21%2C6e77c6ae-015d-43bc-ae18-ca3656c46e40 401 in 13ms
+>>>>>>> ci/check-env-and-auth-hardening

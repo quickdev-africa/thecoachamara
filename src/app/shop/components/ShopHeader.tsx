@@ -1,15 +1,21 @@
 
+"use client";
 import { FaShoppingCart, FaUser, FaSearch } from "react-icons/fa";
 import Link from "next/link";
 import '../styles/shop.css';
+import { useState } from 'react';
+import CartDrawer from './CartDrawer';
+import { useCart } from '../CartContext';
 
 export default function ShopHeader() {
+  const [open, setOpen] = useState(false);
+  const { getItemCount } = useCart();
   return (
   <header className={`w-full bg-black text-white border-b border-gray-200 sticky top-0 z-30`}> 
       <div className="max-w-7xl mx-auto flex items-center justify-between px-4 md:px-8 h-16">
         {/* Left: Logo */}
         <div className="flex items-center gap-8">
-          <span className="text-2xl font-bold tracking-tight text-yellow-400">thecoachamara</span>
+          <Link href="/" className="text-2xl font-bold tracking-tight text-yellow-400">thecoachamara</Link>
         </div>
         {/* Center: Navigation */}
         <nav className="hidden md:flex gap-6 text-base font-medium">
@@ -20,14 +26,14 @@ export default function ShopHeader() {
         {/* Right: Icons */}
         <div className="flex items-center gap-4">
           <button aria-label="Search" className="p-2 rounded-full hover:bg-gray-800 transition"><FaSearch size={20} /></button>
-          <Link href="/shop/cart" className="relative p-2 rounded-full hover:bg-gray-800 transition" aria-label="Cart">
+          <button onClick={() => setOpen(true)} className="relative p-2 rounded-full hover:bg-gray-800 transition" aria-label="Cart">
             <FaShoppingCart size={20} />
-            {/* Cart count badge (to be connected to cart context) */}
-            <span className="absolute -top-1 -right-1 bg-yellow-400 text-black text-xs font-bold rounded-full px-1.5 py-0.5">0</span>
-          </Link>
+            <span className="absolute -top-1 -right-1 bg-yellow-400 text-black text-xs font-bold rounded-full px-1.5 py-0.5">{getItemCount()}</span>
+          </button>
           <button aria-label="Account" className="p-2 rounded-full hover:bg-gray-800 transition"><FaUser size={20} /></button>
         </div>
       </div>
+      {open && <CartDrawer onClose={() => setOpen(false)} />}
     </header>
   );
 }

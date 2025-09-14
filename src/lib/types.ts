@@ -133,7 +133,7 @@ export const DELIVERY_ZONES = {
 } as const;
 
 export const PICKUP_LOCATIONS = [
-  "Lagos", "Abuja", "Port Harcourt", "Kaduna", "Imo"
+  "10 Ajibodu Street Karaole Estate College Road Ogba, Lagos"
 ] as const;
 
 // ============================================================================

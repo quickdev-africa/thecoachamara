@@ -1,19 +1,64 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAdminApi } from '@/lib/requireAdmin';
 import { supabase } from '../../../supabaseClient';
 
 export async function GET(req: NextRequest) {
+  const auth = await requireAdminApi(req);
+  if (auth) return auth;
   try {
     const { searchParams } = new URL(req.url);
     const type = searchParams.get('type') || 'overview';
     const limit_param = parseInt(searchParams.get('limit') || '100');
     
-    // Get all signups from Supabase
-    const { data: signups, error } = await supabase
-      .from('signups')
+    // Prefer unified `user_profiles` as canonical leads/customers, but include
+    // legacy `signups` rows so historical analytics continue to work.
+    // We'll fetch both and merge into a single array used by the analytics functions.
+  const profilesPromise: any = supabase
+      .from('user_profiles')
       .select('*')
-      .order('timestamp', { ascending: false })
+      .order('joined_at', { ascending: false })
       .limit(limit_param);
-    if (error) throw new Error(error.message);
+
+    // Try to fetch legacy signups; deployments without this table will get an error
+    // so we catch and ignore failures (falling back to profiles only).
+  let signupsPromise: any = Promise.resolve({ data: null, error: null } as any);
+    try {
+      signupsPromise = supabase
+        .from('signups')
+        .select('*')
+        .order('timestamp', { ascending: false })
+        .limit(limit_param);
+    } catch (e) {
+      // some Supabase clients may throw synchronously in odd environments; ignore
+    }
+
+    const [profilesRes, signupsRes] = await Promise.all([profilesPromise, signupsPromise]);
+    if (profilesRes.error && profilesRes.error.message) throw new Error(profilesRes.error.message);
+
+    const profiles = profilesRes.data || [];
+    const legacySignups = (signupsRes && signupsRes.data) ? signupsRes.data : [];
+
+      // Normalize both sets into a common `signups` array used by analytics.
+      // Map user_profiles rows to the expected shape used by the analytics helpers.
+      const normProfiles = profiles.map((p: any) => ({
+        name: p.name,
+        email: p.email,
+        phone: p.phone,
+        memberType: p.meta?.memberType || (p.auto_created ? 'free' : 'paid'),
+        timestamp: p.joined_at ? new Date(p.joined_at).getTime() : Date.now(),
+        joinDate: p.joined_at,
+        geoAnalytics: p.meta?.geoAnalytics || null,
+        conversionAnalytics: p.meta?.conversionAnalytics || null,
+        orderAnalytics: p.meta?.orderAnalytics || null,
+        // Keep original profile as raw for debugging if needed
+        _raw: p,
+      }));
+
+      // Legacy signups are expected to already match the analytics shape
+      const normSignups = legacySignups.map((s: any) => ({ ...s }));
+
+      // Merge: put newest first by timestamp
+      const signups = [...normProfiles, ...normSignups].sort((a: any, b: any) => (b.timestamp || 0) - (a.timestamp || 0)).slice(0, limit_param);
     
     switch (type) {
       case 'overview':

@@ -45,3 +45,12 @@ This repo contains a GitHub Actions workflow `.github/workflows/smoke-test.yml` 
 - `PAYSTACK_SECRET_KEY` (optional; used to initialize Paystack during funnel create if provided)
 
 If secrets are not present the workflow will skip the smoke tests to keep PRs from forks from failing.
+
+CI notes
+--------
+To enable the CI smoke job (`.github/workflows/ci-smoke-and-env-safety.yml`) you'll need to add the following repository secrets in GitHub:
+
+- `STAGING_BASE_URL` — the URL of a staging deployment to run the smoke test against (e.g. https://staging.example.com)
+- `SMOKE_TEST_TOKEN` — short-lived token that the staging server recognizes for simulate verify (keep secret)
+
+The CI job will run env-safety, build, and smoke test after changes are pushed to `main`.

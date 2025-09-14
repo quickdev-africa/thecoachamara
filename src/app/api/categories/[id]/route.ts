@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAdminApi } from '@/lib/requireAdmin';
 import { supabase } from '../../../../supabaseClient';
 import { createClient } from '@supabase/supabase-js';
 
@@ -79,6 +80,8 @@ export async function PUT(
   req: NextRequest,
   { params }: RouteParams
 ): Promise<NextResponse<ApiResponse<{ id: string }>>> {
+  const auth = await requireAdminApi(req);
+  if (auth) return auth;
   try {
     const { id } = params;
     const updateData = await req.json();
@@ -146,6 +149,8 @@ export async function DELETE(
   req: NextRequest,
   { params }: RouteParams
 ): Promise<NextResponse<ApiResponse<{ id: string }>>> {
+  const auth = await requireAdminApi(req);
+  if (auth) return auth;
   try {
     const { id } = params;
 

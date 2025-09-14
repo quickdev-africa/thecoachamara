@@ -37,3 +37,74 @@ body, html {
     text-wrap: balance;
   }
 }
+
+/* Enhance contrast rules: force black text on gold backgrounds, prevent white/yellow text within gold sections, and style links for readability. */
+[class*="bg-yellow-"],
+[class*="bg-amber-"] {
+  color: #000; /* readable on gold */
+}
+
+/* Prevent unreadable overrides within gold sections */
+[class*="bg-yellow-"] [class*="text-white"],
+[class*="bg-amber-"] [class*="text-white"] {
+  color: #000 !important;
+}
+
+/* Emphasized yellow text on gold backgrounds: make it black + bold */
+[class*="bg-yellow-"] [class*="text-yellow-"],
+[class*="bg-amber-"] [class*="text-yellow-"],
+[class*="bg-orange-"] [class*="text-yellow-"] {
+  color: #000 !important;
+  font-weight: 800;
+}
+
+/* Links on gold: black + visible underline */
+[class*="bg-yellow-"] a,
+[class*="bg-amber-"] a {
+  color: #000;
+  text-decoration: underline;
+  text-decoration-color: rgba(0,0,0,0.5);
+  text-underline-offset: 2px;
+}
+
+/* Default readable text on dark blocks */
+[class~="bg-black"],
+[class*="bg-neutral-9"],
+[class*="bg-gray-9"] {
+  color: #fff;
+}
+
+/* Scoped override: On Quantum page section, force emphasized yellow to white */
+.quantum-yellow-white [class*="text-yellow-"],
+.quantum-yellow-white [class*="text-amber-"] {
+  color: #fff !important;
+  font-weight: 800;
+}
+
+/* Scoped override for Join page: allow white text on gold backgrounds where explicitly marked */
+.join-allow-white [class*="text-white"],
+.join-allow-white.text-white,
+.join-allow-white { color: #fff !important; }
+
+/* Stronger text shadow helper for yellow/amber text for readability on light gradient */
+.text-shadow-strong,
+.join-text-shadow-strong,
+.join-yellow-shadow [class*="text-amber-"],
+.join-yellow-shadow [class*="text-yellow-"] {
+  text-shadow: 0 1px 1px rgba(0,0,0,0.6), 0 2px 8px rgba(0,0,0,0.35);
+}
+
+/* Subtle black shadow for yellow/amber headings (desktop + mobile) */
+h1 [class*="text-amber-"],
+h1 [class*="text-yellow-"],
+h2 [class*="text-amber-"],
+h2 [class*="text-yellow-"] {
+  text-shadow: 0 1px 1px rgba(0,0,0,0.45), 0 2px 6px rgba(0,0,0,0.25);
+}
+
+/* Gradient-clipped yellow headings: apply shadow to parent heading */
+h1.text-amber-700,
+h2.text-amber-700 {
+  text-shadow: 0 1px 1px rgba(0,0,0,0.45), 0 2px 6px rgba(0,0,0,0.25);
+}
+

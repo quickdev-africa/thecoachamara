@@ -1,8 +1,11 @@
 /* Import Great Vibes font for a thin, elegant script logo */
 @import url('https://fonts.googleapis.com/css2?family=Great+Vibes&display=swap');
+/* Import Poppins for menu text */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap');
 
 :root {
   --font-logo: 'Great Vibes', cursive;
+  --font-menu: 'Poppins', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
 }
 
 .font-logo {
@@ -10,4 +13,8 @@
   font-weight: 400;
   font-size: 2.2rem;
   letter-spacing: 0.04em;
+}
+
+.font-menu {
+  font-family: var(--font-menu) !important;
 }
