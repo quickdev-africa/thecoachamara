@@ -622,7 +622,7 @@ export default function JoinPage() {
                   <label key={p.name} className="flex items-center gap-3 cursor-pointer text-black group hover:bg-amber-100 rounded-lg p-2 transition text-sm sm:text-base">
                     <input type="checkbox" name="product" value={p.name} checked={form.product.includes(p.name)} onChange={handleChange} className="accent-amber-500 scale-110" />
                     <Image src={p.img} alt={p.name} width={36} height={36} className="w-8 h-8 sm:w-9 sm:h-9 rounded shadow border border-amber-100 bg-white" />
-                    <span className="flex-1">{p.name} <span className="text-amber-700 font-bold">{p.price}</span></span>
+                    <span className="flex-1">{p.name} <span className="text-black font-bold">{p.price}</span></span>
                   </label>
                 ))}
               </div>
