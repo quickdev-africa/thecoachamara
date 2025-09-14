@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { useCart } from '../CartContext';
 import type { Product } from '@/lib/types';
 
-const WHATSAPP_PHONE = '+2348012345678';
+const WHATSAPP_PHONE = '+2349127768471';
 
 export default function ProductCard({ product }: { product: Product }) {
   const { addToCart } = useCart();

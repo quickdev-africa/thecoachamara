@@ -11,8 +11,8 @@ export default function ShopPage() {
     <div className={`font-shop min-h-screen flex flex-col bg-white`}>
       <SiteHero
         heading={(
-          <span>
-            Maralis Solution <span className="block md:inline">in Partnership with Double Plus</span>
+          <span style={{ color: '#FFD700', textShadow: '0 1px 1px rgba(0,0,0,0.6), 0 2px 8px rgba(0,0,0,0.35)' }}>
+            Maralis Solutions Webstore
           </span>
         )}
         subtext={(

@@ -73,7 +73,7 @@ export default function ContactPage() {
           <p className="text-lg md:text-xl text-yellow-400 font-semibold mb-6">We're here to help — reach out for support, consults, or partnerships.</p>
           <div className="inline-flex items-center gap-3">
             <a href="#contact-form" className="px-6 py-3 rounded-full bg-yellow-400 text-black font-bold shadow hover:scale-105 transition">Go to form</a>
-            <a href="https://wa.me/2347000000000" target="_blank" rel="noreferrer" className="px-4 py-3 rounded-full border-2 border-yellow-400 text-yellow-400 font-semibold hover:bg-yellow-500/10 transition">WhatsApp</a>
+            <a href="https://wa.me/2349127768471" target="_blank" rel="noreferrer" className="px-4 py-3 rounded-full border-2 border-yellow-400 text-[#FFD700] font-semibold hover:bg-yellow-500/10 transition">WhatsApp</a>
           </div>
         </div>
       </section>
@@ -102,7 +102,7 @@ export default function ContactPage() {
               <p className="font-bold text-lg">Address</p>
               <address className="not-italic block text-lg">Maralis Solutions, 120 Freedom Way, Lagos, Nigeria</address>
               <p className="mt-2 font-bold text-lg">Phone</p>
-              <a href="tel:+2347000000000" className="block text-lg text-yellow-500 font-semibold">+234 700 000 0000</a>
+              <a href="tel:+2349127768471" className="block text-lg text-yellow-500 font-semibold">+234 912 776 8471</a>
 
               <div className="mt-4">
                 <p className="font-bold text-lg">Follow us</p>
