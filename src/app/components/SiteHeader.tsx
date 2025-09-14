@@ -75,6 +75,20 @@ export default function SiteHeader() {
     return () => window.removeEventListener('keydown', onKey);
   }, [mobileOpen]);
 
+  // Close mobile menu on route change and lock body scroll when open
+  useEffect(() => {
+    if (mobileOpen) {
+      try { document.body.style.overflow = 'hidden'; } catch {}
+    } else {
+      try { document.body.style.overflow = ''; } catch {}
+    }
+  }, [mobileOpen]);
+
+  useEffect(() => {
+    // any navigation should close the mobile menu
+    setMobileOpen(false);
+  }, [pathname]);
+
   return (
   <header className={headerClass}>
       <div className="bg-amber-500 text-black text-sm md:text-base py-1 px-2 text-center font-semibold tracking-wide">
@@ -112,24 +126,23 @@ export default function SiteHeader() {
           </button>
         </div>
       </nav>
-      {/* Mobile menu panel (render only when open to avoid always-visible menu on mobile) */}
+      {/* Mobile menu overlay + panel (render only when open) */}
       {mobileOpen && (
-        <div className="md:hidden w-full absolute left-0 top-full z-40" aria-hidden={!mobileOpen}>
-          <div className="bg-[rgba(6,7,11,0.98)] border-t border-gray-800">
+        <>
+          {/* backdrop to close on outside click */}
+          <div className="fixed inset-0 z-30 md:hidden" onClick={() => setMobileOpen(false)} />
+          <div className="md:hidden w-full absolute left-0 top-full z-40" aria-hidden={!mobileOpen}>
+            <div className="bg-[rgba(6,7,11,0.98)] border-t border-gray-800">
               <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col gap-3">
-              <Link href="/contact" className="mobile-menu-first block px-3 py-3 rounded text-lg font-semibold text-gray-100 hover:bg-gray-800/30">Contact</Link>
-              <Link href="/about" className="block px-3 py-3 rounded text-lg font-medium text-gray-200 hover:bg-gray-800/30">About</Link>
-              <Link href="/shop" className="block px-3 py-3 rounded text-lg font-medium text-gray-200 hover:bg-gray-800/30">Maralis Solutions</Link>
-              <div className="flex items-center gap-3 pt-2">
-                <button aria-label="Cart" onClick={() => { setOpen(true); setMobileOpen(false); }} className="relative p-2 rounded-full hover:bg-gray-800/30 transition">
-                  <FaShoppingCart size={18} />
-                  <span className="absolute -top-1 -right-1 bg-yellow-400 text-black text-xs font-bold rounded-full px-1.5 py-0.5">{count}</span>
-                </button>
-                <Link href="/signup" className="p-2 rounded-full hover:bg-gray-800/30 transition"><FaUser size={18} /></Link>
+                {/* Order: About, Maralis Solutions, Talk to Amara, Contact */}
+                <Link href="/about" onClick={() => setMobileOpen(false)} className="mobile-menu-first block px-3 py-3 rounded text-lg font-semibold text-gray-100 hover:bg-gray-800/30">About</Link>
+                <Link href="/shop" onClick={() => setMobileOpen(false)} className="block px-3 py-3 rounded text-lg font-medium text-gray-200 hover:bg-gray-800/30">Maralis Solutions</Link>
+                <Link href="/talktoamara" onClick={() => setMobileOpen(false)} className="block px-3 py-3 rounded text-lg font-medium text-gray-200 hover:bg-gray-800/30">Talk to Amara</Link>
+                <Link href="/contact" onClick={() => setMobileOpen(false)} className="block px-3 py-3 rounded text-lg font-medium text-gray-200 hover:bg-gray-800/30">Contact</Link>
               </div>
             </div>
           </div>
-        </div>
+        </>
       )}
   {/* render the cart drawer in a portal so it overlays the whole page and isn't affected by header stacking contexts */}
   {typeof document !== 'undefined' ? createPortal(open ? <CartDrawer onClose={() => setOpen(false)} /> : null, document.body) : null}

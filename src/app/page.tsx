@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
+import Link from "next/link";
 import { fadeIn, fadeInUp } from "./fadeMotion";
 
 // ...existing code... (NavMenu moved to global `SiteHeader`)
@@ -604,29 +605,33 @@ variants={fadeIn}
 >
 	{/* Background image layer: 4 equal columns, no gaps */}
 				<div ref={productRef} tabIndex={0} onKeyDown={handleKeyNav} role="list" aria-label="Product gallery" className="absolute inset-0 h-full w-full flex md:grid md:grid-cols-4 gap-0 overflow-x-auto md:overflow-hidden snap-x snap-mandatory">
-				<div className="relative w-full h-full min-w-full md:min-w-0 snap-center md:snap-none">
-					<img src="/Quantum_machine_coachamara.jpg" alt="Quantum Healing Machines" className="w-full h-full object-cover" />
-					<div className="absolute bottom-0 left-0 right-0 text-center py-3 bg-black/50 text-white font-bold">Quantum Healing Machines</div>
+					<Link href="/shop/a0e22d4f-b4aa-4704-b5f2-5fd801b1ed88" role="listitem" aria-label="View Quantum Healing Machines" className="relative w-full h-full min-w-full md:min-w-0 snap-center md:snap-none group block focus:outline-none focus-visible:ring-4 focus-visible:ring-yellow-400/50">
+						<img src="/Quantum_machine_coachamara.jpg" alt="Quantum Healing Machines" className="w-full h-full object-cover transition-transform duration-300 ease-out group-hover:scale-105" />
+						<div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300 ease-out" />
+						<div className="absolute bottom-0 left-0 right-0 text-center py-3 bg-black/50 text-white font-bold transition-transform duration-300 ease-out group-hover:-translate-y-0.5">Quantum Healing Machines</div>
+					</Link>
+					<Link href="/shop/0cd6d480-66ca-4e3c-9c8c-63a64f7fbb78" role="listitem" aria-label="View Quantum Energy Boxers" className="relative w-full h-full min-w-full md:min-w-0 snap-center md:snap-none group block focus:outline-none focus-visible:ring-4 focus-visible:ring-yellow-400/50">
+						<img src="/quantumboxer.jpg" alt="Quantum Energy Boxers" className="w-full h-full object-cover transition-transform duration-300 ease-out group-hover:scale-105" />
+						<div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300 ease-out" />
+						<div className="absolute bottom-0 left-0 right-0 text-center py-3 bg-black/50 text-white font-bold transition-transform duration-300 ease-out group-hover:-translate-y-0.5">Quantum Energy Boxers</div>
+					</Link>
+					<Link href="/shop/2bb424e2-fc60-4598-aefa-975b79f579b7" role="listitem" aria-label="View Quantum Eyeglasses" className="relative w-full h-full min-w-full md:min-w-0 snap-center md:snap-none group block focus:outline-none focus-visible:ring-4 focus-visible:ring-yellow-400/50">
+						<img src="/sunglasses.jpg" alt="Quantum Eyeglasses" className="w-full h-full object-cover transition-transform duration-300 ease-out group-hover:scale-105" />
+						<div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300 ease-out" />
+						<div className="absolute bottom-0 left-0 right-0 text-center py-3 bg-black/50 text-white font-bold transition-transform duration-300 ease-out group-hover:-translate-y-0.5">Quantum Eyeglasses</div>
+					</Link>
+					<Link href="/shop/c62a94d2-a5f4-4d40-a65e-3a81550a8a6a" role="listitem" aria-label="View Quantum Bracelets" className="relative w-full h-full min-w-full md:min-w-0 snap-center md:snap-none group block focus:outline-none focus-visible:ring-4 focus-visible:ring-yellow-400/50">
+						<img src="/bracelets.jpg" alt="Quantum Bracelets" className="w-full h-full object-cover transition-transform duration-300 ease-out group-hover:scale-105" />
+						<div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300 ease-out" />
+						<div className="absolute bottom-0 left-0 right-0 text-center py-3 bg-black/50 text-white font-bold transition-transform duration-300 ease-out group-hover:-translate-y-0.5">Quantum Bracelets</div>
+					</Link>
 				</div>
-				<div className="relative w-full h-full min-w-full md:min-w-0 snap-center md:snap-none">
-					<img src="/quantumboxer.jpg" alt="Quantum Energy Boxers" className="w-full h-full object-cover" />
-					<div className="absolute bottom-0 left-0 right-0 text-center py-3 bg-black/50 text-white font-bold">Quantum Energy Boxers</div>
-				</div>
-				<div className="relative w-full h-full min-w-full md:min-w-0 snap-center md:snap-none">
-					<img src="/sunglasses.jpg" alt="Quantum Eyeglasses" className="w-full h-full object-cover" />
-					<div className="absolute bottom-0 left-0 right-0 text-center py-3 bg-black/50 text-white font-bold">Quantum Eyeglasses</div>
-				</div>
-				<div className="relative w-full h-full min-w-full md:min-w-0 snap-center md:snap-none">
-					<img src="/bracelets.jpg" alt="Quantum Bracelets" className="w-full h-full object-cover" />
-					<div className="absolute bottom-0 left-0 right-0 text-center py-3 bg-black/50 text-white font-bold">Quantum Bracelets</div>
-				</div>
-			</div>
 
 	{/* Subtle overlay so foreground text remains legible but images still show */}
 	<div className="absolute inset-0 bg-black/25 pointer-events-none" />
 
 	{/* Foreground text layer (centered). Increased min-height by ~25% and reduced heading sizes; CTA removed as requested */}
-	<div className="relative z-10 flex items-center justify-center min-h-[400px] md:min-h-[525px] py-16 px-4">
+	<div className="relative z-10 flex items-center justify-center min-h-[400px] md:min-h-[525px] py-16 px-4 pointer-events-none">
 		<div className="max-w-4xl text-center text-white">
 			<h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold italic leading-tight mb-4">Your journey to wellness and transformation starts here</h2>
 			<p className="sr-only">Product guide and price list</p>
