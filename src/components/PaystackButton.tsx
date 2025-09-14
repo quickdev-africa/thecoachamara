@@ -28,7 +28,7 @@ export default function PaystackButton({ loading, canPay, paystackReady, total, 
           e.preventDefault();
           return;
         }
-        onClick && onClick();
+        if (onClick) onClick();
       }}
     >
       {loading ? (

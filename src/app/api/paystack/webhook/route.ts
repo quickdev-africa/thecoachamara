@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import crypto from 'crypto';
 import { supabase } from '../../../../supabaseClient';
 import serverSupabase from '@/lib/serverSupabase';
 import { ensurePaymentExists } from '@/lib/paymentUtils';
@@ -8,7 +9,6 @@ const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
 
 // Helper to verify Paystack signature
 function verifyPaystackSignature(req: NextRequest, rawBody: Buffer): boolean {
-  const crypto = require('crypto');
   if (!PAYSTACK_SECRET) {
     console.warn('PAYSTACK_SECRET_KEY not set; cannot verify webhook signature');
     return false;
