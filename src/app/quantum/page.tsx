@@ -227,7 +227,6 @@ function FAQAccordion() {
 }
 
 import Link from 'next/link';
-import LiveChatWidget from '@/components/LiveChatWidget';
 const CTAButton = ({ className = '' }: { className?: string }) => (
   <Link
     href="/order-quantum-machine"
@@ -726,7 +725,6 @@ export default function QuantumPage() {
 
   {/* Footer removed as requested */}
       </main>
-      <LiveChatWidget position="bottom-right" phoneNumber="2349127768471" companyName="Coach Amara Support" />
     </>
   );
 }
