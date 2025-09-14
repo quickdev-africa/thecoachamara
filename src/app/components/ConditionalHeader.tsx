@@ -10,7 +10,7 @@ export default function ConditionalHeader() {
   const pathname = usePathname();
   const path = pathname || (typeof window !== 'undefined' ? window.location.pathname : '');
   // hide on checkout and the previously hidden pages
-  const hidePaths = ['/join', '/order-quantum-machine', '/quantum', '/shop/checkout'];
+  const hidePaths = ['/join', '/order-quantum-machine', '/quantum', '/shop/checkout', '/signin'];
   if (hidePaths.includes(path) || hidePaths.some(p => path.startsWith(p + '/'))) {
     return null;
   }

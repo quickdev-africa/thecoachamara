@@ -127,7 +127,7 @@ export default function ProductDetailClient({ product, related, category }: { pr
                 
 
                 {/* WhatsApp button like ProductCard */}
-                <a href={`https://wa.me/${'+2348012345678'.replace(/[^0-9]/g,'')}?text=${encodeURIComponent(`Hi, I'm interested in ${product.name} (ID: ${product.id}). Is it available?`)}`} target="_blank" rel="noreferrer" className="flex-0 inline-flex items-center gap-2 px-3 py-2 rounded border-2 border-yellow-400 text-black bg-white hover:bg-yellow-50">
+                <a href={`https://wa.me/${'+2349127768471'.replace(/[^0-9]/g,'')}?text=${encodeURIComponent(`Hi, I'm interested in ${product.name} (ID: ${product.id}). Is it available?`)}`} target="_blank" rel="noreferrer" className="flex-0 inline-flex items-center gap-2 px-3 py-2 rounded border-2 border-yellow-400 text-black bg-white hover:bg-yellow-50">
                   <img src="/whatsapp-mobile.jpg" alt="WhatsApp" className="block sm:hidden w-6 h-6 rounded-full object-cover" />
                   <svg className="hidden sm:inline w-4 h-4" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M20.52 3.48A11.95 11.95 0 0012.04.01C5.95.01.98 4.98.98 11.06c0 1.95.5 3.85 1.44 5.55L.02 23l6.57-1.7a11.04 11.04 0 005.45 1.33h.02c6.09 0 11.06-4.97 11.06-11.05a11.9 11.9 0 00-2.6-7.1zM12.04 20.1h-.01c-1.67 0-3.3-.45-4.72-1.3l-.34-.2-3.9 1.01 1.04-3.8-.21-.38A8.95 8.95 0 013.1 11.06c0-4.97 4.03-9 8.95-9 2.39 0 4.64.93 6.33 2.62a8.92 8.92 0 012.62 6.32c0 4.97-4.02 9-8.96 9z"/></svg>
                   <span className="hidden sm:inline">WhatsApp</span>

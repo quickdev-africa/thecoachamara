@@ -8,6 +8,7 @@ const SessionProvider = dynamic(() => import("./SessionProvider"), { ssr: false 
 const SiteHeader = dynamic(() => import("./components/ConditionalHeader"), { ssr: false });
 import ReactQueryProvider from "./ReactQueryProvider";
 import { CartProvider } from "./shop/CartContext";
+const CookieBanner = dynamic(() => import("@/components/CookieBanner"), { ssr: false });
 
 // const geistSans = localFont({
 //   src: "./fonts/GeistVF.woff",
@@ -63,6 +64,7 @@ export default function RootLayout({
             <CartProvider>
               <SiteHeader />
               {children}
+              <CookieBanner />
             </CartProvider>
           </ReactQueryProvider>
         </SessionProvider>

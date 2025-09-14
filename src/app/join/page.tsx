@@ -615,7 +615,8 @@ export default function JoinPage() {
             </div>
             {/* Product Upsell */}
             <div className="bg-amber-50 rounded-xl p-4 sm:p-5 border border-amber-200 mb-3 animate-fadein">
-              <div className="font-bold mb-3 text-amber-700 text-sm sm:text-base">YES! I want join to enjoy health and wellness starting with this Product.</div>
+              {/* Exception: make this banner text white on gold per design */}
+              <div className="font-bold mb-3 text-white join-allow-white text-sm sm:text-base">YES! I want join to enjoy health and wellness starting with this Product.</div>
               <div className="flex flex-col gap-2 mb-3">
                 {products.map(p => (
                   <label key={p.name} className="flex items-center gap-3 cursor-pointer text-black group hover:bg-amber-100 rounded-lg p-2 transition text-sm sm:text-base">
@@ -687,13 +688,15 @@ export default function JoinPage() {
                     <label className="block font-bold mb-2 text-sm text-black">Select Pickup Location <span className="text-red-500">*</span></label>
                     <select
                       name="pickupLocation"
-                      value={form.pickupLocation || ''}
+                      value={form.pickupLocation || PICKUP_LOCATIONS[0]}
                       onChange={handleChange}
                       className={`w-full px-4 py-3 rounded-lg border ${errors.pickupLocation ? 'border-red-400' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-amber-400 text-sm sm:text-base text-black font-bold`}
                       required={form.deliveryMethod === 'pickup'}
                       disabled={form.deliveryMethod !== 'pickup'}
                     >
-                      <option value="">Choose pickup location</option>
+                      {PICKUP_LOCATIONS.length > 1 ? (
+                        <option value="">Choose pickup location</option>
+                      ) : null}
                       {PICKUP_LOCATIONS.map(location => (
                         <option key={location} value={location}>{location}</option>
                       ))}
@@ -770,13 +773,13 @@ export default function JoinPage() {
             )}
             {success && <div className="text-green-600 font-bold text-center mt-2 animate-fadein">Success! Redirecting...</div>}
             {/* WhatsApp support */}
-            <a href="https://wa.me/2348012345678" target="_blank" rel="noopener" className="text-emerald-700 text-xs text-center mt-2 underline hover:text-emerald-900">Need help? Chat with us on WhatsApp</a>
+            <a href="https://wa.me/2349127768471" target="_blank" rel="noopener" className="text-emerald-700 text-xs text-center mt-2 underline hover:text-emerald-900">Need help? Chat with us on WhatsApp</a>
           </form>
         </div>
         {/* Benefits Right */}
         <div className="w-full md:w-1/2 p-4 md:p-8 flex flex-col justify-start bg-gradient-to-br from-amber-50 via-white to-amber-100 border-l border-amber-100 animate-fadein">
           <h2 className="text-2xl md:text-3xl font-extrabold mb-4 text-black font-playfair text-left" style={{marginTop: 0, alignSelf: 'flex-start'}}>Why Join?</h2>
-          <div className="text-base md:text-lg font-semibold text-black mb-4 leading-relaxed">
+          <div className="text-base md:text-lg font-semibold text-black mb-4 leading-relaxed join-yellow-shadow">
             <ul className="mb-3 flex flex-col gap-3">
               <li className="flex items-start gap-2"><span className="inline-block text-amber-500 mt-1">🔑</span><span><span className="font-bold text-amber-700">Exclusive Healing Resources:</span> Get access to proven tools and guides for your wellness journey.</span></li>
               <li className="flex items-start gap-2"><span className="inline-block text-amber-500 mt-1">🤝</span><span><span className="font-bold text-amber-700">Supportive Community:</span> Connect with like-minded individuals who uplift and inspire.</span></li>

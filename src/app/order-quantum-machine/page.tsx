@@ -22,7 +22,7 @@ import { PICKUP_LOCATIONS, calculateDeliveryFee } from '../../lib/types';
 const QUANTUM_PRODUCT_ID = 'a0e22d4f-b4aa-4704-b5f2-5fd801b1ed88';
 
 const DEFAULT_REGULAR_PRICE = 3039600;
-const DISCOUNTED_PRICE = 2800000;
+const DISCOUNTED_PRICE = 2900000;
 
 function Testimonials({ className }: { className?: string }) {
   const items = [
@@ -172,7 +172,7 @@ export default function OrderQuantumMachinePage() {
     <main className="min-h-screen w-full bg-white text-black font-sans">
       <Head>
         <title>Order Quantum Healing Machine — Coach Amara</title>
-        <meta name="description" content="Order the Quantum Healing Machine — discounted price ₦2,800,000. Secure checkout, fast delivery across Nigeria." />
+  <meta name="description" content="Order the Quantum Healing Machine — discounted price ₦2,900,000. Secure checkout, fast delivery across Nigeria." />
       </Head>
 
     {/* HERO — full-width background image with blended primary-black + secondary-yellow overlay; centered text/CTA
@@ -193,13 +193,13 @@ export default function OrderQuantumMachinePage() {
             <div className="text-white text-2xl md:text-3xl italic mb-4">Energy | Wellness | Inner Balance</div>
 
             <div className="bg-black/40 rounded-xl px-6 py-4 mb-6">
-              <div className="text-amber-400 text-lg md:text-xl font-extrabold">Discounted offer N2,800,000.00</div>
+              <div className="text-amber-400 text-lg md:text-xl font-extrabold">Discounted offer N2,900,000.00</div>
             </div>
 
             <p className="max-w-3xl text-white/90 text-lg md:text-xl mb-8">Step into the future of natural healing. The Quantum Healing Machine helps restore your body’s energy flow, reduce stress, and support deep wellness from within. Designed with advanced frequency technology, it works to harmonize mind, body, and spirit — so you can feel lighter, stronger, and more balanced every day.</p>
 
             <div className="w-full flex justify-center">
-              <button onClick={() => window.scrollTo({ top: 700, behavior: 'smooth' })} className="bg-amber-400 text-black rounded-2xl py-4 px-10 text-xl md:text-2xl font-extrabold shadow-lg">Order Now — ₦2,800,000</button>
+              <button onClick={() => window.scrollTo({ top: 700, behavior: 'smooth' })} className="bg-amber-400 text-black rounded-2xl py-4 px-10 text-xl md:text-2xl font-extrabold shadow-lg">Order Now — ₦2,900,000</button>
             </div>
           </div>
         </div>
@@ -247,7 +247,7 @@ export default function OrderQuantumMachinePage() {
             <div className="relative inline-flex items-center bg-amber-400 text-black px-6 py-5 rounded-r-xl rounded-l-md shadow-xl">
               <div className="pr-6">
                 <div className="text-sm uppercase font-bold">Instant Discount</div>
-                <div className="text-2xl md:text-3xl font-extrabold italic">Get the device now for ₦2,800,000 <span className="text-lg md:text-xl line-through ml-3 font-semibold text-black/70">(was ₦3,039,600)</span></div>
+                <div className="text-2xl md:text-3xl font-extrabold italic">Get the device now for ₦2,900,000 <span className="text-lg md:text-xl line-through ml-3 font-semibold text-black/70">(was ₦3,039,600)</span></div>
               </div>
               <div className="ml-4 pl-4 border-l border-black/20">
                 <svg className="w-12 h-12 text-black" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -306,8 +306,8 @@ export default function OrderQuantumMachinePage() {
                       {/* if pickup is selected only show pickup options (no address/state/landmark) */}
                       {form.deliveryPref === 'pickup' ? (
                         <div className="w-full">
-                          <select {...register('pickupLocation', { required: true })} className="w-full p-3 border rounded-lg text-sm">
-                            <option value="">Choose pickup location</option>
+                          <select {...register('pickupLocation', { required: true })} defaultValue={PICKUP_LOCATIONS[0]} className="w-full p-3 border rounded-lg text-sm">
+                            {PICKUP_LOCATIONS.length > 1 ? <option value="">Choose pickup location</option> : null}
                             {PICKUP_LOCATIONS.map((loc) => (
                               <option key={loc} value={loc}>{loc}</option>
                             ))}
@@ -423,7 +423,7 @@ export default function OrderQuantumMachinePage() {
             </div>
 
             <div>
-              <button onClick={() => document.getElementById('shipping-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="bg-amber-400 text-black rounded-2xl py-4 px-10 text-xl md:text-2xl font-extrabold shadow-lg">Order Now — ₦2,800,000</button>
+              <button onClick={() => document.getElementById('shipping-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="bg-amber-400 text-black rounded-2xl py-4 px-10 text-xl md:text-2xl font-extrabold shadow-lg">Order Now — ₦2,900,000</button>
             </div>
           </div>
         </div>
@@ -435,13 +435,13 @@ export default function OrderQuantumMachinePage() {
           <div className="grid md:grid-cols-3 gap-8">
             <div>
               <div className="font-bold text-lg">Coach Amara</div>
-              <div className="mt-2 text-sm">123 Wellness Avenue, Victoria Island, Lagos</div>
+              <div className="mt-2 text-sm">10 Ajibodu Street Karaole Estate College Road Ogba, Lagos</div>
               <div className="mt-1 text-sm">NIGERIA</div>
             </div>
 
             <div>
               <div className="font-bold text-lg">Contact</div>
-              <div className="mt-2 text-sm">Phone: +234 800 000 0000</div>
+              <div className="mt-2 text-sm">Phone: +2349127768471</div>
               <div className="mt-1 text-sm">Email: info@coachamara.com</div>
             </div>
 

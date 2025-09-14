@@ -46,5 +46,6 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/admin/:path*']
+  // Protect the root /admin and all nested routes
+  matcher: ['/admin', '/admin/:path*']
 };

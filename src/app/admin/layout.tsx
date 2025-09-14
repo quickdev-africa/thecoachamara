@@ -2,8 +2,9 @@
 // Ensure admin pages send credentials on same-origin fetches
 import './_fetch';
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 
 const navItems = [
   { name: "Dashboard", href: "/admin" },
@@ -18,7 +19,25 @@ const navItems = [
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { data: session, status } = useSession();
+  // Client-side guard (defense-in-depth): if not admin, redirect to /signin
+  useEffect(() => {
+    if (status === 'loading') return;
+    const isAdmin = Boolean((session as any)?.user?.isAdmin === true || (session as any)?.user?.admin === true);
+    if (!isAdmin) {
+      const search = typeof window !== 'undefined' ? (window.location.search || '') : '';
+      const cb = `${pathname}${search}`;
+      router.replace(`/signin?callbackUrl=${encodeURIComponent(cb)}`);
+    }
+  }, [status, session, pathname, router]);
+
   const [menuOpen, setMenuOpen] = useState(false);
+  // Avoid flashing protected content before redirect
+  const isAdmin = Boolean((session as any)?.user?.isAdmin === true || (session as any)?.user?.admin === true);
+  if (status !== 'authenticated' || !isAdmin) {
+    return null;
+  }
   return (
   <div className="min-h-screen flex flex-col bg-baby_powder-500">
       {/* Top nav for mobile */}

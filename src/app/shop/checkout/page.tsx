@@ -151,8 +151,8 @@ export default function CheckoutPage() {
               {form.deliveryPref === 'pickup' && (
                 <div className="mt-4">
                   <label className="block text-sm font-medium text-gray-900">Select Pickup Location</label>
-                  <select value={form.pickupLocation} onChange={(e)=>setForm({...form, pickupLocation: e.target.value})} className="mt-1 w-full p-3 border border-gray-200 rounded bg-white" aria-invalid={!!errors.pickupLocation}>
-                    <option value="">Choose pickup location</option>
+                  <select value={form.pickupLocation || PICKUP_LOCATIONS[0]} onChange={(e)=>setForm({...form, pickupLocation: e.target.value})} className="mt-1 w-full p-3 border border-gray-200 rounded bg-white" aria-invalid={!!errors.pickupLocation}>
+                    {PICKUP_LOCATIONS.length > 1 ? <option value="">Choose pickup location</option> : null}
                     {PICKUP_LOCATIONS.map(loc => <option key={loc} value={loc}>{loc}</option>)}
                   </select>
                   {errors.pickupLocation && <div className="text-red-600 text-sm mt-1">{errors.pickupLocation}</div>}
