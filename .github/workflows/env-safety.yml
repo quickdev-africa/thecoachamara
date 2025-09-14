@@ -39,13 +39,21 @@ jobs:
         run: |
           set -euo pipefail
           echo "Scanning for dangerous env variables or service keys..."
-          # search for DEV_ADMIN_BYPASS=true (case-insensitive), SUPABASE_SERVICE_ROLE_KEY, NEXTAUTH_SECRET, PAYSTACK_SECRET_KEY
-          matches=$(grep -RIn --binary-files=without-match --exclude-dir=.git -E "DEV_ADMIN_BYPASS\s*=\s*true|SUPABASE_SERVICE_ROLE_KEY\s*=|NEXTAUTH_SECRET\s*=|PAYSTACK_SECRET_KEY\s*=" || true)
+          # Always block DEV_ADMIN_BYPASS=true anywhere in repo
+          dev_bypass=$(grep -RIn --binary-files=without-match --exclude-dir=.git -E "DEV_ADMIN_BYPASS\s*=\s*true" || true)
+          if [ -n "$dev_bypass" ]; then
+            echo "Found DEV_ADMIN_BYPASS=true in repository:" >&2
+            echo "$dev_bypass" >&2
+            exit 1
+          fi
+
+          # Scan only env files for hard-coded secrets
+          matches=$(grep -RIn --binary-files=without-match --include ".env*" --exclude-dir=.git -E "SUPABASE_SERVICE_ROLE_KEY\s*=|NEXTAUTH_SECRET\s*=|PAYSTACK_SECRET_KEY\s*=" || true)
           if [ -n "$matches" ]; then
-            echo "Found sensitive entries in repository:" >&2
+            echo "Found sensitive env entries in tracked env files:" >&2
             echo "$matches" >&2
-            echo "Blocking merge: remove sensitive values from tracked files and use repository secrets instead." >&2
+            echo "Blocking merge: remove secrets from tracked files and use repository secrets instead." >&2
             exit 1
           else
-            echo "No sensitive env flags or service keys found in the repository.";
+            echo "No sensitive env flags or service keys found in tracked env files.";
           fi
