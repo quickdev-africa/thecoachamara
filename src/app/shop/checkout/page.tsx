@@ -4,6 +4,7 @@ import { useCart } from '../CartContext';
 import { usePaystack } from '@/hooks/usePaystack';
 import PaystackButton from '@/components/PaystackButton';
 import { PICKUP_LOCATIONS, calculateDeliveryFee, getDeliveryZone } from '@/lib/types';
+import CrispChat from '@/components/CrispChat';
 
 export default function CheckoutPage() {
   const { items, clearCart } = useCart();
@@ -62,6 +63,7 @@ export default function CheckoutPage() {
   }
 
   return (
+    <>
     <main className="min-h-screen bg-gray-50 px-4 py-12 font-sans antialiased text-gray-900">
       <div className="max-w-6xl mx-auto">
         <div className="mb-8 text-center">
@@ -199,5 +201,7 @@ export default function CheckoutPage() {
         </div>
       </div>
     </main>
+    <CrispChat positionRight={true} themeColor="#25D366" />
+    </>
   );
 }

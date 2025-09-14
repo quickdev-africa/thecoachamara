@@ -227,6 +227,7 @@ function FAQAccordion() {
 }
 
 import Link from 'next/link';
+import CrispChat from '@/components/CrispChat';
 const CTAButton = ({ className = '' }: { className?: string }) => (
   <Link
     href="/order-quantum-machine"
@@ -725,6 +726,7 @@ export default function QuantumPage() {
 
   {/* Footer removed as requested */}
       </main>
+      <CrispChat positionRight={true} themeColor="#25D366" />
     </>
   );
 }

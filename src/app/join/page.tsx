@@ -6,6 +6,7 @@ import Image from 'next/image';
 import AddressForm from '@/components/AddressForm';
 import { PICKUP_LOCATIONS } from '@/lib/types';
 import { useRouter } from 'next/navigation';
+import CrispChat from '@/components/CrispChat';
 
 // Product options (with canonical IDs from the products API)
 const products = [
@@ -561,6 +562,7 @@ export default function JoinPage() {
   };
 
   return (
+    <>
     <main className={`min-h-screen bg-white flex flex-col transition-opacity duration-700 ${mounted ? 'opacity-100' : 'opacity-0'} font-sans`}>
   {/* top bar removed — use global SiteHeader in root layout */}
       {/* Split Layout */}
@@ -819,6 +821,8 @@ export default function JoinPage() {
         }
       `}</style>
     </main>
+    <CrispChat positionRight={true} themeColor="#25D366" />
+    </>
   );
 }
 

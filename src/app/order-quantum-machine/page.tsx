@@ -18,6 +18,7 @@ import AddressForm from '../../components/AddressForm';
 import { useForm } from 'react-hook-form';
 import type { Product } from '../../lib/types';
 import { PICKUP_LOCATIONS, calculateDeliveryFee } from '../../lib/types';
+import CrispChat from '@/components/CrispChat';
 
 const QUANTUM_PRODUCT_ID = 'a0e22d4f-b4aa-4704-b5f2-5fd801b1ed88';
 
@@ -169,6 +170,7 @@ export default function OrderQuantumMachinePage() {
   };
 
   return (
+    <>
     <main className="min-h-screen w-full bg-white text-black font-sans">
       <Head>
         <title>Order Quantum Healing Machine — Coach Amara</title>
@@ -454,5 +456,7 @@ export default function OrderQuantumMachinePage() {
         </div>
       </footer>
     </main>
+    <CrispChat positionRight={true} themeColor="#25D366" />
+    </>
   );
 }
