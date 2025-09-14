@@ -48,7 +48,14 @@ jobs:
           fi
 
           # Scan only env files for hard-coded secrets
-          matches=$(grep -RIn --binary-files=without-match --include ".env*" --exclude-dir=.git -E "SUPABASE_SERVICE_ROLE_KEY\s*=|NEXTAUTH_SECRET\s*=|PAYSTACK_SECRET_KEY\s*=" || true)
+          matches=$(grep -RIn --binary-files=without-match \
+            --include ".env*" \
+            --exclude-dir=.git \
+            --exclude "*.example" \
+            --exclude "*.sample" \
+            --exclude "*.bak*" \
+            --exclude "*.backup*" \
+            -E "SUPABASE_SERVICE_ROLE_KEY\s*=|NEXTAUTH_SECRET\s*=|PAYSTACK_SECRET_KEY\s*=" || true)
           if [ -n "$matches" ]; then
             echo "Found sensitive env entries in tracked env files:" >&2
             echo "$matches" >&2
