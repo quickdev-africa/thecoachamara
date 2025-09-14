@@ -4,6 +4,10 @@ import serverSupabase from '@/lib/serverSupabase';
 // GET all customers (members and buyers)
 export async function GET(req: NextRequest) {
   try {
+    const url = req.nextUrl;
+    const limit = parseInt(url.searchParams.get('limit') || '20', 10);
+    const offset = parseInt(url.searchParams.get('offset') || '0', 10);
+    const sort = (url.searchParams.get('sort') || 'newest').toLowerCase();
     // Try to fetch user profiles using server role client (RLS-safe)
     let users: any[] | null = null;
     try {
@@ -37,7 +41,7 @@ export async function GET(req: NextRequest) {
       orderMap.get(order.user_id)!.push(order.created_at);
     });
 
-    let customers: any[] = [];
+  let customers: any[] = [];
 
     if (users && users.length > 0) {
       customers = (users as User[]).map(user => {
@@ -77,7 +81,19 @@ export async function GET(req: NextRequest) {
       customers = Array.from(byEmail.values());
     }
 
-    return NextResponse.json({ success: true, data: customers });
+    // Sort newest-first: prefer last_order_at desc, then joined_at desc
+    const sorted = customers.sort((a: any, b: any) => {
+      const aLast = a.last_order_at || a.joined_at || '';
+      const bLast = b.last_order_at || b.joined_at || '';
+      if (sort === 'newest') return (bLast || '').localeCompare(aLast || '');
+      // fallback name asc
+      return (a.name || '').localeCompare(b.name || '');
+    });
+
+    const total = sorted.length;
+    const page = sorted.slice(offset, Math.max(0, offset + limit));
+
+    return NextResponse.json({ success: true, data: page, meta: { total } });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error?.message || 'Failed to fetch customers' }, { status: 500 });
   }

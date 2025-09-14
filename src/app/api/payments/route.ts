@@ -24,15 +24,16 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Pa
     // Extract search params more efficiently
     const url = req.nextUrl;
     const pageLimit = parseInt(url.searchParams.get('limit') || '50');
+    const offset = parseInt(url.searchParams.get('offset') || '0');
     const status = url.searchParams.get('status');
     const email = url.searchParams.get('email');
 
   // Build Supabase query (use server-side client to bypass RLS for admin endpoints)
   let queryBuilder = serverSupabase
       .from('payments')
-  .select('*')
-  .order('created_at', { ascending: false })
-      .limit(pageLimit);
+      .select('*', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(offset, Math.max(0, offset + pageLimit - 1));
 
     if (status) {
       queryBuilder = queryBuilder.eq('status', status);
@@ -41,7 +42,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Pa
       queryBuilder = queryBuilder.ilike('email', `%${email}%`);
     }
 
-    const { data: payments, error } = await queryBuilder;
+    const { data: payments, error, count } = await queryBuilder as any;
     if (error) {
       throw error;
     }
@@ -110,7 +111,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Pa
       success: true,
       data: normalized,
       meta: {
-        total: normalized.length
+        total: typeof count === 'number' ? count : normalized.length
       }
     });
 

@@ -5,41 +5,89 @@ import { supabase } from '../../../supabaseClient';
 export default function EmailQueueAdmin() {
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const pageSize = 20;
 
   const fetchRows = async () => {
     setLoading(true);
     try {
-      const { data } = await supabase.from('email_queue').select('*').order('created_at', { ascending: false }).limit(200);
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
+      const { data, count } = await supabase
+        .from('email_deliveries')
+        .select('*', { count: 'exact' })
+        .order('sent_at', { ascending: false })
+        .range(from, to);
       setRows(data || []);
+      setTotal(count || 0);
     } catch (e) {
-      console.error('Failed to fetch email_queue', e);
+      console.error('Failed to fetch email_deliveries', e);
     }
     setLoading(false);
   };
 
   useEffect(() => {
     fetchRows();
-    const channel = supabase.channel('public:email_queue')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'email_queue' }, (payload: any) => {
+    const channel = supabase.channel('public:email_deliveries')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'email_deliveries' }, (payload: any) => {
+        // Keep page 1 as newest 20; refetch current page to reflect shifting
         fetchRows();
       })
       .subscribe();
     return () => { try { supabase.removeChannel(channel); } catch (e) {} };
-  }, []);
+  }, [page]);
 
   return (
-    <div className="px-2 md:px-4">
-      <h1 className="text-2xl font-bold mb-4">Email Queue</h1>
-      {loading ? <div>Loading...</div> : (
-        <div className="space-y-4">
-          {rows.map(r => (
-            <div key={r.id} className="bg-white p-3 rounded shadow">
-              <div className="text-xs text-gray-500">{new Date(r.created_at).toLocaleString()}</div>
-              <div className="font-semibold">To: {r.to_email} — Attempts: {r.attempts}</div>
-              <div className="text-sm mt-2">Subject: {r.subject}</div>
-              <pre className="text-xs bg-gray-100 p-2 rounded mt-2 overflow-x-auto">{JSON.stringify(r.html, null, 2)}</pre>
-            </div>
-          ))}
+    <div className="px-2 md:px-4 py-4">
+      <h1 className="text-2xl font-extrabold mb-4 text-black">📧 Email Queue</h1>
+      {loading ? <div className="text-black">Loading...</div> : (
+        <div className="overflow-x-auto">
+          <table className="min-w-full border border-gray-200">
+            <thead>
+              <tr className="bg-gray-100">
+                <th className="p-2 border text-left text-black">Sent At</th>
+                <th className="p-2 border text-left text-black">User Email</th>
+                <th className="p-2 border text-left text-black">Subject</th>
+                <th className="p-2 border text-left text-black">Status</th>
+                <th className="p-2 border text-left text-black">Provider</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.id} className="hover:bg-amber-50">
+                  <td className="p-2 border text-black">{new Date(r.sent_at || r.created_at).toLocaleString()}</td>
+                  <td className="p-2 border text-black">{r.to_email}</td>
+                  <td className="p-2 border text-black">{r.subject}</td>
+                  <td className="p-2 border text-black font-semibold">{r.status}</td>
+                  <td className="p-2 border text-black">{r.provider || 'resend'}</td>
+                </tr>
+              ))}
+              {rows.length === 0 && (
+                <tr>
+                  <td className="p-3 text-black" colSpan={5}>No email events yet.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+          {/* Pagination Controls */}
+          <div className="flex flex-col sm:flex-row justify-end items-center gap-2 mt-3">
+            <button
+              className="px-3 py-1 rounded border bg-white text-gray-900 disabled:opacity-50"
+              disabled={page === 1}
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+            >
+              Previous
+            </button>
+            <span className="text-sm">Page {page} of {Math.ceil(total / pageSize) || 1}</span>
+            <button
+              className="px-3 py-1 rounded border bg-white text-gray-900 disabled:opacity-50"
+              disabled={page * pageSize >= total}
+              onClick={() => setPage(p => p + 1)}
+            >
+              Next
+            </button>
+          </div>
         </div>
       )}
     </div>

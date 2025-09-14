@@ -32,10 +32,17 @@ export default function PaymentsPage() {
   const [filter, setFilter] = useState({ status: "", email: "" });
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<any>(null);
+  const [page, setPage] = useState(1);
+  const pageSize = 20;
+  const [total, setTotal] = useState(0);
 
   const { data: payments = [], error, isLoading, refetch } = useQuery({
-    queryKey: ["payments", filter, search],
-    queryFn: () => fetchPayments({ ...filter, email: search }),
+    queryKey: ["payments", filter, search, page],
+    queryFn: async () => {
+      const data = await fetchPayments({ ...filter, email: search, limit: String(pageSize), offset: String((page - 1) * pageSize) });
+      if ((data as any)?.meta?.total != null) setTotal((data as any).meta.total);
+      return (data as any)?.data || data;
+    },
   });
 
   // normalize fetched payments when the query updates
@@ -181,6 +188,24 @@ export default function PaymentsPage() {
                 )})}
               </tbody>
             </table>
+            {/* Pagination Controls */}
+            <div className="flex flex-col sm:flex-row justify-end items-center gap-2 mt-3">
+              <button
+                className="px-3 py-1 rounded border bg-white text-gray-900 disabled:opacity-50"
+                disabled={page === 1}
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+              >
+                Previous
+              </button>
+              <span className="text-sm">Page {page} of {Math.ceil(total / pageSize) || 1}</span>
+              <button
+                className="px-3 py-1 rounded border bg-white text-gray-900 disabled:opacity-50"
+                disabled={page * pageSize >= total}
+                onClick={() => setPage(p => p + 1)}
+              >
+                Next
+              </button>
+            </div>
           </div>
         )}
       </div>

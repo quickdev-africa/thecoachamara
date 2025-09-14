@@ -10,15 +10,19 @@ export default function CustomersPage() {
   const [orders, setOrders] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
   const [detailsLoading, setDetailsLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const pageSize = 20;
+  const [total, setTotal] = useState(0);
   const fetchCustomers = async () => {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/customers");
+      const res = await fetch(`/api/customers?limit=${pageSize}&offset=${(page - 1) * pageSize}&sort=newest`);
       const data = await res.json();
       let arr: Customer[] = [];
       if (Array.isArray(data)) arr = data;
       else if (Array.isArray(data?.data)) arr = data.data;
+      if (typeof data?.meta?.total === 'number') setTotal(data.meta.total);
       // normalize fields
       const normalized = arr.map((c: any) => ({
         id: c.id,
@@ -39,7 +43,7 @@ export default function CustomersPage() {
 
   useEffect(() => {
     fetchCustomers();
-  }, []);
+  }, [page]);
 
   // Realtime: refresh the customers list when updates occur
   useEffect(() => {
@@ -79,48 +83,66 @@ type Customer = {
         ) : customers.length === 0 ? (
           <div className="text-gray-900 text-base">No customers found.</div>
         ) : (
-          <table className="min-w-full text-left text-sm text-gray-900">
-            <thead>
-              <tr>
-                <th className="py-2 font-bold">Name</th>
-                <th className="py-2 font-bold">Email</th>
-                <th className="py-2 font-bold">Phone</th>
-                <th className="py-2 font-bold">Joined</th>
-                <th className="py-2 font-bold">Orders</th>
-                <th className="py-2 font-bold">Last Order</th>
-                <th className="py-2 font-bold">Status</th>
-
-                <th className="py-2 font-bold">Actions</th>
-
-              </tr>
-            </thead>
-            <tbody>
-              {customers.map(customer => (
-                <tr key={customer.id} className="border-t font-semibold">
-                  <td className="py-2">
-                    <button className="underline text-blue-700 hover:text-blue-900" onClick={() => setSelected(customer)}>{customer.name}</button>
-                  </td>
-                  <td className="py-2">
-                    <button className="underline text-blue-700 hover:text-blue-900" onClick={() => setSelected(customer)}>{customer.email}</button>
-                  </td>
-                  <td className="py-2">{customer.phone || '-'}</td>
-                  <td className="py-2">{customer.joined_at ? new Date(customer.joined_at).toLocaleDateString() : '-'}</td>
-                  <td className="py-2">{customer.orders_count ?? 0}</td>
-                  <td className="py-2">{customer.last_order_at ? new Date(customer.last_order_at).toLocaleDateString() : '-'}</td>
-                  <td className="py-2">
-                    {customer.is_active !== false ? (
-                      <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold">Active</span>
-                    ) : (
-                      <span className="bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-bold">Inactive</span>
-                    )}
-                  </td>
-                  <td className="py-2">
-                    <button className="underline text-blue-700 hover:text-blue-900" onClick={() => setSelected(customer)}>View</button>
-                  </td>
+          <>
+            <table className="min-w-full text-left text-sm text-gray-900">
+              <thead>
+                <tr>
+                  <th className="py-2 font-bold">Name</th>
+                  <th className="py-2 font-bold">Email</th>
+                  <th className="py-2 font-bold">Phone</th>
+                  <th className="py-2 font-bold">Joined</th>
+                  <th className="py-2 font-bold">Orders</th>
+                  <th className="py-2 font-bold">Last Order</th>
+                  <th className="py-2 font-bold">Status</th>
+                  <th className="py-2 font-bold">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {customers.map(customer => (
+                  <tr key={customer.id} className="border-t font-semibold">
+                    <td className="py-2">
+                      <button className="underline text-blue-700 hover:text-blue-900" onClick={() => setSelected(customer)}>{customer.name}</button>
+                    </td>
+                    <td className="py-2">
+                      <button className="underline text-blue-700 hover:text-blue-900" onClick={() => setSelected(customer)}>{customer.email}</button>
+                    </td>
+                    <td className="py-2">{customer.phone || '-'}</td>
+                    <td className="py-2">{customer.joined_at ? new Date(customer.joined_at).toLocaleDateString() : '-'}</td>
+                    <td className="py-2">{customer.orders_count ?? 0}</td>
+                    <td className="py-2">{customer.last_order_at ? new Date(customer.last_order_at).toLocaleDateString() : '-'}</td>
+                    <td className="py-2">
+                      {customer.is_active !== false ? (
+                        <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold">Active</span>
+                      ) : (
+                        <span className="bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-bold">Inactive</span>
+                      )}
+                    </td>
+                    <td className="py-2">
+                      <button className="underline text-blue-700 hover:text-blue-900" onClick={() => setSelected(customer)}>View</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {/* Pagination Controls */}
+            <div className="flex flex-col sm:flex-row justify-end items-center gap-2 mt-3">
+              <button
+                className="px-3 py-1 rounded border bg-white text-gray-900 disabled:opacity-50"
+                disabled={page === 1}
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+              >
+                Previous
+              </button>
+              <span className="text-sm">Page {page} of {Math.ceil(total / pageSize) || 1}</span>
+              <button
+                className="px-3 py-1 rounded border bg-white text-gray-900 disabled:opacity-50"
+                disabled={page * pageSize >= total}
+                onClick={() => setPage(p => p + 1)}
+              >
+                Next
+              </button>
+            </div>
+          </>
         )}
       </div>
       {/* Customer Details Modal */}

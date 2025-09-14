@@ -567,6 +567,24 @@ export default function OrdersAdminPage() {
               </tbody>
               </table>
             </div>
+            {/* Pagination Controls */}
+            <div className="flex flex-col sm:flex-row justify-end items-center gap-2 mt-4">
+              <button
+                className="px-3 py-1 rounded border bg-white text-gray-900 disabled:opacity-50"
+                disabled={page === 1}
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+              >
+                Previous
+              </button>
+              <span className="text-sm">Page {page} of {Math.ceil(totalOrders / pageSize) || 1}</span>
+              <button
+                className="px-3 py-1 rounded border bg-white text-gray-900 disabled:opacity-50"
+                disabled={page * pageSize >= totalOrders}
+                onClick={() => setPage(p => p + 1)}
+              >
+                Next
+              </button>
+            </div>
           </form>
         )}
       </div>
@@ -665,24 +683,6 @@ export default function OrdersAdminPage() {
                 <li>Current: <span className="capitalize">{selectedOrder.status}</span> (last updated: {selectedOrder.updatedAt ? new Date(selectedOrder.updatedAt).toLocaleString() : '-'})</li>
               </ul>
             </div>
-      {/* Pagination Controls */}
-  <div className="flex flex-col sm:flex-row justify-end items-center gap-2 mt-4">
-        <button
-          className="px-3 py-1 rounded border bg-white text-gray-900 disabled:opacity-50"
-          disabled={page === 1}
-          onClick={() => setPage(p => Math.max(1, p - 1))}
-        >
-          Previous
-        </button>
-        <span className="text-sm">Page {page} of {Math.ceil(totalOrders / pageSize) || 1}</span>
-        <button
-          className="px-3 py-1 rounded border bg-white text-gray-900 disabled:opacity-50"
-          disabled={page * pageSize >= totalOrders}
-          onClick={() => setPage(p => p + 1)}
-        >
-          Next
-        </button>
-      </div>
             <div className="mb-2">
               <strong>Order Items:</strong>
               <div className="overflow-x-auto">
