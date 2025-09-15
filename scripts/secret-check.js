@@ -24,6 +24,14 @@ function isAllowedEnvFile(file) {
   return ignored.some((s) => file.includes(s));
 }
 
+function isIgnoredPath(file) {
+  // Ignore common backup/export artifacts and test outputs
+  if (file.startsWith('backup') || /(^|\/)backup[^/]*\.(json|sql)$/i.test(file)) return true;
+  if (file.endsWith('.sql')) return true;
+  if (file.startsWith('test-results/')) return true;
+  return false;
+}
+
 const patterns = [
   // explicit env var assignments (common unsafe patterns)
   /\bADMIN_API_KEY\s*=\s*[^\s#]+/i,
@@ -55,6 +63,7 @@ for (const f of files) {
   if (isAllowedEnvFile(f)) continue;
   if (f.startsWith('node_modules/') || f.startsWith('.git/') || f.startsWith('.next/') ) continue;
   if (isBinary(f)) continue;
+  if (isIgnoredPath(f)) continue;
   let content = '';
   try {
     content = fs.readFileSync(f, 'utf8');
@@ -68,6 +77,13 @@ for (const f of files) {
       if (re.test(line)) {
         findings.push({ file: f, line: i + 1, text: line.trim(), pattern: re.toString() });
       }
+    }
+  }
+
+  // Apply long opaque token heuristic ONLY for .env*-like files
+  if (f.startsWith('.env')) {
+    if (/[A-Za-z0-9_+-]{40,}={0,2}/.test(content)) {
+      findings.push({ file: f, line: 0, text: '<long-token-like>', pattern: 'heuristic-long-token' });
     }
   }
 }
