@@ -201,7 +201,26 @@ export default function OrderQuantumMachinePage() {
             <p className="max-w-3xl text-white/90 text-lg md:text-xl mb-8">Step into the future of natural healing. The Quantum Healing Machine helps restore your body’s energy flow, reduce stress, and support deep wellness from within. Designed with advanced frequency technology, it works to harmonize mind, body, and spirit — so you can feel lighter, stronger, and more balanced every day.</p>
 
             <div className="w-full flex justify-center">
-              <button onClick={() => window.scrollTo({ top: 700, behavior: 'smooth' })} className="bg-amber-400 text-black rounded-2xl py-4 px-10 text-xl md:text-2xl font-extrabold shadow-lg">Order Now — ₦2,900,000</button>
+              <button
+                onClick={() => {
+                  // Mobile-only: jump straight to Shipping form
+                  if (typeof window !== 'undefined' && window.innerWidth < 768) {
+                    try { setStep(1); } catch {}
+                    const el = document.getElementById('shipping-form');
+                    if (el && 'scrollIntoView' in el) {
+                      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    } else {
+                      window.scrollTo({ top: 700, behavior: 'smooth' });
+                    }
+                  } else {
+                    // Desktop: keep existing behavior
+                    window.scrollTo({ top: 700, behavior: 'smooth' });
+                  }
+                }}
+                className="bg-amber-400 text-black rounded-2xl py-4 px-10 text-xl md:text-2xl font-extrabold shadow-lg"
+              >
+                Order Now — ₦2,900,000
+              </button>
             </div>
           </div>
         </div>
