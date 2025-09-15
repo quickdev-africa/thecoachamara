@@ -3,7 +3,6 @@ import { createClient } from '@supabase/supabase-js';
 import ProductDetailClient from './ProductDetailClient';
 import type { Product } from '@/lib/types';
 
-const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 // Server component: fetch product and render client interactive component
 
 export default async function ProductDetailPage({ params }: { params: { id: string } }) {
@@ -11,6 +10,16 @@ export default async function ProductDetailPage({ params }: { params: { id: stri
   if (!id) {
     return <div className="max-w-3xl mx-auto py-16 text-center text-red-600">Product not found.</div>;
   }
+
+  const url = process.env.SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  // Avoid crashing during build/preview if env is not set; render a friendly message instead.
+  if (!url || !serviceKey) {
+    console.error('[ProductDetailPage] Missing Supabase env vars. Ensure SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are configured.');
+    return <div className="max-w-3xl mx-auto py-16 text-center text-red-600">Configuration missing. Please contact support.</div>;
+  }
+
+  const supabase = createClient(url, serviceKey);
 
   // Fetch product server-side using service role key for reliable access
   const { data: product, error } = await supabase

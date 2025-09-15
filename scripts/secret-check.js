@@ -16,6 +16,14 @@ const allowlist = new Set([
   '.env.production.example',
 ]);
 
+function isAllowedEnvFile(file) {
+  if (!file.startsWith('.env')) return false;
+  if (allowlist.has(file)) return true;
+  // Ignore example/sample/backup variations in repo
+  const ignored = ['.example', '.sample', '.bak', '.backup'];
+  return ignored.some((s) => file.includes(s));
+}
+
 const patterns = [
   // explicit env var assignments (common unsafe patterns)
   /\bADMIN_API_KEY\s*=\s*[^\s#]+/i,
@@ -43,7 +51,8 @@ function isBinary(filename) {
 let findings = [];
 const files = gitTrackedFiles();
 for (const f of files) {
-  if (!f || allowlist.has(f)) continue;
+  if (!f) continue;
+  if (isAllowedEnvFile(f)) continue;
   if (f.startsWith('node_modules/') || f.startsWith('.git/') || f.startsWith('.next/') ) continue;
   if (isBinary(f)) continue;
   let content = '';
