@@ -1,8 +1,16 @@
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { storage } from "../firebase";
 
+// Client-side utility for uploading images to Cloudinary
 export async function uploadProductImage(file: File): Promise<string> {
-  const storageRef = ref(storage, `products/${Date.now()}_${file.name}`);
-  await uploadBytes(storageRef, file);
-  return await getDownloadURL(storageRef);
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('upload_preset', 'thecoachamara_unsigned'); // <-- Replace with your unsigned preset
+
+  const res = await fetch('https://api.cloudinary.com/v1_1/djucbsrds/image/upload', {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!res.ok) throw new Error('Image upload failed');
+  const data = await res.json();
+  return data.secure_url;
 }

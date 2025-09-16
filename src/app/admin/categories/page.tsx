@@ -1,7 +1,11 @@
 "use client";
 import { useEffect, useState } from "react";
 
-type Category = string;
+type Category = {
+  id: string;
+  name: string;
+  [key: string]: any;
+};
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -14,9 +18,17 @@ export default function CategoriesPage() {
 
   const fetchCategories = async () => {
     setLoading(true);
-    const res = await fetch("/api/categories");
+  const res = await fetch("/api/categories", { credentials: 'same-origin' });
     const data = await res.json();
-    setCategories(data);
+    // Robustly handle API response and filter out inactive categories
+    let cats: Category[] = [];
+    if (Array.isArray(data)) {
+      cats = data;
+    } else if (Array.isArray(data?.data)) {
+      cats = data.data;
+    }
+    // Only show categories where is_active !== false (default to true if missing)
+    setCategories(cats.filter(cat => cat.is_active !== false));
     setLoading(false);
   };
 
@@ -28,7 +40,8 @@ export default function CategoriesPage() {
     e.preventDefault();
     setSubmitting(true);
     setError("");
-    const res = await fetch("/api/categories", {
+    const res = await fetch("/api/categories", { 
+      credentials: 'same-origin',
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: newCategory }),
@@ -42,15 +55,27 @@ export default function CategoriesPage() {
     setSubmitting(false);
   };
 
-  const handleDelete = async (name: string) => {
+  const handleDelete = async (id: string, name: string) => {
     if (!confirm(`Delete category "${name}"?`)) return;
-    await fetch(`/api/categories/${encodeURIComponent(name)}`, { method: "DELETE" });
-    fetchCategories();
+    try {
+  const res = await fetch(`/api/categories/${encodeURIComponent(id)}`, { method: "DELETE", credentials: 'same-origin' });
+      const data = await res.json();
+      console.log('Delete response:', data);
+      if (!res.ok || !data.success) {
+        setError(data.error || 'Failed to delete category');
+      } else {
+        setError("");
+        fetchCategories();
+      }
+    } catch (err) {
+      setError('Failed to delete category');
+      console.error(err);
+    }
   };
 
-  const startEdit = (name: string) => {
-    setEditing(name);
-    setEditValue(name);
+  const startEdit = (cat: Category) => {
+    setEditing(cat.id);
+    setEditValue(cat.name);
   };
 
   const cancelEdit = () => {
@@ -58,81 +83,105 @@ export default function CategoriesPage() {
     setEditValue("");
   };
 
-  const handleEdit = async (oldName: string) => {
-    if (!editValue.trim() || editValue === oldName) {
+  const handleEdit = async (cat: Category) => {
+    if (!editValue.trim() || editValue === cat.name) {
       cancelEdit();
       return;
     }
-    await fetch(`/api/categories/${encodeURIComponent(oldName)}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: editValue.trim() }),
-    });
-    cancelEdit();
-    fetchCategories();
+    try {
+      const res = await fetch(`/api/categories/${encodeURIComponent(cat.id)}`, {
+        credentials: 'same-origin',
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: editValue.trim() }),
+      });
+      const data = await res.json();
+      console.log('Edit response:', data);
+      if (!res.ok || !data.success) {
+        setError(data.error || 'Failed to update category');
+      } else {
+        setError("");
+        cancelEdit();
+        fetchCategories();
+      }
+    } catch (err) {
+      setError('Failed to update category');
+      console.error(err);
+    }
   };
 
   return (
     <div>
-      <h1 className="text-xl md:text-2xl font-bold mb-4 md:mb-6 text-blue_gray-400 tracking-wide">Category Management</h1>
+      <h1 className="text-xl md:text-2xl font-bold mb-4 md:mb-6 text-black tracking-wide">Category Management</h1>
       <div className="bg-baby_powder-900 rounded-xl shadow p-2 md:p-6 border border-blue_gray-100 overflow-x-auto">
         <form onSubmit={handleAdd} className="flex gap-2 mb-6">
           <input
             value={newCategory}
             onChange={e => setNewCategory(e.target.value)}
             placeholder="New Category"
-            className="border rounded-lg px-3 py-2 text-blue_gray-300 bg-baby_powder-500 placeholder:text-blue_gray-100"
+                className="border rounded-lg px-3 py-2 text-gray-900 bg-white placeholder:text-gray-400"
             required
           />
           <button
             type="submit"
-            className="bg-sunglow-400 hover:bg-mustard-400 text-baby_powder-500 font-bold rounded-lg px-4 py-2 shadow"
+                className="bg-sunglow-400 hover:bg-mustard-400 text-gray-900 font-bold rounded-lg px-4 py-2 shadow border border-sunglow-400 transition-colors duration-200"
             disabled={submitting}
           >
             {submitting ? "Adding..." : "Add Category"}
           </button>
         </form>
-        {error && <div className="text-red-600 mb-2">{error}</div>}
+        {error && (
+          <div className="flex items-center justify-between bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded mb-2" role="alert">
+            <span>{error}</span>
+            <button
+              onClick={() => setError("")}
+              className="ml-4 text-red-700 hover:text-red-900 font-bold text-lg focus:outline-none"
+              aria-label="Close error alert"
+            >
+              &times;
+            </button>
+          </div>
+        )}
         {loading ? (
           <div>Loading categories...</div>
         ) : categories.length === 0 ? (
-          <div>No categories found.</div>
+          <div className="text-gray-700">No categories found.</div>
         ) : (
           <ul>
             {categories.map(cat => (
-              <li key={cat} className="flex justify-between items-center py-2 border-b last:border-b-0 gap-2">
-                {editing === cat ? (
+              <li key={cat.id || cat.name} className="flex justify-between items-center py-2 border-b last:border-b-0 gap-2">
+                {editing === cat.id ? (
                   <>
                     <input
                       value={editValue}
                       onChange={e => setEditValue(e.target.value)}
-                      className="border rounded-lg px-2 py-1 mr-2 text-blue_gray-300 bg-baby_powder-500 placeholder:text-blue_gray-100"
+                      className="border rounded-lg px-2 py-1 mr-2 text-gray-900 bg-white placeholder:text-gray-400"
                     />
                     <button
                       onClick={() => handleEdit(cat)}
-                      className="bg-sunglow-400 hover:bg-mustard-400 text-baby_powder-500 font-bold rounded-lg px-3 py-1 text-sm mr-2 shadow"
+                      className="bg-sunglow-400 hover:bg-mustard-400 text-gray-900 font-bold rounded-lg px-3 py-1 text-sm mr-2 shadow border border-sunglow-400 transition-colors duration-200"
                     >
                       Save
                     </button>
                     <button
                       onClick={cancelEdit}
-                      className="text-gray-500 hover:underline text-sm"
+                      className="bg-gray-300 hover:bg-gray-400 text-gray-900 font-bold rounded-lg px-3 py-1 text-sm shadow border border-gray-300 transition-colors duration-200"
                     >
                       Cancel
                     </button>
                   </>
                 ) : (
                   <>
-                    <span>{cat}</span>
+                    <span className="text-gray-700">{cat.name}</span>
                     <button
                       onClick={() => startEdit(cat)}
-                      className="text-blue_gray-400 hover:text-sunglow-400 hover:underline text-sm mr-2"
+                      className="bg-sunglow-400 hover:bg-mustard-400 text-gray-900 font-bold rounded-lg px-3 py-1 text-sm mr-2 shadow border border-sunglow-400 transition-colors duration-200"
                     >
                       Edit
                     </button>
                     <button
-                      onClick={() => handleDelete(cat)}
-                      className="text-red-600 hover:underline text-sm"
+                      onClick={() => handleDelete(cat.id, cat.name)}
+                      className="bg-red-500 hover:bg-red-700 text-white font-bold rounded-lg px-3 py-1 text-sm shadow border border-red-500 transition-colors duration-200"
                     >
                       Delete
                     </button>

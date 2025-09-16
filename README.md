@@ -34,3 +34,23 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## CI smoke tests and migrations
+
+This repo contains a GitHub Actions workflow `.github/workflows/smoke-test.yml` which runs an integration smoke test on pull requests when the following secrets are configured in the repository settings:
+
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `SUPABASE_DB_URL` (optional; if set the workflow will apply SQL files from `supabase/migrations` using `psql`)
+- `PAYSTACK_SECRET_KEY` (optional; used to initialize Paystack during funnel create if provided)
+
+If secrets are not present the workflow will skip the smoke tests to keep PRs from forks from failing.
+
+CI notes
+--------
+To enable the CI smoke job (`.github/workflows/ci-smoke-and-env-safety.yml`) you'll need to add the following repository secrets in GitHub:
+
+- `STAGING_BASE_URL` — the URL of a staging deployment to run the smoke test against (e.g. https://staging.example.com)
+- `SMOKE_TEST_TOKEN` — short-lived token that the staging server recognizes for simulate verify (keep secret)
+
+The CI job will run env-safety, build, and smoke test after changes are pushed to `main`.

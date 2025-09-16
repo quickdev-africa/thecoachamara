@@ -1,5 +1,86 @@
 "use client";
 import React, { useRef, useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Flame, Droplet, Leaf, Sun, Circle, Star, Sparkles } from 'lucide-react';
+
+const iconMap = {
+  flame: Flame,
+  droplet: Droplet,
+  leaf: Leaf,
+  sun: Sun,
+  circle: Circle,
+  star: Star,
+  sparkles: Sparkles,
+};
+
+function FlipCard({ item, idx }: { item: { color: string; label: string; bg: string; icon: keyof typeof iconMap; benefit: string }; idx: number }) {
+  const [flipped, setFlipped] = useState(false);
+  const Icon = iconMap[item.icon];
+  // Flip on hover only
+  return (
+    <div
+      className={`relative w-full md:w-1/7 flex-1 flex-shrink-0 ${item.bg} ${item.color === 'white' ? 'text-black' : 'text-white'} cursor-pointer group focus:outline-none 
+        transition-shadow duration-200 
+        shadow-md md:shadow-lg 
+        rounded-2xl md:rounded-none 
+        mb-4 md:mb-0 
+        active:scale-95 
+        ${item.color === 'white' ? 'border border-gray-200' : ''}
+        aspect-[4/3] xs:aspect-[5/4] sm:aspect-[6/5] md:aspect-square min-h-[90px] xs:min-h-[110px] sm:min-h-[130px] md:min-h-0 max-h-[120px] xs:max-h-[140px] sm:max-h-[160px] md:max-h-none
+      `}
+      style={{ minWidth: 0 }}
+      tabIndex={0}
+      aria-label={item.label + ' color therapy card'}
+      onMouseEnter={() => setFlipped(true)}
+      onMouseLeave={() => setFlipped(false)}
+      role="button"
+    >
+      <motion.div
+        className="absolute inset-0 rounded-2xl md:rounded-none flex items-center justify-center transition-transform duration-200 [perspective:1200px]"
+        style={{
+          willChange: 'transform',
+          perspective: 1200,
+          transformStyle: 'preserve-3d',
+        }}
+        animate={{ rotateY: flipped ? 180 : 0 }}
+        transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
+      >
+        {/* Front Side: Icon and Title always visible, flips to show benefit only */}
+        <div
+          className={`absolute inset-0 flex flex-col items-center justify-center rounded-2xl md:rounded-none font-bold 
+            text-[1.35rem] xs:text-[1.5rem] sm:text-[1.7rem] md:text-[1.7rem] select-none 
+            px-2 xs:px-4 sm:px-6 md:px-0
+            ${item.color === 'white' ? 'text-black' : 'text-white'}`}
+          style={{
+            background: 'inherit',
+            zIndex: 2,
+            transform: 'rotateY(0deg)',
+            backfaceVisibility: 'hidden',
+            direction: 'ltr',
+          }}
+        >
+          <Icon size={44} className="mb-2" aria-hidden="true" />
+          <span className="mt-1 font-extrabold tracking-tight text-center leading-tight">{item.label}</span>
+        </div>
+        {/* Back Side: Only benefit text */}
+        <div
+          className={`absolute inset-0 flex flex-col items-center justify-center rounded-2xl md:rounded-none font-semibold md:font-mono 
+            text-[1.1rem] xs:text-[1.2rem] sm:text-[1.3rem] md:text-[1.05rem] px-2 xs:px-4 sm:px-6 md:px-2 text-center 
+            ${item.color === 'white' ? 'text-black' : 'text-white'}`}
+          style={{
+            background: 'inherit',
+            zIndex: 1,
+            transform: 'rotateY(180deg)',
+            backfaceVisibility: 'hidden',
+            direction: 'ltr',
+          }}
+        >
+          <span className="leading-snug xs:leading-normal sm:leading-normal md:leading-normal">{item.benefit}</span>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
 import Image from 'next/image';
 import type { YouTubePlayer, YouTubeEvent } from 'react-youtube';
 
@@ -24,7 +105,7 @@ function VideoHero() {
   };
 
   return (
-    <div className="w-4/5 aspect-video mb-8 relative mx-auto">
+    <div className="w-full aspect-video mb-0 sm:mb-8 relative mx-auto">
       <YouTube
         videoId="Z25AVZ3bS5I"
         className="w-full h-full"
@@ -95,29 +176,50 @@ const faqData = [
 
 function FAQAccordion() {
   const [open, setOpen] = useState<number | null>(null);
+  // Keyboard navigation
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>, idx: number) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      setOpen(open === idx ? null : idx);
+    } else if (e.key === 'ArrowDown') {
+      setOpen((open === null || open === faqData.length - 1) ? 0 : (open + 1));
+    } else if (e.key === 'ArrowUp') {
+      setOpen((open === null || open === 0) ? faqData.length - 1 : (open - 1));
+    }
+  };
   return (
     <div className="max-w-3xl w-full mx-auto flex flex-col gap-4">
       {faqData.map((item, idx) => (
         <div key={idx} className="bg-white rounded-2xl shadow border border-gray-100 overflow-hidden">
           <button
-            className={`w-full flex items-center justify-between px-6 py-5 text-left font-semibold text-lg md:text-xl focus:outline-none transition-colors ${open === idx ? 'text-amber-700' : 'text-black/90'}`}
+            className={`w-full flex items-center justify-between px-6 py-5 text-left font-semibold text-lg md:text-xl focus:outline-none transition-colors group ${open === idx ? 'text-amber-700 bg-amber-50' : 'text-black/90'}`}
             onClick={() => setOpen(open === idx ? null : idx)}
             aria-expanded={open === idx}
             aria-controls={`faq-panel-${idx}`}
+            tabIndex={0}
+            onKeyDown={(e) => handleKeyDown(e, idx)}
           >
             <span className="flex items-center gap-2">
-              <FaCheckCircle className={`text-amber-500 text-xl transition-transform ${open === idx ? 'rotate-90' : ''}`} />
-              {item.question}
+              <FaCheckCircle className={`text-amber-500 text-xl transition-transform group-hover:scale-110 ${open === idx ? 'rotate-90' : ''}`} />
+              <span className="underline decoration-amber-400/60 decoration-2 underline-offset-2 group-hover:decoration-amber-600">{item.question}</span>
             </span>
             <svg className={`w-6 h-6 ml-2 transition-transform duration-200 ${open === idx ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
           </button>
-          <div
-            id={`faq-panel-${idx}`}
-            className={`px-6 pb-5 text-black/70 text-base md:text-lg transition-all duration-200 ${open === idx ? 'block' : 'hidden'}`}
-            aria-hidden={open !== idx}
-          >
-            {item.answer}
-          </div>
+          <AnimatePresence initial={false}>
+            {open === idx && (
+              <motion.div
+                id={`faq-panel-${idx}`}
+                className="px-6 pb-5 text-black/70 text-base md:text-lg"
+                aria-hidden={open !== idx}
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.25 }}
+              >
+                <span className="block animate-fadeInUp">{item.answer}</span>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       ))}
     </div>
@@ -125,18 +227,32 @@ function FAQAccordion() {
 }
 
 import Link from 'next/link';
+import CrispChat from '@/components/CrispChat';
 const CTAButton = ({ className = '' }: { className?: string }) => (
   <Link
     href="/order-quantum-machine"
-    className={`inline-flex items-center justify-center px-10 py-5 text-xl font-extrabold rounded-full bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 text-white shadow-2xl hover:scale-105 hover:shadow-amber-400/40 transition-transform duration-200 drop-shadow-lg font-sans ${className}`}
+    className={`inline-flex items-center justify-center 
+      px-5 py-3 rounded-xl whitespace-nowrap leading-none tracking-tight 
+      text-sm sm:text-base md:text-xl 
+      sm:px-8 sm:py-4 sm:rounded-2xl 
+      md:px-10 md:py-5 md:rounded-full 
+      font-extrabold bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 text-white 
+      shadow-2xl shadow-amber-500/30 ring-1 ring-amber-300/60 hover:ring-amber-400/70 
+      hover:scale-105 hover:shadow-amber-400/50 transition-transform duration-200 drop-shadow-lg font-sans 
+      ${className}`}
     aria-label="Get Your Quantum Machine Now"
     prefetch={false}
   >
-    <FaCheckCircle className="mr-2 text-white/90" /> Get Your Quantum Machine Now
+    <FaCheckCircle className="mr-2 text-white/90 shrink-0" /> Get Your Quantum Machine Now
   </Link>
 );
 
 export default function QuantumPage() {
+  // New Section: Why Every Home Needs the Quantum Machine
+  // Uses /public/quantum-energy.jpg if available, else TODO comment
+  const quantumImage = '/quantum-header.jpg'; // Updated to use the new header image
+  // If not, replace with a TODO comment below
+
   // Countdown timer logic for 4-day auto-renewing countdown
   function getNextDeadline() {
     const now = new Date();
@@ -182,8 +298,114 @@ export default function QuantumPage() {
         <link rel="canonical" href="https://thecoachamara.com/quantum" />
       </Head>
       <main className="bg-white min-h-screen w-full flex flex-col items-center font-sans text-black relative">
-        {/* Hero Section - now at the top */}
-        <section className="w-full flex flex-col items-center justify-center py-24 px-4 bg-white text-center relative overflow-hidden border-b border-gray-100">
+        {/* Why Every Home Needs the Quantum Machine Section (NEW) */}
+  <section className="w-full relative min-h-[480px] md:min_h-[600px] flex flex-col justify-center items-center border-b border-gray-100 overflow-hidden">
+          {/* Full-width background image */}
+          <Image
+            src={quantumImage}
+            alt="Quantum Energy Machine in every home"
+            fill
+            className="object-cover w-full h-full absolute inset-0 z-0"
+            priority
+            sizes="100vw"
+          />
+          {/* Overlay for contrast */}
+          <div className="absolute inset-0 bg-black/60 md:bg-black/65 z-10" />
+          {/* Content overlay */}
+          <div className="relative z-20 w-full py-16 md:py-24 px-4">
+            <div className="mx-auto w-full max-w-6xl grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-16 lg:gap-24 items-stretch">
+              {/* Left column: Image only */}
+              <div className="flex flex-col items-center h-full">
+                <div className="w-full">
+                  <div className="relative w-full aspect-[4/3] overflow-hidden shadow-2xl border border-yellow-300">
+                    <Image
+                      src="/amarawithquantum2.jpg"
+                      alt="Amara with Quantum Energy Machine"
+                      fill
+                      className="object-cover"
+                      priority
+                      sizes="(max-width: 768px) 100vw, 50vw"
+                    />
+                  </div>
+                  {/* CTA moved here below the image */}
+                  <div className="flex justify-center mt-6">
+                    <CTAButton className="w-full max-w-md md:w-auto" />
+                  </div>
+                </div>
+              </div>
+              {/* Right column: Heading + Text (translucent) + Timer + CTA */}
+              <div className="flex flex-col items-center h-full text-center md:pl-2">
+                <div className="flex flex-col items-center w-full flex-1">
+                  <h2 className="text-2xl xs:text-3xl md:text-4xl lg:text-5xl font-extrabold leading-tight font-playfair tracking-tight text-center mb-4 md:mb-6 drop-shadow-xl text-white">
+                    Why Every Home Needs the Quantum Machine
+                  </h2>
+                  <div className="bg-white/85 rounded-3xl shadow-2xl p-6 md:p-10 border border-yellow-400 text-lg md:text-2xl text-black font-playfair font-bold w-full max-w-2xl text-center leading-relaxed">
+                    <p className="mb-0">Our passion is to see you enjoy consistent good health. With the right magnetic field unit, your body’s natural healing power is awakened for lasting vitality. That's what Quantum Energy is about. Don’t wait—start your journey today.</p>
+                  </div>
+                </div>
+                {/* Countdown moved here between text and CTA */}
+                <div className="mt-5 md:mt-6 flex flex-col items-center w-full">
+                  <span className="uppercase text-[10px] md:text-xs font-bold text-amber-300 tracking-[0.2em] mb-2">Limited-Time Offer Ends In</span>
+                  <div className="w-full flex flex-col md:flex-row items-center justify-center gap-3 md:gap-5">
+                    <div className="flex items-center justify-center gap-3 md:gap-5 text-2xl md:text-4xl font-mono font-extrabold text-amber-700 bg-white rounded-2xl px-4 py-3 md:px-5 md:py-3 shadow-xl border border-amber-300">
+                      <div className="flex flex-col items-center leading-none">
+                        <motion.span key={timeLeft.days} initial={{ scale: 1.1, opacity: 0.9 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 0.2 }}>{timeLeft.days}</motion.span>
+                        <span className="text-[9px] md:text-[11px] font-semibold text-black/60 mt-1">Days</span>
+                      </div>
+                      <span className="pb-1 md:pb-2">:</span>
+                      <div className="flex flex-col items-center leading-none">
+                        <motion.span key={timeLeft.hours} initial={{ scale: 1.1, opacity: 0.9 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 0.2 }}>{String(timeLeft.hours).padStart(2, '0')}</motion.span>
+                        <span className="text-[9px] md:text-[11px] font-semibold text-black/60 mt-1">Hours</span>
+                      </div>
+                      <span className="pb-1 md:pb-2">:</span>
+                      <div className="flex flex-col items-center leading-none">
+                        <motion.span key={timeLeft.minutes} initial={{ scale: 1.1, opacity: 0.9 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 0.2 }}>{String(timeLeft.minutes).padStart(2, '0')}</motion.span>
+                        <span className="text-[9px] md:text-[11px] font-semibold text-black/60 mt-1">Minutes</span>
+                      </div>
+                      <span className="pb-1 md:pb-2">:</span>
+                      <div className="flex flex-col items-center leading-none">
+                        <motion.span key={timeLeft.seconds} initial={{ scale: 1.1, opacity: 0.9 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 0.2 }}>{String(timeLeft.seconds).padStart(2, '0')}</motion.span>
+                        <span className="text-[9px] md:text-[11px] font-semibold text-black/60 mt-1">Seconds</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                {/* CTA moved to left column below the image */}
+              </div>
+            </div>
+          </div>
+        </section>
+
+  {/* Modern Two-Column Section (Full Width, No Padding/Margin, Contrasting BGs) */}
+  <section className="w-full flex flex-row flex-wrap border-b border-gray-100 quantum-yellow-white">
+          {/* Left Column */}
+          <div className="flex-1 min-w-[320px] bg-amber-50 flex items-center justify-center py-10 md:py-24">
+            <div className="max-w-2xl w-full px-3 xs:px-4 sm:px-6 md:px-16 text-base xs:text-lg md:text-2xl font-semibold text-black/80 leading-relaxed">
+              <p className="mb-8 break-words">
+                For those already managing terminal or lifelong conditions like
+                <span className="text-amber-700 font-extrabold text-lg xs:text-xl md:text-3xl italic underline underline-offset-4 mx-1 md:mx-2">hypertension</span>,
+                <span className="text-amber-700 font-extrabold text-lg xs:text-xl md:text-3xl italic underline underline-offset-4 mx-1 md:mx-2">diabetes</span>,
+                <span className="text-amber-700 font-extrabold text-lg xs:text-xl md:text-3xl italic underline underline-offset-4 mx-1 md:mx-2">arthritis</span>,
+                or other chronic diseases, Quantum Energy becomes a
+                <span className="text-amber-700 font-extrabold text-lg xs:text-xl md:text-3xl italic underline underline-offset-4 mx-1 md:mx-2">game-changer</span>.
+                When you use the Quantum Machine, your body responds better to treatments. Many patients see their doctors gradually reduce their dosage of drugs — and some even get to a point where the doctor says,
+                <span className="italic text-amber-700 text-lg xs:text-xl md:text-3xl font-bold underline underline-offset-4 mx-1 md:mx-2">“You don’t need these drugs anymore.”</span>
+              </p>
+            </div>
+          </div>
+          {/* Right Column */}
+          <div className="flex-1 min-w-[320px] bg-amber-600 flex items-center justify-center py-16 md:py-24">
+            <div className="max-w-2xl px-8 md:px-16 text-lg md:text-2xl font-semibold text-white leading-relaxed">
+              <p className="mb-8">
+                This is why the Quantum Machine is inevitable.
+                <span className="font-extrabold text-2xl md:text-3xl italic underline underline-offset-4 mx-2">It is not a luxury — it’s a must-have in every home.</span>
+                Whether you’re currently battling a health challenge or want to prevent future ones, the Quantum Machine provides the support your body needs to heal naturally.
+              </p>
+            </div>
+          </div>
+        </section>
+  {/* Hero Section - now at the top */}
+  <section className="w-full flex flex-col items-center justify-center py-12 md:py-24 px-4 bg-white text-center relative overflow-hidden border-b border-gray-100">
           <div className="relative z-10 max-w-3xl mx-auto flex flex-col items-center">
             <h1 className="text-5xl md:text-7xl font-extrabold mb-8 leading-tight font-playfair text-amber-700 drop-shadow-lg tracking-tight">
               <span className="bg-gradient-to-r from-amber-400 via-amber-600 to-amber-400 bg-clip-text text-transparent">Experience Healing Like Never Before</span>
@@ -199,16 +421,16 @@ export default function QuantumPage() {
           </div>
         </section>
         {/* Video Section - now below hero */}
-        <section className="w-full flex justify-center bg-white pt-0 pb-8 px-0">
+        <section className="w-full flex justify-center bg-white pt-0 pb-0 px-0">
           <VideoHero />
         </section>
 
         {/* CTA Button Section - between video and benefits */}
-        <section className="w-full flex justify-center py-10 bg-white border-b border-gray-100">
+        <section className="w-full flex justify-center py-8 md:py-10 bg-white border-b border-gray-100">
           <CTAButton className="w-full max-w-md md:w-auto" />
         </section>
         {/* Benefits Section */}
-        <section className="w-full px-4 py-20 bg-white flex flex-col items-center border-b border-gray-100">
+        <section className="w-full px-4 py-12 md:py-20 bg-white flex flex-col items-center border-b border-gray-100">
           <h2 className="text-4xl md:text-5xl font-bold text-center mb-10 font-playfair text-amber-700 drop-shadow tracking-tight">Why Choose the Quantum Energy Machine?</h2>
           <ul className="max-w-3xl mx-auto grid gap-6 text-lg md:text-xl mb-10 text-black/90 font-bold md:grid-cols-2">
             <li className="flex items-start bg-white rounded-2xl shadow p-5 border border-gray-100"><FaCheckCircle className="text-amber-500 mr-3 mt-1 text-xl" /> Boosts your body&apos;s natural healing power</li>
@@ -217,50 +439,121 @@ export default function QuantumPage() {
             <li className="flex items-start bg-white rounded-2xl shadow p-5 border border-gray-100"><FaCheckCircle className="text-amber-500 mr-3 mt-1 text-xl" /> Non-invasive, no pills, no side effects</li>
             <li className="flex items-start bg-white rounded-2xl shadow p-5 border border-gray-100"><FaCheckCircle className="text-amber-500 mr-3 mt-1 text-xl" /> Safe for everyone – even children and pregnant women</li>
           </ul>
-          <p className="text-center text-xl font-semibold text-amber-700 mb-10">
+          <p className="text-2xl md:text-3xl font-extrabold text-amber-700 bg-amber-50 rounded-xl px-6 py-4 text-center shadow-lg border border-amber-200 mb-10">
             People are walking away from years of pain and illness &mdash; after just a few sessions.
           </p>
         </section>
 
-        {/* Social Proof Section */}
-        <section className="w-full px-4 py-20 bg-white flex flex-col items-center border-b border-gray-100">
-          <h2 className="text-4xl md:text-5xl font-extrabold mb-12 text-amber-700 font-playfair text-center drop-shadow tracking-tight">Real Results from Real People</h2>
-          <div className="max-w-4xl mx-auto grid md:grid-cols-2 gap-10 mb-12">
-            <blockquote className="bg-white border border-amber-200 p-8 rounded-3xl shadow-xl flex flex-col items-start">
-              <p className="text-xl md:text-2xl font-medium mb-4 text-black/90">&quot;I couldn&apos;t walk without pain. After 30 minutes on the Quantum Machine, I felt light, strong, and free.&quot;</p>
-              <footer className="text-base text-black/60 font-semibold">&mdash; Mrs. Ada, Lagos</footer>
-            </blockquote>
-            <blockquote className="bg-white border border-amber-300 p-8 rounded-3xl shadow-xl flex flex-col items-start">
-              <p className="text-xl md:text-2xl font-medium mb-4 text-black/90">&quot;My blood pressure dropped naturally after using the machine consistently. No drugs. No side effects.&quot;</p>
-              <footer className="text-base text-black/60 font-semibold">&mdash; Mr. John, Abuja</footer>
-            </blockquote>
-          </div>
-          <div className="flex justify-center">
-            <CTAButton />
+        {/* ...existing code... */}
+
+        {/* How It Works Section */}
+  <section className="w-full flex flex-col border-b border-gray-100 bg-white">
+          {/* Heading above columns */}
+          <h2 className="w-full text-3xl xs:text-4xl md:text-5xl font-bold font-playfair text-amber-700 drop-shadow tracking-tight mb-0 py-8 px-4 text-center">How the Quantum Energy Machine Works</h2>
+          <div className="flex flex-col md:flex-row items-stretch w-full">
+            {/* Left: Text with its own background */}
+            <div className="flex-1 flex flex-col justify-center items-center md:items-center py-0 px-0 bg-amber-50 quantum-yellow-white">
+              <div className="w-full h-full flex flex-col gap-6 items-center justify-center px-4 xs:px-6 py-6 md:py-0">
+                <p className="text-lg xs:text-xl md:text-2xl text-black/80 font-semibold text-center mb-4">
+                  The Quantum Machine uses <span className="font-extrabold text-amber-700">7 healing light frequencies</span> that penetrate deep into your body&apos;s cells, waking them up, clearing toxins, and restoring balance &mdash; naturally.
+                </p>
+                <p className="text-xl xs:text-2xl md:text-3xl font-extrabold text-amber-700 text-center mb-0">
+                  It&apos;s like a full medical team working inside your body, without surgery or drugs.
+                </p>
+              </div>
+            </div>
+            {/* Right: Image with its own background */}
+            <div className="flex-1 min-h-[260px] md:min-h-[420px] flex items-center justify-center relative bg-black">
+              <div className="w-full h-full min-h-[260px] md:min-h-[420px] flex items-center justify-center">
+                <Image
+                  src="/quantum-header.jpg"
+                  alt="Quantum Energy Machine illustration"
+                  fill
+                  className="object-contain w-full h-full"
+                  priority
+                  sizes="(max-width: 768px) 100vw, 50vw"
+                  style={{objectPosition: 'center'}}
+                />
+              </div>
+            </div>
           </div>
         </section>
 
-        {/* How It Works Section */}
-        <section className="w-full px-4 py-20 bg-white flex flex-col items-center border-b border-gray-100">
-          <h2 className="text-4xl md:text-5xl font-bold text-center mb-10 font-playfair text-amber-700 drop-shadow tracking-tight">How the Quantum Energy Machine Works</h2>
-          <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow p-8 border border-gray-100">
-            <p className="text-xl md:text-2xl text-center mb-4 text-black/80 font-semibold">
-              The Quantum Machine uses <strong>7 healing light frequencies</strong> that penetrate deep into your body&apos;s cells, waking them up, clearing toxins, and restoring balance &mdash; naturally.
-            </p>
-            <p className="text-lg text-center text-black/70 mb-0">
-              It&apos;s like a full medical team working inside your body, without surgery or drugs.
-            </p>
+        {/* Quantum Lights Section - 7 Color Therapy Cards */}
+  <section id="quantum-lights" className="w-full flex flex-col items-center bg-white">
+          <div className="w-full max-w-screen-2xl mx-auto flex flex-col md:flex-row">
+            {[
+              { color: 'red', label: 'Red', bg: 'bg-red-500', icon: 'flame' as const, benefit: 'Anti-aging, collagen stimulation, wound healing, inflammation reduction' },
+              { color: 'blue', label: 'Blue', bg: 'bg-blue-500', icon: 'droplet' as const, benefit: 'Acne-fighting, antibacterial, oil reduction' },
+              { color: 'green', label: 'Green', bg: 'bg-green-500', icon: 'leaf' as const, benefit: 'Balances mood, reduces hyperpigmentation, calms skin' },
+              { color: 'white', label: 'Ca⁺', bg: 'bg-white border border-gray-200', icon: 'sparkles' as const, benefit: 'Enhances mineral absorption, rejuvenation, metabolic support' },
+              { color: 'yellow', label: 'Yellow', bg: 'bg-yellow-400', icon: 'sun' as const, benefit: 'Soothes redness, improves circulation, brightens tone' },
+              { color: 'orange', label: 'Orange', bg: 'bg-orange-400', icon: 'circle' as const, benefit: 'Revitalizes complexion, enhances glow, supports metabolism' },
+              { color: 'purple', label: 'Purple', bg: 'bg-purple-500', icon: 'star' as const, benefit: 'Cell renewal, acne scar repair, skin refresh' },
+            ].map((item, idx) => (
+              <FlipCard key={item.color} item={item} idx={idx} />
+            ))}
           </div>
         </section>
 
         {/* Target Audience Section */}
-        <section className="w-full px-4 py-20 bg-white flex flex-col items-center border-b border-gray-100">
+        <section className="w-full px-4 py-12 md:py-20 bg-white flex flex-col items-center border-b border-gray-100">
           <h2 className="text-4xl md:text-5xl font-bold text-center mb-10 font-playfair text-amber-700 drop-shadow tracking-tight">Who Can Benefit from Quantum Energy Healing?</h2>
-          <ul className="max-w-3xl mx-auto grid gap-6 text-lg md:text-xl mb-0 text-black/90 font-bold md:grid-cols-2">
-            <li className="flex items-start bg-white rounded-2xl shadow p-5 border border-gray-100"><FaCheckCircle className="text-amber-500 mr-3 mt-1 text-xl" /> People dealing with arthritis, fatigue, or high blood pressure</li>
-            <li className="flex items-start bg-white rounded-2xl shadow p-5 border border-gray-100"><FaCheckCircle className="text-amber-500 mr-3 mt-1 text-xl" /> Those recovering from stroke, cancer, or surgery</li>
-            <li className="flex items-start bg-white rounded-2xl shadow p-5 border border-gray-100"><FaCheckCircle className="text-amber-500 mr-3 mt-1 text-xl" /> Anyone seeking to boost immunity, relax deeply, and feel younger</li>
-            <li className="flex items-start bg-white rounded-2xl shadow p-5 border border-gray-100"><FaCheckCircle className="text-amber-500 mr-3 mt-1 text-xl" /> Wellness lovers who want to stay healthy and energised for life</li>
+          <ul className="max-w-6xl mx-auto grid gap-6 text-lg md:text-xl mb-0 text-black/90 font-bold md:grid-cols-3">
+            <li className="flex items-start bg-white rounded-2xl shadow p-5 border border-gray-100">
+              <FaCheckCircle className="text-amber-500 mr-3 mt-1 text-xl" />
+              <span>
+                <span className="font-extrabold text-amber-700">People with Chronic Pain:</span> Arthritis, back pain, migraines, and joint issues can all be relieved naturally, without dependency on painkillers.
+              </span>
+            </li>
+            <li className="flex items-start bg-white rounded-2xl shadow p-5 border border-gray-100">
+              <FaCheckCircle className="text-amber-500 mr-3 mt-1 text-xl" />
+              <span>
+                <span className="font-extrabold text-amber-700">Post-Surgery & Recovery:</span> Accelerate healing after surgery, injury, or illness. Quantum energy supports cell regeneration and reduces downtime.
+              </span>
+            </li>
+            <li className="flex items-start bg-white rounded-2xl shadow p-5 border border-gray-100">
+              <FaCheckCircle className="text-amber-500 mr-3 mt-1 text-xl" />
+              <span>
+                <span className="font-extrabold text-amber-700">Immune System Boosters:</span> Strengthen your body’s natural defenses, making it easier to fight off infections and stay healthy year-round.
+              </span>
+            </li>
+            <li className="flex items-start bg-white rounded-2xl shadow p-5 border border-gray-100">
+              <FaCheckCircle className="text-amber-500 mr-3 mt-1 text-xl" />
+              <span>
+                <span className="font-extrabold text-amber-700">Busy Professionals:</span> Combat stress, fatigue, and burnout. Experience deep relaxation and mental clarity after every session.
+              </span>
+            </li>
+            <li className="flex items-start bg-white rounded-2xl shadow p-5 border border-gray-100">
+              <FaCheckCircle className="text-amber-500 mr-3 mt-1 text-xl" />
+              <span>
+                <span className="font-extrabold text-amber-700">Athletes & Fitness Enthusiasts:</span> Speed up muscle recovery, reduce inflammation, and enhance performance—naturally and safely.
+              </span>
+            </li>
+            <li className="flex items-start bg-white rounded-2xl shadow p-5 border border-gray-100">
+              <FaCheckCircle className="text-amber-500 mr-3 mt-1 text-xl" />
+              <span>
+                <span className="font-extrabold text-amber-700">Seniors & Elderly:</span> Improve mobility, balance, and overall vitality. Enjoy a more active, pain-free lifestyle at any age.
+              </span>
+            </li>
+            <li className="flex items-start bg-white rounded-2xl shadow p-5 border border-gray-100">
+              <FaCheckCircle className="text-amber-500 mr-3 mt-1 text-xl" />
+              <span>
+                <span className="font-extrabold text-amber-700">Women’s Wellness:</span> Support hormonal balance, ease menstrual discomfort, and promote radiant skin and energy.
+              </span>
+            </li>
+            <li className="flex items-start bg-white rounded-2xl shadow p-5 border border-gray-100">
+              <FaCheckCircle className="text-amber-500 mr-3 mt-1 text-xl" />
+              <span>
+                <span className="font-extrabold text-amber-700">Children & Teens:</span> Safe for all ages—helps with focus, growth, and immune support, especially during stressful school periods.
+              </span>
+            </li>
+            <li className="flex items-start bg-white rounded-2xl shadow p-5 border border-gray-100">
+              <FaCheckCircle className="text-amber-500 mr-3 mt-1 text-xl" />
+              <span>
+                <span className="font-extrabold text-amber-700">Wellness Seekers:</span> Anyone who wants to feel younger, sleep better, and enjoy a vibrant, energized life—naturally.
+              </span>
+            </li>
           </ul>
         </section>
 
@@ -269,23 +562,57 @@ export default function QuantumPage() {
           <div className="w-full max-w-6xl grid grid-cols-1 md:grid-cols-2 gap-0 items-stretch">
             {/* Left Column: All original content */}
             <div className="flex flex-col justify-center h-full px-4 md:px-8">
-              <h2 className="text-4xl md:text-5xl font-bold text-left md:text-left mb-6 font-playfair text-amber-700 drop-shadow tracking-tight">Own Your Healing Power</h2>
-              <div className="mb-6">
-                <p className="text-2xl md:text-3xl font-bold text-amber-700 mb-2">Get a Special Discount on the Quantum Energy Machine!</p>
-                <p className="text-lg md:text-xl text-black/80 font-bold mb-4">Unlock unlimited home healing for you and your loved ones. For a limited time, you can own your personal Quantum Machine at a never-before-seen price. This is your chance to take charge of your health, boost your energy, and say goodbye to pain and fatigue—naturally.</p>
-                <p className="text-base md:text-lg text-black/70 font-bold mb-2">Hurry! This exclusive offer is only available for a short time. When the timer hits zero, the countdown resets, but the discount may end at any moment.</p>
+              <div className="quantum-yellow-white">
+                <h2 className="text-4xl md:text-5xl font-bold text-left md:text-left mb-6 font-playfair text-amber-700 drop-shadow tracking-tight">Own Your Healing Power</h2>
+                <div className="mb-6">
+                  <p className="text-2xl md:text-3xl font-bold text-amber-700 mb-2">Get a Special Discount on the Quantum Energy Machine!</p>
+                  <p className="text-lg md:text-xl text-black/80 font-bold mb-4">Unlock unlimited home healing for you and your loved ones. For a limited time, you can own your personal Quantum Machine at a never-before-seen price. This is your chance to take charge of your health, boost your energy, and say goodbye to pain and fatigue—naturally.</p>
+                  <p className="text-base md:text-lg text-black/70 font-bold mb-2">Hurry! This exclusive offer is only available for a short time. When the timer hits zero, the countdown resets, but the discount may end at any moment.</p>
+                </div>
               </div>
               {/* Countdown Timer */}
               <div className="flex flex-col items-start mb-8">
                 <span className="uppercase text-sm font-bold text-amber-600 tracking-widest mb-2">Limited-Time Offer Ends In</span>
                 <div className="flex gap-3 md:gap-6 text-3xl md:text-5xl font-mono font-extrabold text-amber-700 bg-white/80 rounded-2xl px-6 py-4 shadow border border-amber-200">
-                  <div className="flex flex-col items-center"><span>{timeLeft.days}</span><span className="text-xs font-semibold text-black/60">Days</span></div>
+                  <div className="flex flex-col items-center">
+                    <motion.span
+                      key={timeLeft.days}
+                      initial={{ scale: 1.2, opacity: 0.7 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ duration: 0.3 }}
+                    >{timeLeft.days}</motion.span>
+                    <span className="text-xs font-semibold text-black/60">Days</span>
+                  </div>
                   <span>:</span>
-                  <div className="flex flex-col items-center"><span>{String(timeLeft.hours).padStart(2, '0')}</span><span className="text-xs font-semibold text-black/60">Hours</span></div>
+                  <div className="flex flex-col items-center">
+                    <motion.span
+                      key={timeLeft.hours}
+                      initial={{ scale: 1.2, opacity: 0.7 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ duration: 0.3 }}
+                    >{String(timeLeft.hours).padStart(2, '0')}</motion.span>
+                    <span className="text-xs font-semibold text-black/60">Hours</span>
+                  </div>
                   <span>:</span>
-                  <div className="flex flex-col items-center"><span>{String(timeLeft.minutes).padStart(2, '0')}</span><span className="text-xs font-semibold text-black/60">Minutes</span></div>
+                  <div className="flex flex-col items-center">
+                    <motion.span
+                      key={timeLeft.minutes}
+                      initial={{ scale: 1.2, opacity: 0.7 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ duration: 0.3 }}
+                    >{String(timeLeft.minutes).padStart(2, '0')}</motion.span>
+                    <span className="text-xs font-semibold text-black/60">Minutes</span>
+                  </div>
                   <span>:</span>
-                  <div className="flex flex-col items-center"><span>{String(timeLeft.seconds).padStart(2, '0')}</span><span className="text-xs font-semibold text-black/60">Seconds</span></div>
+                  <div className="flex flex-col items-center">
+                    <motion.span
+                      key={timeLeft.seconds}
+                      initial={{ scale: 1.2, opacity: 0.7 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ duration: 0.3 }}
+                    >{String(timeLeft.seconds).padStart(2, '0')}</motion.span>
+                    <span className="text-xs font-semibold text-black/60">Seconds</span>
+                  </div>
                 </div>
               </div>
               <CTAButton className="w-full max-w-md md:w-auto mb-6" />
@@ -307,27 +634,89 @@ export default function QuantumPage() {
           </div>
         </section>
 
+        {/* Social Proof Section with Video Testimonials */}
+        <section className="w-full px-4 py-12 md:py-20 bg-white flex flex-col items-center border-b border-gray-100">
+          <h2 className="text-4xl md:text-5xl font-extrabold mb-12 text-amber-700 font-playfair text-center drop-shadow tracking-tight">Real Results from Real People</h2>
+          <div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-10 mb-12">
+            {/* Testimonial 1: Video and Quote in one card */}
+            <div className="flex flex-col bg-white border border-amber-200 rounded-2xl shadow-xl overflow-hidden">
+              {/* Replace the videoId below with the real YouTube video ID for Mrs. Ada */}
+              <div className="aspect-video w-full bg-black">
+                  <YouTube
+                    videoId="UOtjOs5oTvU"
+                    className="w-full h-full"
+                    opts={{
+                      width: '100%',
+                      height: '100%',
+                      playerVars: {
+                        autoplay: 0,
+                        mute: 0,
+                        controls: 1,
+                        modestbranding: 1,
+                        rel: 0,
+                        showinfo: 0,
+                      },
+                    }}
+                  />
+              </div>
+              <div className="p-6 flex flex-col items-start">
+                <p className="text-lg md:text-xl font-medium mb-3 text-black/90">&quot;I couldn&apos;t walk without pain. After 30 minutes on the Quantum Machine, I felt light, strong, and free.&quot;</p>
+                <footer className="text-base text-black/60 font-semibold">&mdash; Mrs. Ada, Lagos</footer>
+              </div>
+            </div>
+            {/* Testimonial 2: Video and Quote in one card */}
+            <div className="flex flex-col bg-white border border-amber-300 rounded-2xl shadow-xl overflow-hidden">
+              {/* Replace the videoId below with the real YouTube video ID for Mr. John */}
+              <div className="aspect-video w-full bg-black">
+                  <YouTube
+                    videoId="l7d690a-5GI"
+                    className="w-full h-full"
+                    opts={{
+                      width: '100%',
+                      height: '100%',
+                      playerVars: {
+                        autoplay: 0,
+                        mute: 0,
+                        controls: 1,
+                        modestbranding: 1,
+                        rel: 0,
+                        showinfo: 0,
+                      },
+                    }}
+                  />
+              </div>
+              <div className="p-6 flex flex-col items-start">
+                <p className="text-lg md:text-xl font-medium mb-3 text-black/90">&quot;My blood pressure dropped naturally after using the machine consistently. No drugs. No side effects.&quot;</p>
+                <footer className="text-base text-black/60 font-semibold">&mdash; Mr. John, Abuja</footer>
+              </div>
+            </div>
+          </div>
+        </section>
+
+
         {/* FAQ Section */}
-        <section className="w-full px-4 py-20 bg-white flex flex-col items-center border-b border-gray-100">
+        <section className="w-full px-4 py-12 md:py-20 bg-white flex flex-col items-center border-b border-gray-100">
           <h2 className="text-4xl md:text-5xl font-bold text-center mb-10 font-playfair text-amber-700 drop-shadow tracking-tight">Frequently Asked Questions</h2>
           <FAQAccordion />
         </section>
 
         {/* Limited Offer Section */}
-        <section className="w-full px-4 py-20 bg-white flex flex-col items-center border-b border-gray-100">
+        <section className="w-full px-4 py-12 md:py-20 bg-white flex flex-col items-center border-b border-gray-100">
           <h2 className="text-4xl md:text-5xl font-bold text-center mb-10 font-playfair text-amber-700 drop-shadow tracking-tight">Limited-Time Offer: Try It for Yourself</h2>
           <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow p-8 border border-gray-100">
             <p className="text-xl md:text-2xl text-center mb-4 text-black/80 font-semibold">
               We&apos;re offering first-time users an exclusive opportunity to own their personal Quantum Energy Machine at a special discount.
             </p>
-            <p className="text-lg text-center text-red-600 font-semibold mb-0">
+            <p
+              className="text-2xl md:text-3xl font-extrabold mb-0 px-4 py-3 rounded-xl bg-black text-white shadow-lg border-2 border-black text-center"
+            >
               Don&apos;t wait for sickness to strike. Take charge of your health today.
             </p>
           </div>
         </section>
 
         {/* Final CTA Section - Improved */}
-        <section className="w-full px-4 py-20 bg-white flex flex-col items-center border-b border-gray-100">
+        <section className="w-full px-4 py-12 md:py-20 bg-white flex flex-col items-center border-b border-gray-100">
           <h2 className="text-4xl md:text-5xl font-extrabold text-center mb-8 font-playfair text-amber-700 drop-shadow tracking-tight">Ready to Experience Quantum Healing?</h2>
           <p className="text-lg md:text-xl font-bold text-black/80 mb-6 text-center max-w-2xl">This is your moment to take charge of your health and well-being. <span className="text-amber-700 font-extrabold">Don&apos;t wait</span>—start your healing journey today and feel the difference for yourself.</p>
           <p className="text-base md:text-lg text-black/60 font-semibold mb-8 text-center max-w-xl">Opportunities like this don&apos;t come often. Take action now and unlock a new level of energy, relief, and vitality.</p>
@@ -337,6 +726,7 @@ export default function QuantumPage() {
 
   {/* Footer removed as requested */}
       </main>
+      <CrispChat positionRight={true} themeColor="#25D366" />
     </>
   );
 }

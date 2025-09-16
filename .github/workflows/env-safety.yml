@@ -1,0 +1,66 @@
+name: Env safety checks
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  run-node-env-check:
+    name: Run node env check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node.js setup
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Run env check script
+        env:
+          NODE_ENV: production
+        run: node ./scripts/check-no-dev-bypass.js
+
+  scan-repo-for-sensitive-envs:
+    name: Scan repository for sensitive envs
+    runs-on: ubuntu-latest
+    needs: run-node-env-check
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Scan repository for sensitive envs
+        run: |
+          set -euo pipefail
+          echo "Scanning for dangerous env variables or service keys..."
+          # Always block DEV_ADMIN_BYPASS=true anywhere in repo
+          dev_bypass=$(grep -RIn --binary-files=without-match --exclude-dir=.git -E "DEV_ADMIN_BYPASS\s*=\s*true" || true)
+          if [ -n "$dev_bypass" ]; then
+            echo "Found DEV_ADMIN_BYPASS=true in repository:" >&2
+            echo "$dev_bypass" >&2
+            exit 1
+          fi
+
+          # Scan only env files for hard-coded secrets
+          matches=$(grep -RIn --binary-files=without-match \
+            --include ".env*" \
+            --exclude-dir=.git \
+            --exclude "*.example" \
+            --exclude "*.sample" \
+            --exclude "*.bak*" \
+            --exclude "*.backup*" \
+            -E "SUPABASE_SERVICE_ROLE_KEY\s*=|NEXTAUTH_SECRET\s*=|PAYSTACK_SECRET_KEY\s*=" || true)
+          if [ -n "$matches" ]; then
+            echo "Found sensitive env entries in tracked env files:" >&2
+            echo "$matches" >&2
+            echo "Blocking merge: remove secrets from tracked files and use repository secrets instead." >&2
+            exit 1
+          else
+            echo "No sensitive env flags or service keys found in tracked env files.";
+          fi

@@ -1,26 +1,50 @@
 "use client";
+// Ensure admin pages send credentials on same-origin fetches
+import './_fetch';
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 
 const navItems = [
   { name: "Dashboard", href: "/admin" },
   { name: "Products", href: "/admin/products" },
   { name: "Categories", href: "/admin/categories" },
+  { name: "Customers", href: "/admin/customers" },
   { name: "Orders", href: "/admin/orders" },
   { name: "Payments", href: "/admin/payments" },
+  // Payment Events removed from sidebar
+  { name: "Email Queue", href: "/admin/email-queue" }
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { data: session, status } = useSession();
+  // Client-side guard (defense-in-depth): if not admin, redirect to /signin
+  useEffect(() => {
+    if (status === 'loading') return;
+    const isAdmin = Boolean((session as any)?.user?.isAdmin === true || (session as any)?.user?.admin === true);
+    if (!isAdmin) {
+      const search = typeof window !== 'undefined' ? (window.location.search || '') : '';
+      const cb = `${pathname}${search}`;
+      router.replace(`/signin?callbackUrl=${encodeURIComponent(cb)}`);
+    }
+  }, [status, session, pathname, router]);
+
   const [menuOpen, setMenuOpen] = useState(false);
+  // Avoid flashing protected content before redirect
+  const isAdmin = Boolean((session as any)?.user?.isAdmin === true || (session as any)?.user?.admin === true);
+  if (status !== 'authenticated' || !isAdmin) {
+    return null;
+  }
   return (
-    <div className="min-h-screen flex flex-col bg-baby_powder-500">
+  <div className="min-h-screen flex flex-col bg-baby_powder-500">
       {/* Top nav for mobile */}
-      <nav className="flex md:hidden items-center justify-between bg-baby_powder-900 border-b border-sunglow-200 px-4 py-3 sticky top-0 z-20">
+      <nav className="flex md:hidden items-center justify-between bg-gray-900 border-b border-sunglow-200 px-4 py-3 sticky top-0 z-20">
         <span className="text-lg font-bold text-sunglow-400 tracking-wide">Admin</span>
         <button
-          className="text-blue_gray-400 focus:outline-none"
+          className="text-white focus:outline-none"
           onClick={() => setMenuOpen((v) => !v)}
           aria-label="Toggle menu"
         >
@@ -29,12 +53,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </nav>
       {/* Mobile menu */}
       {menuOpen && (
-        <div className="md:hidden bg-baby_powder-900 border-b border-sunglow-200 px-4 py-2 flex flex-col gap-2">
+        <div className="md:hidden bg-gray-900 border-b border-sunglow-200 px-4 py-2 flex flex-col gap-2">
           {navItems.map(item => (
             <Link
               key={item.href}
               href={item.href}
-              className={`px-3 py-2 rounded-lg font-semibold transition-colors duration-200 ${pathname === item.href ? "bg-sunglow-400 text-baby_powder-500 shadow" : "text-blue_gray-300 hover:bg-sunglow-100 hover:text-sunglow-400"}`}
+              className={`px-3 py-2 rounded-lg font-semibold transition-colors duration-200 ${pathname === item.href ? "bg-yellow-300 text-gray-900 shadow" : "text-white hover:bg-sunglow-100 hover:text-sunglow-400"}`}
               onClick={() => setMenuOpen(false)}
             >
               {item.name}
@@ -44,14 +68,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       )}
       {/* Sidebar for desktop */}
       <div className="flex-1 flex flex-col md:flex-row">
-        <aside className="hidden md:flex md:w-64 bg-baby_powder-900 shadow-lg flex-col p-6 border-r border-sunglow-200">
+        <aside className="hidden md:flex md:w-64 bg-gray-900 shadow-lg flex-col p-6 border-r border-sunglow-200 min-h-screen">
           <h2 className="text-2xl font-bold text-sunglow-400 mb-8 tracking-wide">Admin</h2>
           <nav className="flex flex-col gap-2 w-full">
             {navItems.map(item => (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`px-4 py-2 rounded-lg font-semibold transition-colors duration-200 ${pathname === item.href ? "bg-sunglow-400 text-baby_powder-500 shadow" : "text-blue_gray-300 hover:bg-sunglow-100 hover:text-sunglow-400"}`}
+                className={`px-4 py-2 rounded-lg font-semibold transition-colors duration-200 ${pathname === item.href ? "bg-yellow-300 text-gray-900 shadow" : "text-white hover:bg-sunglow-100 hover:text-sunglow-400"}`}
               >
                 {item.name}
               </Link>
