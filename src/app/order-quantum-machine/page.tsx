@@ -19,6 +19,7 @@ import { useForm } from 'react-hook-form';
 import type { Product } from '../../lib/types';
 import { PICKUP_LOCATIONS, calculateDeliveryFee } from '../../lib/types';
 import CrispChat from '@/components/CrispChat';
+import { trackMeta } from '@/lib/meta';
 
 const QUANTUM_PRODUCT_ID = 'a0e22d4f-b4aa-4704-b5f2-5fd801b1ed88';
 
@@ -203,6 +204,9 @@ export default function OrderQuantumMachinePage() {
             <div className="w-full flex justify-center">
               <button
                 onClick={() => {
+                  try {
+                    trackMeta('InitiateCheckout', { value: DISCOUNTED_PRICE, currency: 'NGN', content_ids: [QUANTUM_PRODUCT_ID], content_type: 'product' });
+                  } catch {}
                   // Mobile-only: jump straight to Shipping form
                   if (typeof window !== 'undefined' && window.innerWidth < 768) {
                     try { setStep(1); } catch {}

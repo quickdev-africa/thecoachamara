@@ -86,6 +86,28 @@ export async function createOrderAndInitPayment({
     return;
   }
   const productId = product.id;
+  // Capture FB browser identifiers for CAPI matching
+  const getCookie = (name: string) => {
+    const m = document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith(name + '='));
+    return m ? decodeURIComponent(m.split('=')[1]) : undefined;
+  };
+  const getQueryParam = (name: string) => {
+    try {
+      const u = new URL(window.location.href);
+      return u.searchParams.get(name) || undefined;
+    } catch { return undefined; }
+  };
+  const deriveFbc = () => {
+    const existing = getCookie('_fbc');
+    if (existing) return existing;
+    const fbclid = getQueryParam('fbclid');
+    if (!fbclid) return undefined;
+    const ts = Math.floor(Date.now() / 1000);
+    return `fb.1.${ts}.${fbclid}`;
+  };
+  const fbp = getCookie('_fbp');
+  const fbc = deriveFbc();
+
   const orderData = {
   productId,
       customerName: form.name,
@@ -130,6 +152,8 @@ export async function createOrderAndInitPayment({
         specialRequests: form.specialRequests,
         userAgent: navigator.userAgent,
         timestamp: new Date().toISOString(),
+        fbp,
+        fbc,
         pricing: {
           regularPrice: 3039600,
           finalPrice: subtotal / quantity,
@@ -184,6 +208,8 @@ export async function createOrderAndInitPayment({
             source: 'quantum-funnel',
             cartSessionId,
             paymentOption: form.paymentOption,
+            fbp,
+            fbc,
             custom_fields: [
               {
                 display_name: 'Delivery Method',
