@@ -4,7 +4,7 @@ import nodeCrypto from 'crypto';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { event_name, event_time, event_source_url, user_data = {}, custom_data = {}, event_id } = body || {};
+  const { event_name, event_time, event_source_url, user_data = {}, custom_data = {}, event_id, test_event_code } = body || {};
 
     const pixelId = process.env.FB_PIXEL_ID || process.env.NEXT_PUBLIC_FB_PIXEL_ID;
     const accessToken = process.env.FB_CONVERSIONS_API_TOKEN || process.env.META_CAPI_TOKEN;
@@ -43,7 +43,8 @@ export async function POST(req: NextRequest) {
       ],
     };
 
-    const res = await fetch(`https://graph.facebook.com/v18.0/${pixelId}/events?access_token=${accessToken}`, {
+  const testParam = test_event_code ? `&test_event_code=${encodeURIComponent(test_event_code)}` : '';
+  const res = await fetch(`https://graph.facebook.com/v18.0/${pixelId}/events?access_token=${accessToken}${testParam}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
