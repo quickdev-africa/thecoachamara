@@ -54,8 +54,6 @@ To enable the CI smoke job (`.github/workflows/ci-smoke-and-env-safety.yml`) you
 - `SMOKE_TEST_TOKEN` — short-lived token that the staging server recognizes for simulate verify (keep secret)
 
 The CI job will run env-safety, build, and smoke test after changes are pushed to `main`.
-<<<<<<< HEAD
-=======
 
 ## Marketing Tracking (Meta Pixel & Conversions API)
 
@@ -82,4 +80,3 @@ To keep Pixel-only (no server calls):
 - Leave `NEXT_PUBLIC_ENABLE_CAPI` unset (or not equal to `true`). The server Purchase event will be suppressed.
 
 If you later add CAPI, no code change is required—just set the envs and redeploy.
->>>>>>> my-feature-branch

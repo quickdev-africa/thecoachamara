@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/supabaseClient';
+import { getAnonSupabase } from '@/supabaseClient';
 import { Order } from '@/lib/types';
 
 // GET orders for a specific customer
@@ -12,6 +12,10 @@ export async function GET(req: NextRequest) {
     const customerId = url.searchParams.get('customerId');
     if (!customerId) {
       return NextResponse.json({ success: false, error: 'customerId is required' }, { status: 400 });
+    }
+    const supabase = getAnonSupabase();
+    if (!supabase) {
+      return NextResponse.json({ success: false, error: 'Supabase anon env vars not configured' }, { status: 503 });
     }
     const { data: orders, error } = await supabase
       .from('orders')

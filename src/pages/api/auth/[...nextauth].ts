@@ -3,7 +3,7 @@
 import NextAuth from "next-auth";
 import fs from 'fs';
 import CredentialsProvider from "next-auth/providers/credentials";
-import { supabase } from "@/supabaseClient";
+import { getAnonSupabase } from "@/supabaseClient";
 
 export const authOptions = {
   providers: [
@@ -15,6 +15,11 @@ export const authOptions = {
       },
       async authorize(credentials) {
         // Use Supabase Auth for authentication and check for admin role
+        const supabase = getAnonSupabase();
+        if (!supabase) {
+          // Env not configured; deny auth gracefully
+          return null;
+        }
         const { data, error } = await supabase.auth.signInWithPassword({
           email: credentials?.email || "",
           password: credentials?.password || ""

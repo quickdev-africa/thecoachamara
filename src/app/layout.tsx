@@ -11,6 +11,7 @@ import { CartProvider } from "./shop/CartContext";
 import MetaPixelProvider from "./MetaPixelProvider";
 import AttributionCapture from "./modules/AttributionCapture";
 import GlobalDisclaimer from "./components/GlobalDisclaimer";
+const ConditionalHeader = dynamic(() => import('./components/ConditionalHeader'), { ssr: false });
 
 // const geistSans = localFont({
 //   src: "./fonts/GeistVF.woff",
@@ -97,6 +98,7 @@ export default function RootLayout({
             <CartProvider>
               <MetaPixelProvider />
               <AttributionCapture />
+              <ConditionalHeader />
               {children}
               <GlobalDisclaimer />
             </CartProvider>
