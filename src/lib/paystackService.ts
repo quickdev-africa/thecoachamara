@@ -86,8 +86,6 @@ export async function createOrderAndInitPayment({
     return;
   }
   const productId = product.id;
-<<<<<<< HEAD
-=======
   // Capture FB browser identifiers for CAPI matching
   const getCookie = (name: string) => {
     const m = document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith(name + '='));
@@ -110,7 +108,6 @@ export async function createOrderAndInitPayment({
   const fbp = getCookie('_fbp');
   const fbc = deriveFbc();
 
->>>>>>> my-feature-branch
   const orderData = {
   productId,
       customerName: form.name,
@@ -155,11 +152,8 @@ export async function createOrderAndInitPayment({
         specialRequests: form.specialRequests,
         userAgent: navigator.userAgent,
         timestamp: new Date().toISOString(),
-<<<<<<< HEAD
-=======
         fbp,
         fbc,
->>>>>>> my-feature-branch
         pricing: {
           regularPrice: 3039600,
           finalPrice: subtotal / quantity,
@@ -214,11 +208,8 @@ export async function createOrderAndInitPayment({
             source: 'quantum-funnel',
             cartSessionId,
             paymentOption: form.paymentOption,
-<<<<<<< HEAD
-=======
             fbp,
             fbc,
->>>>>>> my-feature-branch
             custom_fields: [
               {
                 display_name: 'Delivery Method',

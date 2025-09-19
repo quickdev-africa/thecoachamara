@@ -5,17 +5,11 @@ import "./logoFont.css";
 import "./playfair.css";
 import dynamic from "next/dynamic";
 const SessionProvider = dynamic(() => import("./SessionProvider"), { ssr: false });
-const SiteHeader = dynamic(() => import("./components/ConditionalHeader"), { ssr: false });
 import ReactQueryProvider from "./ReactQueryProvider";
-<<<<<<< HEAD
-import { CartProvider } from "./shop/CartContext";
-const CookieBanner = dynamic(() => import("@/components/CookieBanner"), { ssr: false });
-=======
 import Script from "next/script";
 import { CartProvider } from "./shop/CartContext";
 import MetaPixelProvider from "./MetaPixelProvider";
 import GlobalDisclaimer from "./components/GlobalDisclaimer";
->>>>>>> my-feature-branch
 
 // const geistSans = localFont({
 //   src: "./fonts/GeistVF.woff",
@@ -44,11 +38,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-  <body className="antialiased font-playfair">
-<<<<<<< HEAD
-        {/* Paystack inline script loader (async) - only injected in browser */}
-        <script
-=======
+      <body className="antialiased font-playfair">
         {/* Meta Pixel (Facebook) */}
         <Script id="meta-pixel" strategy="afterInteractive">
           {`
@@ -74,7 +64,6 @@ export default function RootLayout({
         </noscript>
         {/* Paystack inline script loader (async) - only injected in browser */}
         <Script id="paystack-inline" strategy="afterInteractive"
->>>>>>> my-feature-branch
           dangerouslySetInnerHTML={{
             __html: `
               (function(){
@@ -97,15 +86,9 @@ export default function RootLayout({
         <SessionProvider>
           <ReactQueryProvider>
             <CartProvider>
-<<<<<<< HEAD
-              <SiteHeader />
-              {children}
-              <CookieBanner />
-=======
               <MetaPixelProvider />
               {children}
               <GlobalDisclaimer />
->>>>>>> my-feature-branch
             </CartProvider>
           </ReactQueryProvider>
         </SessionProvider>

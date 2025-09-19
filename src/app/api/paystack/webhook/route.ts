@@ -72,9 +72,6 @@ export async function POST(req: NextRequest) {
         } catch (e) {}
       })();
     }
-<<<<<<< HEAD
-=======
-
     // Fire Meta CAPI Purchase server-side with dedup using reference as event_id
     try {
       const pixelId = process.env.FB_PIXEL_ID || process.env.NEXT_PUBLIC_FB_PIXEL_ID;
@@ -117,7 +114,6 @@ export async function POST(req: NextRequest) {
     } catch (e) {
       console.warn('Failed to send Meta CAPI Purchase from webhook', e);
     }
->>>>>>> my-feature-branch
   }
   // Handle other events (e.g., charge.failed, refund, etc.)
   if (event === 'charge.failed') {

@@ -378,14 +378,10 @@ export async function POST(request: NextRequest) {
               shipping_state: shippingState,
               customer_state: customerState
             },
-<<<<<<< HEAD
-            customerPhone: customerPhone
-=======
             customerPhone: customerPhone,
             // Pass through fbp/fbc from client metadata if present
             fbp: (metadata && (metadata as any).fbp) || null,
             fbc: (metadata && (metadata as any).fbc) || null
->>>>>>> my-feature-branch
           }
         };
         const resp = await fetch('https://api.paystack.co/transaction/initialize', {
