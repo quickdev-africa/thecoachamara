@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { checkAdmin } from '@/lib/adminGuard';
 
 // Server-only: create a Supabase admin client with the service role key
 function getAdminSupabase() {
@@ -11,6 +12,8 @@ function getAdminSupabase() {
 
 export async function POST(req: NextRequest) {
   try {
+    const guard = checkAdmin(req);
+    if (!guard.ok) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: guard.status || 401 });
     const { email, password, inviteToken } = await req.json();
     if (!email || !password || !inviteToken) {
       return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 });
