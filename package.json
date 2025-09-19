@@ -14,7 +14,8 @@
     "check:env": "node ./scripts/check-no-dev-bypass.js",
     "mark-user-admin": "node ./scripts/mark-user-admin.js",
     "test:smoke": "node tests/smoke-orders.test.js",
-    "get-cookie-node": "node ./scripts/get-admin-cookie.js"
+  "get-cookie-node": "node ./scripts/get-admin-cookie.js",
+  "test:attribution": "node tests/attribution.server.test.js && node tests/attribution.client.test.js && node tests/consent.gating.test.js"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
