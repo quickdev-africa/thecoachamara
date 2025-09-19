@@ -72,6 +72,52 @@ export async function POST(req: NextRequest) {
         } catch (e) {}
       })();
     }
+<<<<<<< HEAD
+=======
+
+    // Fire Meta CAPI Purchase server-side with dedup using reference as event_id
+    try {
+      const pixelId = process.env.FB_PIXEL_ID || process.env.NEXT_PUBLIC_FB_PIXEL_ID;
+      const token = process.env.FB_CONVERSIONS_API_TOKEN || process.env.META_CAPI_TOKEN;
+      if (pixelId && token) {
+        const capiUrl = `${process.env.NEXT_PUBLIC_BASE_URL || ''}/api/meta/track`;
+        const currency = (data?.currency || 'NGN').toUpperCase();
+        const items = Array.isArray(metadata?.items) ? metadata.items : [];
+        const content_ids = items.map((it: any) => it.productId || it.product_id).filter(Boolean);
+        const contents = items.map((it: any) => ({ id: it.productId || it.product_id, quantity: Number(it.quantity || 1), item_price: Number(it.unitPrice || it.price || 0) })).filter((c: any) => c.id);
+        const fbp = metadata?.fbp;
+        const fbc = metadata?.fbc;
+        const user_data = {
+          email: customer?.email,
+          phone: metadata?.customerPhone,
+          fbp,
+          fbc,
+        };
+        const custom_data = {
+          value: amount / 100,
+          currency,
+          content_ids,
+          content_type: 'product',
+          contents,
+          order_id: metadata?.order_id,
+        };
+        await fetch(capiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            event_name: 'Purchase',
+            event_source_url: `${process.env.NEXT_PUBLIC_BASE_URL || ''}/thank-you-premium?ref=${encodeURIComponent(reference)}`,
+            user_data,
+            custom_data,
+            event_id: reference,
+          }),
+          cache: 'no-store',
+        }).catch(() => {});
+      }
+    } catch (e) {
+      console.warn('Failed to send Meta CAPI Purchase from webhook', e);
+    }
+>>>>>>> my-feature-branch
   }
   // Handle other events (e.g., charge.failed, refund, etc.)
   if (event === 'charge.failed') {

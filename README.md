@@ -54,3 +54,32 @@ To enable the CI smoke job (`.github/workflows/ci-smoke-and-env-safety.yml`) you
 - `SMOKE_TEST_TOKEN` — short-lived token that the staging server recognizes for simulate verify (keep secret)
 
 The CI job will run env-safety, build, and smoke test after changes are pushed to `main`.
+<<<<<<< HEAD
+=======
+
+## Marketing Tracking (Meta Pixel & Conversions API)
+
+The app includes an integrated Meta (Facebook) Pixel + (optional) Conversions API implementation with event deduplication.
+
+Implemented events:
+- `PageView` (initial + every SPA route change)
+- `InitiateCheckout` (primary order CTA)
+- `Purchase` (server-side on Paystack webhook success; only when CAPI enabled)
+
+Environment variables:
+- `NEXT_PUBLIC_FB_PIXEL_ID` (required for any browser Pixel tracking)
+- `FB_CONVERSIONS_API_TOKEN` (server secret token for CAPI – only needed if enabling CAPI)
+- `NEXT_PUBLIC_ENABLE_CAPI` (set to `true` to send server/browser events via Conversions API; omit or set to anything else for Pixel-only)
+
+Default mode: Pixel-only. The helper (`src/lib/meta.ts`) checks `NEXT_PUBLIC_ENABLE_CAPI==='true'` before POSTing to `/api/meta/track`.
+
+To enable full CAPI + Purchase event:
+1. Set `NEXT_PUBLIC_FB_PIXEL_ID` and `FB_CONVERSIONS_API_TOKEN` in Vercel (Production + Preview).
+2. Add `NEXT_PUBLIC_ENABLE_CAPI=true`.
+3. Redeploy. Verify in Events Manager → Test Events (PageView, InitiateCheckout, Purchase with server icon & dedup).
+
+To keep Pixel-only (no server calls):
+- Leave `NEXT_PUBLIC_ENABLE_CAPI` unset (or not equal to `true`). The server Purchase event will be suppressed.
+
+If you later add CAPI, no code change is required—just set the envs and redeploy.
+>>>>>>> my-feature-branch
