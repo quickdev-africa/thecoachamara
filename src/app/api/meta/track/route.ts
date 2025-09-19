@@ -28,6 +28,13 @@ export async function POST(req: NextRequest) {
       fbp: user_data.fbp,
       fbc: user_data.fbc,
     };
+    // Advanced matching optional fields
+    if (user_data.external_id) normalizedUserData.external_id = Array.isArray(user_data.external_id) ? user_data.external_id : [hash(String(user_data.external_id))];
+    if (user_data.country) normalizedUserData.country = user_data.country.toString().toLowerCase();
+    if (user_data.st) normalizedUserData.st = user_data.st.toString().toLowerCase();
+    if (user_data.state && !normalizedUserData.st) normalizedUserData.st = user_data.state.toString().toLowerCase();
+    if (user_data.zp) normalizedUserData.zp = user_data.zp.toString();
+    if (user_data.zip && !normalizedUserData.zp) normalizedUserData.zp = user_data.zip.toString();
 
     const payload = {
       data: [

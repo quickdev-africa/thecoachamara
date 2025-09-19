@@ -38,7 +38,33 @@ function uuid(): string {
   return 'evt_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
+// Basic consent check (analytics flag) using existing cookie schema from consent.ts.
+function hasConsent(): boolean {
+  try {
+    const raw = getCookie('cookie_consent');
+    if (!raw) return true; // default allow if banner not used
+    const obj = JSON.parse(raw);
+    if (obj && typeof obj.analytics === 'boolean') return !!obj.analytics;
+  } catch {}
+  return true;
+}
+
+// Normalize custom_data across events.
+function buildCustomData(event: string, params: Record<string, any>, base: { value?: any; currency?: any; content_ids?: any; content_type?: any; contents?: any; order_id?: any }) {
+  const cd: any = { ...base };
+  if (!cd.currency) cd.currency = 'NGN';
+  // Ensure arrays where required
+  if (cd.content_ids && !Array.isArray(cd.content_ids)) cd.content_ids = [cd.content_ids];
+  if (!cd.content_type && cd.content_ids) cd.content_type = 'product';
+  // Map some funnel-specific aliases
+  if (params.orderId && !cd.order_id) cd.order_id = params.orderId;
+  if (params.order_id && !cd.order_id) cd.order_id = params.order_id;
+  return cd;
+}
+
 export function trackMeta(event: string, params: Record<string, any> = {}) {
+  // Respect consent (only blocks client pixel + client->CAPI; server events still go through)
+  if (!hasConsent()) return;
   const fbp = getCookie('_fbp');
   const fbc = deriveFbc();
   const event_id = (params as any).event_id || (params as any).eventId || uuid();
@@ -57,17 +83,14 @@ export function trackMeta(event: string, params: Record<string, any> = {}) {
 
   if (enableCapi) {
     try {
-      const { email, phone, first_name, last_name, value, currency, content_ids, content_type, contents, order_id } = params || {};
+      const { email, phone, first_name, last_name, value, currency, content_ids, content_type, contents, order_id, external_id, state, country, zip } = params || {};
       const url = typeof window !== 'undefined' ? window.location.href : undefined;
       const user_data: any = { email, phone, first_name, last_name, fbp, fbc };
-      const custom_data: any = {
-        value,
-        currency,
-        content_ids,
-        content_type,
-        contents,
-        order_id,
-      };
+      if (external_id) user_data.external_id = external_id; // hashed server-side
+      if (state) user_data.st = state;
+      if (country) user_data.country = country;
+      if (zip) user_data.zp = zip;
+      const custom_data = buildCustomData(event, params, { value, currency, content_ids, content_type, contents, order_id });
       fetch('/api/meta/track', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

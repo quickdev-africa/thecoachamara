@@ -47,6 +47,14 @@ export default function RootLayout({
               if (typeof window === 'undefined') return;
               var pid = '${process.env.NEXT_PUBLIC_FB_PIXEL_ID || ''}'.trim();
               if (!pid) return;
+              // Simple consent gate: if cookie_consent exists and analytics=false, skip.
+              try {
+                var cc = document.cookie.split(';').map(function(c){return c.trim();}).find(function(c){return c.indexOf('cookie_consent=')===0;});
+                if (cc) {
+                  var val = decodeURIComponent(cc.split('=')[1]);
+                  try { var parsed = JSON.parse(val); if (parsed && parsed.analytics === false) { return; } } catch(e){}
+                }
+              } catch(e){}
               if (!window.fbq) {
                 var n = window.fbq = function(){ n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments) };
                 if (!window._fbq) window._fbq = n;
