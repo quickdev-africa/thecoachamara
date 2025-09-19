@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 // Use serverSupabase (service role) when available; fall back to anon client only if needed.
 import serverSupabase from '@/lib/serverSupabase';
-import { supabase as anonSupabase } from '@/supabaseClient';
+import { getAnonSupabase } from '@/supabaseClient';
 import { checkAdmin } from '@/lib/adminGuard';
 
 function getClient() {
@@ -9,7 +9,12 @@ function getClient() {
   try {
     if (serverSupabase) return serverSupabase as any;
   } catch {}
-  return anonSupabase as any;
+  const anon = getAnonSupabase();
+  if (anon) return anon as any;
+  // Return shim with select that returns empty set to avoid crashing build
+  return {
+    from() { return { select() { return { data: [], error: null }; }, eq() { return this; }, order() { return this; }, limit() { return this; } }; }
+  } as any;
 }
 
 export async function GET(req: NextRequest) {

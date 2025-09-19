@@ -41,7 +41,7 @@ export default function SiteHeader() {
   useEffect(() => {
     try {
       const path = pathname || (typeof window !== 'undefined' ? window.location.pathname : '');
-    const hidePaths = ['/join', '/order-quantum-machine', '/quantum', '/shop/checkout', '/admin'];
+  const hidePaths = ['/join', '/order-quantum-machine', '/shop/checkout', '/admin', '/quantum'];
       if (hidePaths.includes(path) || hidePaths.some(p => path.startsWith(p + '/'))) {
         setHidden(true);
       } else {
