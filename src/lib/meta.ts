@@ -42,6 +42,7 @@ export function trackMeta(event: string, params: Record<string, any> = {}) {
   const fbp = getCookie('_fbp');
   const fbc = deriveFbc();
   const event_id = (params as any).event_id || (params as any).eventId || uuid();
+  const enableCapi = (process.env.NEXT_PUBLIC_ENABLE_CAPI || '').toLowerCase() === 'true';
 
   // Fire Pixel (browser)
   try {
@@ -54,30 +55,31 @@ export function trackMeta(event: string, params: Record<string, any> = {}) {
     }
   } catch {}
 
-  // Fire CAPI via our endpoint
-  try {
-    const { email, phone, first_name, last_name, value, currency, content_ids, content_type, contents, order_id } = params || {};
-    const url = typeof window !== 'undefined' ? window.location.href : undefined;
-    const user_data: any = { email, phone, first_name, last_name, fbp, fbc };
-    const custom_data: any = {
-      value,
-      currency,
-      content_ids,
-      content_type,
-      contents,
-      order_id,
-    };
-    fetch('/api/meta/track', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        event_name: event,
-        event_source_url: url,
-        user_data,
-        custom_data,
-        event_id,
-      }),
-      keepalive: true,
-    }).catch(() => {});
-  } catch {}
+  if (enableCapi) {
+    try {
+      const { email, phone, first_name, last_name, value, currency, content_ids, content_type, contents, order_id } = params || {};
+      const url = typeof window !== 'undefined' ? window.location.href : undefined;
+      const user_data: any = { email, phone, first_name, last_name, fbp, fbc };
+      const custom_data: any = {
+        value,
+        currency,
+        content_ids,
+        content_type,
+        contents,
+        order_id,
+      };
+      fetch('/api/meta/track', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          event_name: event,
+          event_source_url: url,
+          user_data,
+          custom_data,
+          event_id,
+        }),
+        keepalive: true,
+      }).catch(() => {});
+    } catch {}
+  }
 }
