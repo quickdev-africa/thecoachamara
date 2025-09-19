@@ -19,6 +19,17 @@ function makeOrderNumber() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+    // Attribution cookies (set client-side). We only parse if present; failures are ignored.
+    const cookieHeader = request.headers.get('cookie') || '';
+    const extractCookie = (name: string) => {
+      const parts = cookieHeader.split(/;\s*/).map(p=>p.trim());
+      const match = parts.find(p=>p.startsWith(name + '='));
+      return match ? decodeURIComponent(match.split('=')[1]) : null;
+    };
+    const safeJson = (raw: string | null) => { if (!raw) return null; try { return JSON.parse(raw); } catch { return null; } };
+    const attrFirst = safeJson(extractCookie('ca_utm_first'));
+    const attrLast = safeJson(extractCookie('ca_utm_last'));
+    const attrClicks = safeJson(extractCookie('ca_click_ids'));
     const {
       productId,
       customerName,
@@ -75,6 +86,11 @@ export async function POST(request: NextRequest) {
         source: 'quantum-funnel',
         createdAt: new Date().toISOString(),
         customerState: customerState,
+        attribution: {
+          first_touch: attrFirst || null,
+            last_touch: attrLast || null,
+            clicks: attrClicks || null
+        }
       },
       items // store snapshot
     };
@@ -381,7 +397,12 @@ export async function POST(request: NextRequest) {
             customerPhone: customerPhone,
             // Pass through fbp/fbc from client metadata if present
             fbp: (metadata && (metadata as any).fbp) || null,
-            fbc: (metadata && (metadata as any).fbc) || null
+            fbc: (metadata && (metadata as any).fbc) || null,
+            attribution: {
+              first_touch: attrFirst || null,
+              last_touch: attrLast || null,
+              clicks: attrClicks || null
+            }
           }
         };
         const resp = await fetch('https://api.paystack.co/transaction/initialize', {

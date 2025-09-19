@@ -9,6 +9,7 @@ import ReactQueryProvider from "./ReactQueryProvider";
 import Script from "next/script";
 import { CartProvider } from "./shop/CartContext";
 import MetaPixelProvider from "./MetaPixelProvider";
+import AttributionCapture from "./modules/AttributionCapture";
 import GlobalDisclaimer from "./components/GlobalDisclaimer";
 
 // const geistSans = localFont({
@@ -87,6 +88,7 @@ export default function RootLayout({
           <ReactQueryProvider>
             <CartProvider>
               <MetaPixelProvider />
+              <AttributionCapture />
               {children}
               <GlobalDisclaimer />
             </CartProvider>
