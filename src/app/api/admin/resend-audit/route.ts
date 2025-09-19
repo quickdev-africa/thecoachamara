@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 // Use serverSupabase (service role) when available; fall back to anon client only if needed.
 import serverSupabase from '@/lib/serverSupabase';
 import { supabase as anonSupabase } from '@/supabaseClient';
+import { checkAdmin } from '@/lib/adminGuard';
 
 function getClient() {
   // Prefer server client (will throw lazily if misconfigured); otherwise use anon for read-only.
@@ -12,12 +13,13 @@ function getClient() {
 }
 
 export async function GET(req: NextRequest) {
-  const apiKey = req.headers.get('x-admin-key') || process.env.ADMIN_API_KEY || '';
-  const allowed = !!apiKey && apiKey === process.env.ADMIN_API_KEY;
-  if (!allowed) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-
   const url = new URL(req.url);
   const recipient = url.searchParams.get('recipient');
+  const guard = checkAdmin(req, { emailForDomainCheck: recipient || undefined });
+  if (!guard.ok) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: guard.status || 401 });
+  }
+  // re-use existing recipient variable assignment (already above)
   if (!recipient) return NextResponse.json({ error: 'missing recipient' }, { status: 400 });
 
   try {
