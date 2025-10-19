@@ -12,14 +12,13 @@ function getAdminSupabase() {
 
 export async function POST(req: NextRequest) {
   try {
-    const guard = checkAdmin(req);
-    if (!guard.ok) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: guard.status || 401 });
     const { email, password, inviteToken } = await req.json();
     if (!email || !password || !inviteToken) {
       return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 });
     }
 
     // Verify invite token on server (never expose expected token to client)
+    // The invite token itself serves as authorization for creating an admin account
     const expected = process.env.ADMIN_SIGNUP_TOKEN || '';
     if (!expected || inviteToken !== expected) {
       return NextResponse.json({ success: false, error: 'Invalid invite code' }, { status: 401 });
