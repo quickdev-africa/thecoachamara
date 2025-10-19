@@ -166,7 +166,7 @@ const faqData = [
   },
   {
     question: 'Where are you located?',
-    answer: 'Our Lagos center is in Lekki Phase 1. We serve all of Lagos and can deliver nationwide.',
+    answer: 'Our Lagos Center is 10 Ajibodu Street Karaole Estate College Road Ogba, Lagos',
   },
   {
     question: 'Is there a guarantee?',

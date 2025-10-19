@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useCart } from '../CartContext';
 import { usePaystack } from '@/hooks/usePaystack';
 import PaystackButton from '@/components/PaystackButton';
@@ -22,6 +22,13 @@ export default function CheckoutPage() {
   country: '',
   pickupLocation: ''
   });
+
+  // Auto-select pickup location if there's only one option and delivery preference is pickup
+  useEffect(() => {
+    if (form.deliveryPref === 'pickup' && PICKUP_LOCATIONS.length === 1 && !form.pickupLocation) {
+      setForm(prev => ({ ...prev, pickupLocation: PICKUP_LOCATIONS[0] }));
+    }
+  }, [form.deliveryPref, form.pickupLocation]);
 
   // helper: computed shipping zone name
   const shippingZoneName = getDeliveryZone(form.region || form.city || '') || undefined;
@@ -153,7 +160,7 @@ export default function CheckoutPage() {
               {form.deliveryPref === 'pickup' && (
                 <div className="mt-4">
                   <label className="block text-sm font-medium text-gray-900">Select Pickup Location</label>
-                  <select value={form.pickupLocation || PICKUP_LOCATIONS[0]} onChange={(e)=>setForm({...form, pickupLocation: e.target.value})} className="mt-1 w-full p-3 border border-gray-200 rounded bg-white" aria-invalid={!!errors.pickupLocation}>
+                  <select value={form.pickupLocation} onChange={(e)=>setForm({...form, pickupLocation: e.target.value})} className="mt-1 w-full p-3 border border-gray-200 rounded bg-white" aria-invalid={!!errors.pickupLocation}>
                     {PICKUP_LOCATIONS.length > 1 ? <option value="">Choose pickup location</option> : null}
                     {PICKUP_LOCATIONS.map(loc => <option key={loc} value={loc}>{loc}</option>)}
                   </select>

@@ -172,12 +172,18 @@ export function calculateDeliveryFee(state: string): number {
     "Other States": { cost: 5000, states: ["Abia", "Adamawa", "Akwa Ibom", "Anambra", "Bauchi", "Bayelsa", "Benue", "Borno", "Cross River", "Delta", "Ebonyi", "Edo", "Ekiti", "Enugu", "Gombe", "Imo", "Jigawa", "Kano", "Katsina", "Kebbi", "Kwara", "Ondo", "Osun", "Oyo", "Plateau", "Rivers", "Sokoto", "Taraba", "Yobe", "Zamfara"] }
   };
   
+  // Normalize input: trim and capitalize first letter of each word
+  const normalizedState = state.trim().toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+  
   for (const [_, zoneData] of Object.entries(zones)) {
-    if (zoneData.states.includes(state)) {
+    if (zoneData.states.includes(normalizedState)) {
       return zoneData.cost;
     }
   }
-  return 0;
+  
+  // Default to "Other States" cost if state is not empty but not found
+  // Return 0 only if state is empty (for pickup scenarios)
+  return normalizedState ? 5000 : 0;
 }
 
 export function getDeliveryZone(state: string): string | null {
@@ -187,12 +193,17 @@ export function getDeliveryZone(state: string): string | null {
     "Other States": { cost: 5000, states: ["Abia", "Adamawa", "Akwa Ibom", "Anambra", "Bauchi", "Bayelsa", "Benue", "Borno", "Cross River", "Delta", "Ebonyi", "Edo", "Ekiti", "Enugu", "Gombe", "Imo", "Jigawa", "Kano", "Katsina", "Kebbi", "Kwara", "Ondo", "Osun", "Oyo", "Plateau", "Rivers", "Sokoto", "Taraba", "Yobe", "Zamfara"] }
   };
   
+  // Normalize input: trim and capitalize first letter of each word
+  const normalizedState = state.trim().toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+  
   for (const [zoneName, zoneData] of Object.entries(zones)) {
-    if (zoneData.states.includes(state)) {
+    if (zoneData.states.includes(normalizedState)) {
       return zoneName;
     }
   }
-  return null;
+  
+  // Return "Other States" for any non-empty state not in the list
+  return normalizedState ? "Other States" : null;
 }
 
 export function generateId(): string {

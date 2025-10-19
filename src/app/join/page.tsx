@@ -137,6 +137,13 @@ export default function JoinPage() {
   useEffect(() => { setMounted(true); }, []);
   const router = useRouter();
 
+  // Auto-select pickup location when pickup is chosen and there's only one location
+  useEffect(() => {
+    if (form.deliveryMethod === 'pickup' && PICKUP_LOCATIONS.length === 1) {
+      setForm(f => ({ ...f, pickupLocation: PICKUP_LOCATIONS[0] }));
+    }
+  }, [form.deliveryMethod]);
+
   // Phone number validation function
   const isValidPhoneNumber = (phone: string): boolean => {
     // Remove all non-digit characters except + at the beginning
@@ -283,6 +290,10 @@ export default function JoinPage() {
           if (value === 'pickup') {
             updated.shippingAddress = { street: "", city: "", state: "", postalCode: "" };
             updated.state = "";
+            // Auto-select pickup location if there's only one option
+            if (PICKUP_LOCATIONS.length === 1) {
+              updated.pickupLocation = PICKUP_LOCATIONS[0];
+            }
           } else if (value === 'ship') {
             updated.pickupLocation = "";
           }
@@ -690,7 +701,7 @@ export default function JoinPage() {
                     <label className="block font-bold mb-2 text-sm text-black">Select Pickup Location <span className="text-red-500">*</span></label>
                     <select
                       name="pickupLocation"
-                      value={form.pickupLocation || PICKUP_LOCATIONS[0]}
+                      value={form.pickupLocation || (PICKUP_LOCATIONS.length === 1 ? PICKUP_LOCATIONS[0] : '')}
                       onChange={handleChange}
                       className={`w-full px-4 py-3 rounded-lg border ${errors.pickupLocation ? 'border-red-400' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-amber-400 text-sm sm:text-base text-black font-bold`}
                       required={form.deliveryMethod === 'pickup'}

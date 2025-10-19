@@ -385,10 +385,51 @@ export default function ProductsPage() {
   const totalPages = Math.ceil(products.length / pageSize) || 1;
   const paginatedProducts = products.slice((page - 1) * pageSize, page * pageSize);
 
+  // Calculate summary statistics
+  const totalProducts = products.length;
+  const totalInventory = products.reduce((sum, p) => sum + (p.stock || 0), 0);
+  const lowStockProducts = products.filter(p => (p.stock || 0) <= 5).length;
+  const totalValue = products.reduce((sum, p) => sum + ((p.price || 0) * (p.stock || 0)), 0);
+  const categoriesUsed = new Set(products.map(p => p.category_id).filter(Boolean)).size;
+
   return (
     <div>
       <h1 className="text-xl md:text-2xl font-bold mb-4 md:mb-6 text-black tracking-wide">Product Management</h1>
       <p className="mb-4 text-gray-700">Here you can add, edit, and manage your products.</p>
+      
+      {/* Product Summary Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+        <div className="bg-white rounded-lg shadow-md p-4 border border-blue_gray-100">
+          <div className="text-2xl font-bold text-gray-900">{totalProducts}</div>
+          <div className="text-xs text-gray-600 mt-1">Total Products</div>
+        </div>
+        <div className="bg-white rounded-lg shadow-md p-4 border border-blue_gray-100">
+          <div className="text-2xl font-bold text-indigo-600">{totalInventory}</div>
+          <div className="text-xs text-gray-600 mt-1">Total Stock</div>
+        </div>
+        <div className="bg-white rounded-lg shadow-md p-4 border border-blue_gray-100">
+          <div className="text-2xl font-bold text-amber-600">{categoriesUsed}</div>
+          <div className="text-xs text-gray-600 mt-1">Categories Used</div>
+        </div>
+        <div className="bg-white rounded-lg shadow-md p-4 border border-blue_gray-100">
+          <div className={`text-2xl font-bold ${lowStockProducts > 0 ? 'text-red-600' : 'text-green-600'}`}>
+            {lowStockProducts}
+          </div>
+          <div className="text-xs text-gray-600 mt-1">Low Stock (≤5)</div>
+        </div>
+        <div className="bg-white rounded-lg shadow-md p-4 border border-blue_gray-100">
+          <div className="text-xl font-bold text-green-600">
+            {new Intl.NumberFormat('en-NG', {
+              style: 'currency',
+              currency: 'NGN',
+              minimumFractionDigits: 0,
+              maximumFractionDigits: 0
+            }).format(totalValue)}
+          </div>
+          <div className="text-xs text-gray-600 mt-1">Total Value</div>
+        </div>
+      </div>
+
       <button
         className="mb-4 bg-sunglow-400 hover:bg-mustard-400 text-gray-900 font-bold rounded-lg px-4 py-2 shadow border border-sunglow-400 transition-colors duration-200"
         onClick={() => setShowForm(f => !f)}
