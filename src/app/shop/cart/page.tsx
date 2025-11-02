@@ -21,7 +21,7 @@ export default function CartPage() {
               <img src={item.image || "/logo.png"} alt={item.name} className="w-16 h-16 object-contain bg-gray-50 rounded" />
               <div className="flex-1">
                 <div className="font-semibold text-black">{item.name}</div>
-                <div className="text-amber-600 font-bold">₦{item.price.toLocaleString()}</div>
+                <div className="text-black font-bold" style={{ textShadow: '0 1px 1px #D97706' }}>₦{item.price.toLocaleString()}</div>
                 <div className="flex items-center gap-2 mt-2">
                   <button onClick={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))} className="w-7 h-7 rounded bg-gray-200 text-black font-bold">-</button>
                   <span className="px-2">{item.quantity}</span>

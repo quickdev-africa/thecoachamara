@@ -17,7 +17,7 @@ export default function ProductCard({ product }: { product: Product }) {
       </Link>
       <div className="p-2 sm:p-3">
   <Link href={`/shop/${product.id}`} className="text-sm font-semibold text-black line-clamp-2 block hover:underline">{product.name}</Link>
-        <div className="mt-1 text-yellow-500 font-extrabold text-sm sm:text-base">₦{price.toLocaleString()}</div>
+        <div className="mt-1 text-black font-extrabold text-sm sm:text-base" style={{ textShadow: '0 1px 1px #D97706' }}>₦{price.toLocaleString()}</div>
         <div className="mt-2 flex items-center justify-between gap-2">
           <button
             onClick={() => { addToCart({ id: product.id, name: product.name, price, image: thumb }); try { window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: `${product.name} added to cart` } })); } catch(e){} }}

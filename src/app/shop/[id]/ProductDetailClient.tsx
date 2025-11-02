@@ -109,7 +109,7 @@ export default function ProductDetailClient({ product, related, category }: { pr
             </div>
             <aside className="flex-1 flex flex-col justify-start">
               <h1 className="text-5xl md:text-4xl font-extrabold text-gray-900 mb-3">{product.name}</h1>
-              <div className="text-yellow-500 font-extrabold text-3xl md:text-4xl mb-3">₦{Number(product.price || 0).toLocaleString()}</div>
+              <div className="text-black font-extrabold text-3xl md:text-4xl mb-3" style={{ textShadow: '0 1px 1px #D97706' }}>₦{Number(product.price || 0).toLocaleString()}</div>
               {category && <div className="text-base text-gray-800 mb-2">Category: <span className="font-semibold">{category.name}</span></div>}
               <div className="text-lg leading-relaxed text-gray-900 mb-4 whitespace-pre-line">{product.description}</div>
               <div className="flex items-center gap-3 mt-3">
@@ -150,7 +150,7 @@ export default function ProductDetailClient({ product, related, category }: { pr
                     <img src={p.images && p.images[0] ? p.images[0] : '/logo.png'} alt={p.name} className="w-full h-full object-cover" />
                   </a>
                   <div className="mt-3 text-sm font-medium text-gray-900">{p.name}</div>
-                  <div className="text-xs text-amber-600 font-semibold">₦{Number(p.price || 0).toLocaleString()}</div>
+                  <div className="text-xs text-black font-semibold" style={{ textShadow: '0 1px 1px #D97706' }}>₦{Number(p.price || 0).toLocaleString()}</div>
                 </div>
               ))}
             </div>
