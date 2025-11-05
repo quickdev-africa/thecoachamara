@@ -20,6 +20,16 @@ jobs:
       - name: Install deps
         run: npm ci
 
+      - name: Setup CI environment
+        run: |
+          cp .env.ci .env.local
+          echo "SUPABASE_URL=https://placeholder.supabase.co" >> .env.local
+          echo "SUPABASE_SERVICE_ROLE_KEY=placeholder_key" >> .env.local
+          echo "NEXTAUTH_SECRET=placeholder_secret" >> .env.local
+          echo "PAYSTACK_SECRET_KEY=sk_test_placeholder" >> .env.local
+          echo "RESEND_API_KEY=re_placeholder" >> .env.local
+          echo "ADMIN_API_KEY=placeholder_admin" >> .env.local
+
       - name: Run staging smoke test
         env:
           BASE_URL: ${{ secrets.STAGING_BASE_URL }}
