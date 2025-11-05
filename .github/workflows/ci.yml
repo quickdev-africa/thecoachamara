@@ -17,6 +17,8 @@ jobs:
           node-version: '20'
       - name: Install dependencies
         run: npm ci
+      - name: Setup CI environment
+        run: cp .env.ci .env.local
       - name: Run env safety check
         run: npm run check:env
       - name: Build
