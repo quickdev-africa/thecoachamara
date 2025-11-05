@@ -34,7 +34,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Ca
     let filteredCategories = categories || [];
     if (!includeInactive) {
       // DB returns snake_case columns; check is_active
-      filteredCategories = filteredCategories.filter(category => category.is_active);
+      filteredCategories = filteredCategories.filter((category: any) => category.is_active);
     }
 
     return NextResponse.json({

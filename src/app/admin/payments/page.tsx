@@ -58,7 +58,7 @@ export default function PaymentsPage() {
   useEffect(() => {
     let mounted = true;
     const channel = supabase.channel('public:payments')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'payments' }, payload => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'payments' }, (_payload: unknown) => {
         try {
           // simple strategy: refetch list on any change
           if (mounted) refetch();
