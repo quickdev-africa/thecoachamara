@@ -41,10 +41,8 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        {/* Facebook Domain Verification Meta Tag in Header (production only) */}
-        {typeof process !== 'undefined' && process.env.NODE_ENV === 'production' && (
-          <meta name="facebook-domain-verification" content="owa98xgw745hwrwctfdvhpz3t3ypp4" />
-        )}
+        {/* Facebook Domain Verification Meta Tag - always present for verification */}
+        <meta name="facebook-domain-verification" content="owa98xgw745hwrwctfdvhpz3t3ypp4" />
       </head>
       <body className="antialiased font-playfair">
         {/* Meta Pixel (Facebook) */}
