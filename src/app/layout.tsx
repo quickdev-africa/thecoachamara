@@ -40,6 +40,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        {/* Facebook Domain Verification Meta Tag in Header (production only) */}
+        {typeof process !== 'undefined' && process.env.NODE_ENV === 'production' && (
+          <meta name="facebook-domain-verification" content="owa98xgw745hwrwctfdvhpz3t3ypp4" />
+        )}
+      </head>
       <body className="antialiased font-playfair">
         {/* Meta Pixel (Facebook) */}
         <Script id="meta-pixel" strategy="afterInteractive">
@@ -101,10 +107,6 @@ export default function RootLayout({
               <ConditionalHeader />
               {children}
               <GlobalDisclaimer />
-              {/* Facebook Domain Verification Meta Tag in Footer (production only) */}
-              {typeof process !== 'undefined' && process.env.NODE_ENV === 'production' && (
-                <meta name="facebook-domain-verification" content="owa98xgw745hwrwctfdvhpz3t3ypp4" />
-              )}
             </CartProvider>
           </ReactQueryProvider>
         </SessionProvider>
