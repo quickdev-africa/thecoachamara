@@ -30,6 +30,12 @@ jobs:
           echo "RESEND_API_KEY=re_placeholder" >> .env.local
           echo "ADMIN_API_KEY=placeholder_admin" >> .env.local
 
+      - name: Start server
+        run: npm run start &
+
+      - name: Wait for server to be ready
+        run: npx wait-on tcp:3000
+
       - name: Run staging smoke test
         env:
           BASE_URL: ${{ secrets.STAGING_BASE_URL }}
