@@ -1,3 +1,4 @@
+"use client";
 import React, { useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowRight, MessageCircle, Play, Sparkles, ShieldCheck, CheckCircle2 } from 'lucide-react';
