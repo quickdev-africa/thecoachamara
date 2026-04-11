@@ -179,6 +179,11 @@ export default function QuantumEnergyLandingPage() {
                 Book a Private Consultation
                 <ArrowRight className="h-5 w-5" />
               </CTA>
+              {/* Updated CTA link to Google Form */}
+              <CTA href="https://docs.google.com/forms/d/e/1FAIpQLSdJjPk3kbikdhJ0AQ7svZhUXQOLbB339gbj9HPw9qS-1gjjbA/viewform" className="w-full sm:w-auto">
+                Book a Private Consultation
+                <ArrowRight className="h-5 w-5" />
+              </CTA>
               <CTA primary={false} href="https://wa.me/2348033320512?text=QUANTUM" className="w-full sm:w-auto">
                 <MessageCircle className="h-5 w-5" />
                 Send “QUANTUM” on WhatsApp
@@ -263,6 +268,11 @@ export default function QuantumEnergyLandingPage() {
           See If This Is Right For You
           <ArrowRight className="h-5 w-5" />
         </CTA>
+        {/* Updated CTA link to Google Form */}
+        <CTA href="https://docs.google.com/forms/d/e/1FAIpQLSdJjPk3kbikdhJ0AQ7svZhUXQOLbB339gbj9HPw9qS-1gjjbA/viewform">
+          See If This Is Right For You
+          <ArrowRight className="h-5 w-5" />
+        </CTA>
       </div>
 
       <Section title="Your Body Is Electrical. Every Cell Communicates Through Energy.">
@@ -320,6 +330,11 @@ export default function QuantumEnergyLandingPage() {
 
       <div className="px-5 pb-16 text-center sm:px-6 md:px-8 md:pb-20">
         <CTA href="#consultation">
+          Apply for a Private Consultation
+          <ArrowRight className="h-5 w-5" />
+        </CTA>
+        {/* Updated CTA link to Google Form */}
+        <CTA href="https://docs.google.com/forms/d/e/1FAIpQLSdJjPk3kbikdhJ0AQ7svZhUXQOLbB339gbj9HPw9qS-1gjjbA/viewform">
           Apply for a Private Consultation
           <ArrowRight className="h-5 w-5" />
         </CTA>
@@ -388,6 +403,11 @@ export default function QuantumEnergyLandingPage() {
           </h2>
           <div className="mt-10 flex justify-center">
             <CTA href="#" primary className="bg-gradient-to-r from-amber-400 to-amber-500 text-zinc-950 hover:shadow-[0_24px_50px_-18px_rgba(245,158,11,0.85)]">
+              Schedule Consultation
+              <ArrowRight className="h-5 w-5" />
+            </CTA>
+            {/* Updated CTA link to Google Form */}
+            <CTA href="https://docs.google.com/forms/d/e/1FAIpQLSdJjPk3kbikdhJ0AQ7svZhUXQOLbB339gbj9HPw9qS-1gjjbA/viewform" primary className="bg-gradient-to-r from-amber-400 to-amber-500 text-zinc-950 hover:shadow-[0_24px_50px_-18px_rgba(245,158,11,0.85)]">
               Schedule Consultation
               <ArrowRight className="h-5 w-5" />
             </CTA>
