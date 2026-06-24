@@ -130,7 +130,7 @@ export default function QuantumEnergyLandingPage() {
             </p>
           </div>
           <a
-            href="#consultation"
+            href="https://wa.me/2348033320512?text=QUANTUM"
             className="inline-flex items-center gap-2 rounded-xl bg-zinc-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800 sm:px-5 sm:text-base"
           >
             Schedule
@@ -176,7 +176,7 @@ export default function QuantumEnergyLandingPage() {
 
             <div className="mt-12 flex flex-col items-stretch justify-center gap-4 sm:flex-row sm:items-center lg:justify-start">
               <CTA href="https://docs.google.com/forms/d/e/1FAIpQLSdJjPk3kbikdhJ0AQ7svZhUXQOLbB339gbj9HPw9qS-1gjjbA/viewform" className="w-full sm:w-auto">
-                Book a Private Consultation
+                Place Your Order Now
                 <ArrowRight className="h-5 w-5" />
               </CTA>
               <CTA primary={false} href="https://wa.me/2348033320512?text=QUANTUM" className="w-full sm:w-auto">
@@ -260,7 +260,7 @@ export default function QuantumEnergyLandingPage() {
 
       <div className="px-5 pb-12 text-center sm:px-6 md:px-8 md:pb-16">
         <CTA href="https://docs.google.com/forms/d/e/1FAIpQLSdJjPk3kbikdhJ0AQ7svZhUXQOLbB339gbj9HPw9qS-1gjjbA/viewform">
-          See If This Is Right For You
+          Place Your Order Now
           <ArrowRight className="h-5 w-5" />
         </CTA>
       </div>
@@ -320,7 +320,7 @@ export default function QuantumEnergyLandingPage() {
 
       <div className="px-5 pb-16 text-center sm:px-6 md:px-8 md:pb-20">
         <CTA href="https://docs.google.com/forms/d/e/1FAIpQLSdJjPk3kbikdhJ0AQ7svZhUXQOLbB339gbj9HPw9qS-1gjjbA/viewform">
-          Apply for a Private Consultation
+          Place Your Order Now
           <ArrowRight className="h-5 w-5" />
         </CTA>
         <p className="mt-4 text-base text-zinc-500 sm:text-lg">Limited consultations available weekly.</p>
@@ -388,7 +388,7 @@ export default function QuantumEnergyLandingPage() {
           </h2>
           <div className="mt-10 flex justify-center">
             <CTA href="https://docs.google.com/forms/d/e/1FAIpQLSdJjPk3kbikdhJ0AQ7svZhUXQOLbB339gbj9HPw9qS-1gjjbA/viewform" primary className="bg-gradient-to-r from-amber-400 to-amber-500 text-zinc-950 hover:shadow-[0_24px_50px_-18px_rgba(245,158,11,0.85)]">
-              Schedule Consultation
+              Place Your Order Now
               <ArrowRight className="h-5 w-5" />
             </CTA>
           </div>
